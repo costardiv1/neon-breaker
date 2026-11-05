@@ -4,20 +4,20 @@
 // Rows: 9 columns. '.' empty, '1'..'4' hits needed, 'X' wall, 'E' explosive.
 
 export const MECHS = {
-  slide:    { name: 'DESLIZE',   text: 'Neste distrito as fileiras de blocos deslizam de um lado para o outro.' },
-  gravity:  { name: 'GRAVIDADE', text: 'Neste distrito núcleos de gravidade puxam o disco e curvam a trajetória dele.' },
-  walls:    { name: 'MURALHA',   text: 'Blocos riscados são indestrutíveis. Use-os para rebater o disco.' },
-  portals:  { name: 'PORTAIS',   text: 'No código-fonte tudo se conecta: o disco que entra em um portal sai pelo outro, na mesma direção.' },
-  blast:    { name: 'REAÇÃO',    text: 'Blocos marcados com X explodem e danificam os vizinhos.' },
-  phase:    { name: 'FASE',      text: 'De madrugada nada é sólido: blocos tracejados estão fora de fase e o disco atravessa. Eles alternam a cada poucos segundos.' },
-  descent:  { name: 'PRESSÃO',   text: 'Aqui os blocos descem sem parar. Se tocarem a linha de alerta, você perde uma vida. A pressão nunca diminui, só muda de nome.' },
+  slide:    { name: 'DESLIZE',   text: 'As fileiras de blocos deslizam de um lado para o outro.' },
+  gravity:  { name: 'GRAVIDADE', text: 'Núcleos de gravidade puxam e curvam o disco.' },
+  walls:    { name: 'MURALHA',   text: 'Blocos riscados são indestrutíveis.' },
+  portals:  { name: 'PORTAIS',   text: 'Entre num portal e saia pelo outro.' },
+  blast:    { name: 'REAÇÃO',    text: 'Blocos com X explodem e atingem os vizinhos.' },
+  phase:    { name: 'FASE',      text: 'Blocos tracejados estão fora de fase: o disco atravessa.' },
+  descent:  { name: 'PRESSÃO',   text: 'Os blocos descem. Se tocarem a linha de alerta, você perde uma vida.' },
 };
 
 export const WORLDS = [
   {
     name: 'PERIFERIA', mech: 'slide', music: 'w1', bossMusic: 'boss1', border: 'flow',
     boss: { type: 'sentinel', name: 'SENTINELA',
-      text: 'O ponto fraco é o núcleo embaixo do casco: acerte quando a íris estiver aberta. Ele desvia e captura o disco. Ao perder a primeira barra de vida entra em MODO FÚRIA.' },
+      text: 'Acerte o núcleo embaixo do casco quando a íris abrir.' },
     stages: [
       { mech: null, rows: [
         '..22222..',
@@ -44,7 +44,7 @@ export const WORLDS = [
   {
     name: 'LAN HOUSE', mech: 'gravity', music: 'w2', bossMusic: 'boss2', border: 'beat',
     boss: { type: 'singularity', name: 'SINGULARIDADE',
-      text: 'O ponto fraco é o núcleo dentro do anel: passe pela abertura do anel. Ela puxa, repele e prende o disco em órbita. Ao perder a primeira barra de vida entra em MODO FÚRIA.' },
+      text: 'Acerte o núcleo pela abertura do anel.' },
     stages: [
       { wells: [[0.5, 0.42]], rows: [
         '..33333..',
@@ -71,7 +71,7 @@ export const WORLDS = [
     // Working for the corporation: the pressure never stops.
     name: 'HORA EXTRA', mech: 'descent', music: 'w3', bossMusic: 'boss3', border: 'scan',
     boss: { type: 'supervisor', name: 'O SUPERVISOR',
-      text: 'Ele vigia tudo do alto da pirâmide. O ponto fraco é o olho no topo: faça o disco chegar acima dele, quando o olho estiver aberto. Ele compra o seu disco e joga para longe, e a pirâmide pesa sobre você. Ao perder a primeira barra de vida entra em MODO FÚRIA.' },
+      text: 'Acerte o olho no topo da pirâmide quando ele abrir.' },
     stages: [
       { name: 'EXPEDIENTE', rows: [
         '222222222',
@@ -98,7 +98,7 @@ export const WORLDS = [
     // Nights spent coding the game, after the overtime.
     name: 'MADRUGADA', mech: 'phase', music: 'w4', bossMusic: 'boss4', border: 'beat',
     boss: { type: 'clock', name: 'O RELÓGIO DE PONTO',
-      text: 'Ele marca cada minuto da sua vida. O ponto fraco é o centro do relógio: passe entre os ponteiros, que giram e rebatem o disco. Quando o alarme toca, cuidado com os disparos. Ao perder a primeira barra de vida entra em MODO FÚRIA.' },
+      text: 'Acerte o centro do relógio passando entre os ponteiros.' },
     stages: [
       { name: 'INSÔNIA', rows: [
         '..22222..',
@@ -126,7 +126,7 @@ export const WORLDS = [
     // The game takes shape: everything connects.
     name: 'CÓDIGO-FONTE', mech: 'portals', music: 'w5', bossMusic: 'boss5', border: 'flow',
     boss: { type: 'patent', name: 'A PATENTE',
-      text: 'Ela tranca o que deveria ser de todos. O ponto fraco é a fechadura embaixo do cadeado, que só abre de vez em quando. Ela registra blocos como propriedade, que ficam indestrutíveis, e abre portais que devolvem o seu disco. Ao perder a primeira barra de vida entra em MODO FÚRIA.' },
+      text: 'Acerte a fechadura embaixo do cadeado quando ela abrir.' },
     stages: [
       { name: 'HELLO WORLD', portals: [[0.14, 0.4, 0.86, 0.4]], rows: [
         '.2222222.',
@@ -155,7 +155,7 @@ export const WORLDS = [
   { name: 'TORRE AURUM', soon: true },
   { name: 'O SISTEMA', soon: true, final: true, music: 'w3', bossMusic: 'boss3', border: 'scan',
     boss: { type: 'system', name: 'O SISTEMA',
-      text: 'Sede da Aurum. No topo da pirâmide fica o olho que tudo vê: é o ponto fraco, e ele só se abre de vez em quando. O SISTEMA compra o seu disco, confisca seus poderes e faz a pirâmide pesar sobre você. Dizem que ele é grande demais para cair.' } },
+      text: 'Acerte o olho que tudo vê. Dizem que ele é grande demais para cair.' } },
 ];
 
 // Stages per world = its stages + the boss.

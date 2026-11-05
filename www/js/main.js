@@ -166,7 +166,7 @@ const game = new Game({
         showCard();
       } else if (st.mech && !seen[st.mech]) {
         markSeen(st.mech);
-        const extra = st.w > 0 ? ' As mecânicas dos distritos anteriores continuam valendo: ' + worldMechs(st.w - 1).map((m) => MECHS[m].name).join(', ') + '.' : '';
+        const extra = st.w > 0 ? ' Continuam valendo: ' + worldMechs(st.w - 1).map((m) => MECHS[m].name).join(', ') + '.' : '';
         card = { kicker: `DISTRITO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text + extra, focus: 'mech' };
         showCard();
       }
@@ -218,6 +218,7 @@ function setScene(s) {
   if (s !== 'play') saveChips();
   if (s === 'map' && scene !== 'map') focusMap();
   if (s === 'plat' && scene !== 'plat') openPlat();
+  showGateInput(s === 'devgate' && !opts.dev);
   scene = s;
   sfx.setPlaying(s === 'play');
   if (s === 'crash') music.play(null);
@@ -245,7 +246,7 @@ function resize() {
   game.setLayout(H, safeTop + 130);
   clearSprites();
 }
-window.addEventListener('resize', resize);
+window.addEventListener('resize', () => { resize(); if (gateInput && gateInput.style.display !== 'none') placeGateInput(); });
 resize();
 try { for (const w of [500, 700, 800, 900]) document.fonts.load(`${w} 32px Orbitron`); } catch (e) { /* ignore */ }
 
@@ -320,9 +321,12 @@ function optionRows() {
         presetGfx({ glow: NEON[i < 0 ? 2 : (i + d + n) % n].v });
       }, wide: true },
       { label: 'TUTORIAL', val: () => 'REVER', tap: () => { store.set('tutDone', false); startGame(0); } },
-      { label: 'MODO DEV', val: () => onOff(opts.dev), tap: () => { opts.dev = !opts.dev; } },
+      { label: 'CRÉDITOS', val: () => 'VER  ›', tap: () => setScene('credits') },
     ];
-    if (opts.dev) rows.push({ label: 'CONFIG. DEV', val: () => 'ABRIR  ›', tap: () => setScene('dev') });
+    if (opts.dev) {
+      rows.push({ label: 'MODO DEV', val: () => onOff(true), tap: () => { opts.dev = false; } });
+      rows.push({ label: 'CONFIG. DEV', val: () => 'ABRIR  ›', tap: () => setScene('dev') });
+    }
     return rows;
   }
   return [
@@ -332,20 +336,32 @@ function optionRows() {
     { label: 'FASE', slider: SL.stage },
     { label: 'DROPS', slider: SL.drop },
     { label: 'MOSTRAR FPS', val: () => onOff(opts.fps), tap: () => { opts.fps = !opts.fps; } },
-    { label: 'RESETAR PROGRESSO', val: () => 'RESETAR', tap: resetProgress },
+    { label: 'RESETAR PROGRESSO', val: () => (performance.now() - resetArm < 3000 ? 'TOQUE DE NOVO' : 'RESETAR'), tap: () => {
+      if (performance.now() - resetArm < 3000) { resetArm = 0; resetProgress(); } else resetArm = performance.now();
+    } },
     { label: 'JOGAR NA FASE', val: () => stageLabel(opts.startStage), tap: () => startGame(opts.startStage) },
   ];
 }
 
+// Wipes progress, chips, coins and everything bought with them.
 function resetProgress() {
-  best = 0; seen = {}; prog = 0;
-  store.set('best', 0); store.set('seen', {}); store.set('tutDone', false); store.set('prog', 0);
+  best = 0; seen = {}; prog = 0; chips = 0; coins = 0; equip = null;
+  for (const k in upg) upg[k] = 0;
+  Object.assign(owned, { pal: [0, PALETTES.length - 1], emb: [0, 1], disc: [0], trail: [0] });
+  Object.assign(plat, { shape: 0, pal: 0, emb: 1, disc: 0, trail: 0, dash: false, detail: true });
+  store.set('best', 0); store.set('seen', {}); store.set('tutDone', false); store.set('prog', 0); store.set('plat', plat);
+  saveChips();
+  optMsg = { text: 'PROGRESSO RESETADO', t: performance.now() / 1000 };
 }
+let resetArm = 0;          // first tap arms the reset, the second confirms it
+let optMsg = null;
 
 function optionButtons() {
   const list = [];
-  optionRows().forEach((row, i) => {
-    const y = safeTop + 200 + i * (scene === 'options' ? 84 : 90);
+  const rows = optionRows();
+  const stepY = Math.min(scene === 'options' ? 84 : 90, (H - 190 - (safeTop + 200)) / Math.max(1, rows.length - 1));
+  rows.forEach((row, i) => {
+    const y = safeTop + 200 + i * stepY;
     const done = (fn) => () => { fn(); applyOpts(); };
     if (row.slider) {
       list.push({ x: W / 2 - 320, y: y - 37, w: 640, h: 74, label: row.label, slider: row.slider, fn: () => {} });
@@ -581,8 +597,8 @@ function renderPlatScreen(c, now) {
     c.translate(px, py);
     c.scale(S, S);
     if (!open) c.globalAlpha = 0.4;
-    // shows the shape's hit animation every 1.6 s
-    drawPlatform(c, pv, 0, 0, BASE_HW, now, k, Math.max(0, 1 - (now % 1.6) / HIT_T));
+    // replays the shape's hit animation every 3.2 s
+    drawPlatform(c, pv, 0, 0, BASE_HW, now, k, Math.max(0, 1 - (now % 3.2) / HIT_T));
     c.restore();
   }
   if (key === 'shape') {
@@ -614,7 +630,7 @@ function renderPlatScreen(c, now) {
 }
 
 // ---------- ending: the game pretends to crash ----------
-const CRASH_END = 13;
+const CRASH_END = 14.2;
 const CRASH_LINES = [
   '*** FALHA CRÍTICA ***',
   '',
@@ -679,6 +695,120 @@ function renderCrash(c, now) {
   if (t > 12.4) {
     c.globalAlpha = Math.min(1, (t - 12.4) / 1);
     glowText(c, 'OBRIGADO POR JOGAR', W / 2, H * 0.58, 20, '#ffffff', k, 'center', 700, 6);
+    c.globalAlpha = 1;
+  }
+  if (t > 13.4) {
+    c.globalAlpha = Math.min(1, (t - 13.4) / 1.2) * 0.75;
+    glowText(c, 'VINICODE', W / 2, H * 0.64, 13, rgba(k, 0.9), k, 'center', 600, 10);
+    c.globalAlpha = 1;
+  }
+}
+
+// ---------- credits ----------
+const CREDITS = [
+  ['Google Fonts', ', licença SIL Open Font License 1.1: Orbitron (Matt McInerney).'],
+  ['Textos do jogo', ': fonte do seu sistema (Segoe UI, Roboto ou Helvetica).'],
+  ['Gráficos, efeitos, sons e músicas', ': gerados por código no próprio jogo, sem arquivos de imagem ou áudio.'],
+  ['Inspiração', ': os quebra-blocos clássicos e a estética neon de Tron.'],
+];
+// wraps a bold lead + regular text; returns the y after the last line
+function richWrap(c, lead, rest, x, y, maxW, size, lh) {
+  const words = [];
+  for (const w of lead.split(' ')) words.push([w, 700]);
+  rest.split(' ').forEach((w, i) => { if (i === 0 && words.length) words[words.length - 1][0] += w; else words.push([w, 400]); });
+  let cx = x;
+  c.textAlign = 'left';
+  for (const [w, wt] of words) {
+    c.font = `${wt} ${size}px ${BODY_FONT}`;
+    const ww = c.measureText(w + ' ').width;
+    if (cx + ww - x > maxW && cx > x) { cx = x; y += lh; }
+    c.fillStyle = wt === 700 ? '#ffffff' : 'rgba(255,255,255,0.78)';
+    c.fillText(w, cx, y);
+    cx += ww;
+  }
+  return y + lh;
+}
+// small pixel mascot drawn next to "Claude Code"
+function pixelBot(c, x, y, s) {
+  const rows = ['..XXXXXX..', 'XXX.XX.XXX', '..XXXXXX..', '..X.X.X.X.'];
+  c.fillStyle = '#d97757';
+  rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === 'X') c.fillRect(x + i * s, y + j * s, s, s); });
+}
+function renderCredits(c) {
+  const k = col(), cx = W / 2;
+  neonTitle(c, 'CRÉDITOS', cx, safeTop + 105, 46, k, k, 12);
+  let y = safeTop + 215;
+  // "Feito por Vinícius Costardi e Claude Code"
+  const parts = [['Feito por ', 400], ['Vinícius Costardi', 700], [' e ', 400], ['Claude Code', 700]];
+  c.textBaseline = 'middle';
+  let total = 0;
+  for (const [t, w] of parts) { c.font = `${w} 26px ${BODY_FONT}`; total += c.measureText(t).width; }
+  let x = cx - (total + 46) / 2;
+  for (const [t, w] of parts) { c.font = `${w} 26px ${BODY_FONT}`; c.fillStyle = '#ffffff'; c.textAlign = 'left'; c.fillText(t, x, y); x += c.measureText(t).width; }
+  pixelBot(c, x + 12, y - 8, 4);
+  c.textAlign = 'center';
+  c.font = `400 24px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.9)';
+  c.fillText('Desenvolvido em vibe code', cx, y + 42);
+  c.fillText('Versão ' + VERSION, cx, y + 80);
+  y += 165;
+  glowText(c, 'ASSETS DE TERCEIROS', cx, y, 17, k, k, 'center', 700, 5);
+  y += 50;
+  for (const [lead, rest] of CREDITS) {
+    c.beginPath(); c.arc(58, y - 2, 4, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+    y = richWrap(c, lead, rest, 76, y, W - 76 - 52, 21, 31) + 14;
+  }
+  c.textBaseline = 'alphabetic';
+}
+
+// ---------- dev mode gate (5 taps on the version, then the password) ----------
+const DEV_PASS = 'VINICODE';
+var gateMsg = null;   // var: setScene() runs before this line at startup
+var gateInput = null;
+function showGateInput(on) {
+  if (!on && !gateInput) return;
+  if (!gateInput) {
+    gateInput = document.createElement('input');
+    gateInput.type = 'password';
+    gateInput.autocomplete = 'off';
+    gateInput.spellcheck = false;
+    gateInput.maxLength = 16;
+    gateInput.setAttribute('aria-label', 'Senha do modo dev');
+    gateInput.style.cssText = 'position:fixed;z-index:5;display:none;box-sizing:border-box;background:#000;color:#fff;text-align:center;'
+      + 'font-family:Orbitron,"Segoe UI",sans-serif;letter-spacing:0.3em;outline:none;border-radius:12px;padding:0 12px;';
+    gateInput.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') tryDevPassword(); });
+    document.body.appendChild(gateInput);
+  }
+  gateInput.style.display = on ? 'block' : 'none';
+  if (on) { gateInput.value = ''; placeGateInput(); setTimeout(() => { try { gateInput.focus(); } catch (e) { /* ignore */ } }, 50); }
+  else gateInput.blur();
+}
+function placeGateInput() {
+  const r = canvas.getBoundingClientRect(), s = r.width / W, k = col();
+  const w = 420 * s, h = 70 * s;
+  Object.assign(gateInput.style, { left: r.left + (W / 2) * s - w / 2 + 'px', top: r.top + (safeTop + 520) * s - h / 2 + 'px', width: w + 'px', height: h + 'px',
+    fontSize: 26 * s + 'px', border: Math.max(1, 2 * s) + 'px solid ' + k, boxShadow: '0 0 ' + 14 * s + 'px ' + k });
+}
+function tryDevPassword() {
+  const ok = gateInput && gateInput.value.trim().toUpperCase() === DEV_PASS;
+  gateMsg = { text: ok ? 'MODO DEV ATIVADO' : 'SENHA INCORRETA', ok, t: performance.now() / 1000 };
+  if (ok) {
+    opts.dev = true; applyOpts(); sfx.power(true);
+    showGateInput(false);
+    setTimeout(() => { if (scene === 'devgate') setScene('options'); }, 1300);
+  } else { sfx.power(false); if (gateInput) { gateInput.value = ''; gateInput.focus(); } }
+}
+function renderDevGate(c, now) {
+  const k = col();
+  neonTitle(c, 'MODO DEV', W / 2, safeTop + 230, 54, k, k, 12);
+  if (opts.dev && !(gateMsg && gateMsg.ok && now - gateMsg.t < 1.3)) {
+    glowText(c, 'O modo dev está ativo.', W / 2, safeTop + 380, 20, '#ffffff', k, 'center', 500, 2);
+  } else if (!opts.dev) {
+    glowText(c, 'Digite a senha', W / 2, safeTop + 420, 20, 'rgba(255,255,255,0.85)', k, 'center', 500, 3);
+    if (gateInput && gateInput.style.display !== 'none') placeGateInput();
+  }
+  if (gateMsg && now - gateMsg.t < 2) {
+    c.globalAlpha = Math.min(1, (2 - (now - gateMsg.t)) * 2);
+    glowText(c, gateMsg.text, W / 2, safeTop + 760, 20, gateMsg.ok ? '#ffffff' : '#ff4060', gateMsg.ok ? k : '#ff4060', 'center', 700, 4);
     c.globalAlpha = 1;
   }
 }
@@ -789,6 +919,12 @@ function layout() {
       return list;
     }
     case 'plat': return platButtons();
+    case 'credits': return [btn(cx, H - 90, bw, bh, 'VOLTAR', () => setScene('options'))];
+    case 'devgate': {
+      const y = safeTop + 640;
+      if (opts.dev) return [btn(cx, y, 400, 72, 'DESATIVAR', () => { opts.dev = false; applyOpts(); gateMsg = { text: 'MODO DEV DESATIVADO', ok: true, t: performance.now() / 1000 }; }), btn(cx, H - 90, bw, bh, 'VOLTAR', () => setScene('menu'))];
+      return [btn(cx, y, 400, 72, 'CONFIRMAR', tryDevPassword, { big: true }), btn(cx, H - 90, bw, bh, 'VOLTAR', () => setScene('menu'))];
+    }
     case 'colors': {
       const list = THEMES.map((t, i) => btn(cx + (i % 2 ? 160 : -160), safeTop + 270 + Math.floor(i / 2) * 150, 300, 126, t.name,
         () => { colorIndex = i; game.setColor(t.c); store.set('color', i); }, { theme: i }));
@@ -879,6 +1015,14 @@ canvas.addEventListener('pointerdown', (e) => {
     drag = { id: e.pointerId, lastX: p.x, type: e.pointerType };
     game.paddle.tx = p.x;   // the platform rushes to where the finger touched, then follows the drag
   } else {
+    // secret: 5 taps on the version number open the dev mode gate
+    if (scene === 'menu' && p.x > W - 150 && p.y > H - 60) {
+      const tn = performance.now();
+      verTaps.n = tn - verTaps.t < 1500 ? verTaps.n + 1 : 1;
+      verTaps.t = tn;
+      if (verTaps.n >= 5) { verTaps.n = 0; gateMsg = null; setScene('devgate'); sfx.power(true); }
+      return;
+    }
     buttons = layout();
     const sb = buttons.find((b) => b.slider && inside(b, p));
     if (sb) { slide = { b: sb, id: e.pointerId }; setSlider(sb, p); return; }
@@ -919,11 +1063,11 @@ canvas.addEventListener('pointerup', (e) => {
 canvas.addEventListener('pointercancel', () => { drag = null; pressed = null; mapDrag = null; slide = null; });
 canvas.addEventListener('wheel', (e) => { if (scene === 'map') { mapScroll = clampScroll(mapScroll + e.deltaY * (W / canvas.getBoundingClientRect().width)); e.preventDefault(); } }, { passive: false });
 let lastTap = { t: 0, x: 0, y: 0 };
+const verTaps = { n: 0, t: 0 };
 let mapDrag = null;
 
 window.addEventListener('keydown', (e) => {
   sfx.unlock();
-  if (e.key === 'F2') { opts.dev = !opts.dev; applyOpts(); return; }
   if (scene === 'play') {
     if (e.key === 'ArrowLeft' || e.key === 'a') game.keys.left = true;
     if (e.key === 'ArrowRight' || e.key === 'd') game.keys.right = true;
@@ -1505,7 +1649,8 @@ function render() {
     neonTitle(ctx, 'BREAKER', W / 2, H * 0.17 + 110, 58, mix(k, '#ffffff', 0.4), k, 18);
     if (best > 0) glowText(ctx, 'RECORDE  ' + best, W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
     drawPlatform(ctx, plat, W / 2, H - 150, BASE_HW, now, k);
-    glowText(ctx, 'v' + VERSION, W - 24, H - 22, 12, rgba(k, 0.6), k, 'right', 500, 2);
+    const vt = performance.now() - verTaps.t < 1500 ? verTaps.n : 0;
+    glowText(ctx, 'v' + VERSION, W - 24, H - 22, 12 + vt, rgba(k, 0.6 + vt * 0.08), k, 'right', 500, 2);
   } else if (scene === 'map') {
     renderMap(ctx, now);
   } else if (scene === 'crash') {
@@ -1514,8 +1659,17 @@ function render() {
     renderPlatScreen(ctx, now);
   } else if (scene === 'colors') {
     neonTitle(ctx, 'COR', W / 2, safeTop + 120, 64, k, k, 18);
+  } else if (scene === 'credits') {
+    renderCredits(ctx);
+  } else if (scene === 'devgate') {
+    renderDevGate(ctx, now);
   } else if (scene === 'options' || scene === 'dev') {
     neonTitle(ctx, scene === 'dev' ? 'CONFIG. DEV' : 'OPÇÕES', W / 2, safeTop + 105, 46, k, k, 12);
+    if (optMsg && now - optMsg.t < 2.2) {
+      ctx.globalAlpha = Math.min(1, (2.2 - (now - optMsg.t)) * 2);
+      glowText(ctx, optMsg.text, W / 2, H - 165, 17, '#ffffff', k, 'center', 700, 4);
+      ctx.globalAlpha = 1;
+    }
   } else {
     game.render(ctx, scene === 'play');
     if (scene === 'play' && opts.dev) renderDev(ctx);

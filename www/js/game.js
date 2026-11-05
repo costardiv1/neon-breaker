@@ -25,7 +25,7 @@ const COIN_CHANCE = 0.07;   // coins: rare drops, caught with the platform, spen
 const COIN_R = 13;
 const PHASE_T = 2.8;   // FASE: seconds each group stays solid / out of phase
 const PORTAL_R = 24;
-export const HIT_T = 0.42;   // length of the platform's hit animation (s)
+export const HIT_T = 0.6;   // length of the platform's hit animation (s)
 // graphics quality (set from the dev panel): particle amount and trail detail
 export const gfx = { fx: 1, trail: 1, grid: 1 };
 const BORDER_BASE = { flow: [3, 0.8], beat: [2.5, 0.5], scan: [2.5, 0.55] };

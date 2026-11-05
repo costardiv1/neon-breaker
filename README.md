@@ -45,7 +45,7 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 - **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança e a ASA bate as asas.
 - **Trilha sonora sintetizada** por distrito, cada vez mais rápida e frenética, com a borda do campo pulsando na batida.
 - **Feito para celular**: toque para levar a plataforma até o dedo, qualidade gráfica ajustável e padrões diferentes para PC e celular.
-- **Modo dev** completo dentro da partida, com controles deslizantes e uma aba VISUAL.
+- **Modo dev secreto** (5 toques na versão + senha), com painel dentro da partida, controles deslizantes e uma aba VISUAL.
 
 ## Distritos
 
@@ -153,6 +153,18 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>
+
+## Créditos
+
+Feito por **Vinícius Costardi** e **Claude Code**, desenvolvido em vibe code.
+
+| Asset de terceiros | Licença |
+|---|---|
+| [Orbitron](https://fonts.google.com/specimen/Orbitron) (Matt McInerney), via Google Fonts | SIL Open Font License 1.1 |
+| Textos: fonte do sistema (Segoe UI, Roboto ou Helvetica) | do próprio dispositivo |
+| Gráficos, efeitos, sons e músicas | gerados por código no próprio jogo |
+
+Inspirado nos quebra-blocos clássicos e na estética neon de Tron.
 
 ## Próximos passos
 

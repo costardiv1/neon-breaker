@@ -97,14 +97,15 @@ export function outAngle(si, k, hw = 86) {
 //   FERRADURA wobbles, ASA flaps its wings.
 export function drawPlatform(c, plat, x, y, hw, t, theme, hit = 0) {
   if (hit <= 0) { platformBody(c, plat, x, y, hw, t, theme, 0); return; }
-  const u = 1 - hit, bell = Math.sin(Math.PI * u);
+  // eased curves: a quick rise and a long, soft settle
+  const u = 1 - hit, bell = Math.sin(Math.PI * Math.pow(u, 0.65)), fade = hit * hit;
   c.save();
   c.translate(x, y);
   switch (SHAPES[plat.shape].name) {
-    case 'ARCO': c.translate(0, -16 * bell); break;
-    case 'PONTA': c.scale(1 - 0.1 * bell, 1 + 1.1 * bell); break;
-    case 'FERRADURA': c.rotate(Math.sin(u * 22) * 0.07 * hit); break;
-    case 'ASA': c.scale(1 + 0.16 * Math.abs(Math.sin(u * 3 * Math.PI)) * hit, 1 - 0.5 * Math.sin(u * 3 * Math.PI) * hit); break;
+    case 'ARCO': c.translate(0, -14 * bell); break;
+    case 'PONTA': c.scale(1 - 0.08 * bell, 1 + 0.9 * bell); break;
+    case 'FERRADURA': c.rotate(Math.sin(u * 4 * Math.PI) * 0.06 * fade); break;
+    case 'ASA': { const f = Math.sin(u * 3 * Math.PI) * Math.pow(hit, 1.4); c.scale(1 + 0.12 * Math.abs(f), 1 - 0.4 * f); break; }
     default: break;
   }
   platformBody(c, plat, 0, 0, hw, t, theme, hit);
@@ -152,10 +153,11 @@ function platformBody(c, plat, x, y, hw, t, theme, hit) {
     c.restore();
   } else neon(c, g1, ga, gb, 7, pulse);
   // LÂMINA blinks white when hit
-  if (hit > 0 && SHAPES[plat.shape].name === 'LÂMINA' && Math.floor((1 - hit) * 9) % 2 === 0) {
+  if (hit > 0 && SHAPES[plat.shape].name === 'LÂMINA') {
+    const a = (0.5 - 0.5 * Math.cos((1 - hit) * 4 * Math.PI)) * hit;   // two soft pulses
     polyPath(c, main);
     c.save(); c.globalCompositeOperation = 'lighter';
-    c.strokeStyle = 'rgba(255,255,255,' + (0.4 + 0.6 * hit) + ')'; c.lineWidth = 10; c.lineCap = 'round'; c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,' + a.toFixed(3) + ')'; c.lineWidth = 10; c.lineCap = 'round'; c.stroke();
     c.restore();
   }
 
@@ -286,7 +288,7 @@ export function drawEmblem(c, ei, x, y, t, grad, ga, gb) {
     case 'MIRA': {
       c.beginPath(); c.arc(0, 0, 8, 0, TAU);
       neon(c, grad, ga, gb, 2, 0.7);
-      c.rotate(t * 0.8);
+      c.rotate(t * 0.45);
       c.beginPath();
       for (let k = 0; k < 4; k++) { const a = (k * TAU) / 4; c.moveTo(Math.cos(a) * 11, Math.sin(a) * 11); c.lineTo(Math.cos(a) * 16, Math.sin(a) * 16); }
       neon(c, grad, gb, ga, 2, 0.6);
@@ -294,36 +296,36 @@ export function drawEmblem(c, ei, x, y, t, grad, ga, gb) {
       break;
     }
     case 'NÚCLEO': {
-      c.beginPath(); c.arc(0, 0, 4 + Math.sin(t * 5), 0, TAU); c.fillStyle = '#fff';
+      c.beginPath(); c.arc(0, 0, 4 + Math.sin(t * 2.6), 0, TAU); c.fillStyle = '#fff';
       c.shadowColor = ga; c.shadowBlur = 14 * view.blur; c.fill(); c.shadowBlur = 0;
-      c.save(); c.setLineDash([4, 4]); c.rotate(t * 1.5);
+      c.save(); c.setLineDash([4, 4]); c.rotate(t * 0.8);
       c.beginPath(); c.arc(0, 0, 11, 0, TAU); neon(c, grad, gb, ga, 1.8, 0.6);
       c.restore();
-      const a = t * 3.2;
+      const a = t * 1.7;
       c.beginPath(); c.arc(Math.cos(a) * 11, Math.sin(a) * 11, 2.6, 0, TAU); c.fillStyle = gb; c.fill();
       break;
     }
     case 'TRIÂNGULO': {
       c.beginPath(); c.moveTo(0, -12); c.lineTo(11, 8); c.lineTo(-11, 8); c.closePath();
       neon(c, grad, ga, gb, 2.2, 0.8);
-      const s = 0.8 + 0.25 * Math.sin(t * 4);
+      const s = 0.8 + 0.25 * Math.sin(t * 2.2);
       c.beginPath(); c.moveTo(0, 5 * s); c.lineTo(4.5 * s, -2.5 * s); c.lineTo(-4.5 * s, -2.5 * s); c.closePath();
       neon(c, grad, gb, ga, 1.6, 0.6);
       break;
     }
     case 'HEXÁGONO': {
-      c.rotate(t * 0.6);
+      c.rotate(t * 0.35);
       c.beginPath();
       for (let k = 0; k < 6; k++) { const a = (k * TAU) / 6; c[k ? 'lineTo' : 'moveTo'](Math.cos(a) * 12, Math.sin(a) * 12); }
       c.closePath();
       neon(c, grad, ga, gb, 2.2, 0.8);
-      c.rotate(-t * 1.2);
+      c.rotate(-t * 0.7);
       c.beginPath(); c.moveTo(-6, 0); c.lineTo(6, 0); c.moveTo(0, -6); c.lineTo(0, 6);
       neon(c, grad, gb, ga, 1.6, 0.5);
       break;
     }
     case 'RAIO': {
-      const fl = Math.sin(t * 17) > -0.7 ? 1 : 0.3;
+      const fl = 0.65 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2.4)) * (Math.sin(t * 0.9) > -0.85 ? 1 : 0.4);
       c.globalAlpha = fl;
       c.beginPath(); c.moveTo(3, -13); c.lineTo(-5, 1); c.lineTo(2, 1); c.lineTo(-3, 13); c.lineTo(6, -3); c.lineTo(-1, -3); c.closePath();
       neon(c, grad, ga, gb, 2, 0.9);
@@ -334,13 +336,13 @@ export function drawEmblem(c, ei, x, y, t, grad, ga, gb) {
       neon(c, grad, ga, gb, 2, 0.8);
       c.fillStyle = '#fff';
       [[-13, -6], [0, -10], [13, -6]].forEach(([px, py], i) => {
-        c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5 + i * 2);
+        c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 2.4 + i * 2);
         c.beginPath(); c.arc(px, py - 3, 2.2, 0, TAU); c.fill();
       });
       break;
     }
     case 'SETAS': {
-      const o = 3 * Math.sin(t * 5);
+      const o = 3 * Math.sin(t * 2.4);
       c.beginPath();
       c.moveTo(-8 - o, -7); c.lineTo(-15 - o, 0); c.lineTo(-8 - o, 7);
       c.moveTo(8 + o, -7); c.lineTo(15 + o, 0); c.lineTo(8 + o, 7);

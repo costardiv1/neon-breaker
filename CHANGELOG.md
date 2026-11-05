@@ -17,12 +17,20 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - Contador de moedas abaixo das vidas durante a partida.
 - Número da versão no canto do menu principal.
 - Documentação do jogo, changelog e repositório no GitHub.
+- Tela CRÉDITOS nas opções, com autoria e assets de terceiros.
+- Acesso secreto ao modo dev: tocar 5 vezes na versão, no canto do menu, e digitar a senha.
+- Confirmação em dois toques e mensagem PROGRESSO RESETADO ao resetar o progresso.
+- Uma última linha no final do jogo.
 
 ### Alterado
 
 - Animação da PONTA ao bater invertida: ela fica mais pontuda e volta.
 - Botão DEV movido para a direita, embaixo da pausa, para dar lugar às moedas.
 - Ícones de mecânica no mapa ficam mais compactos quando o distrito acumula muitas mecânicas.
+- Animações da plataforma mais suaves e mais longas; emblemas com movimento mais calmo e prévia a cada 3,2 s.
+- Textos de mecânica nova e de chefão reduzidos a uma frase.
+- Resetar o progresso agora também zera chips, moedas, poderes e itens comprados.
+- O botão MODO DEV saiu das opções (só aparece para desligar, quando ativo).
 
 ## [0.9-alpha] · 04/11/2026 · Toque, animações e fantasma
 
