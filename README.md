@@ -14,6 +14,10 @@ Rebata o disco, atravesse os distritos de uma cidade cibernética e derrube O SI
 ![Web Audio](https://img.shields.io/badge/Web%20Audio-sintetizado-2bff88?style=for-the-badge)
 ![dependências](https://img.shields.io/badge/depend%C3%AAncias-zero-ff7a1a?style=for-the-badge)
 
+### [▶ JOGAR AGORA NO NAVEGADOR](https://costardiv1.github.io/neon-breaker/)
+
+<sub>Funciona no celular e no PC. No celular, use “Adicionar à tela inicial” para jogar em tela cheia.</sub>
+
 </div>
 
 ---
@@ -118,7 +122,9 @@ Ao derrotar O SISTEMA, o jogo finge travar: a tela congela e se rasga, e um term
 
 ## Como rodar
 
-Precisa apenas do [Node.js](https://nodejs.org) (o jogo não tem dependências).
+O jogo está publicado no GitHub Pages: **https://costardiv1.github.io/neon-breaker/**
+
+Para rodar localmente, precisa apenas do [Node.js](https://nodejs.org) (o jogo não tem dependências).
 
 ```bash
 git clone https://github.com/costardiv1/neon-breaker.git
