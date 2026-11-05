@@ -1092,9 +1092,17 @@ function onFocusChange(on) {
   sfx.setFocus(on);
   if (!on && scene === 'play') setScene('pause');
 }
-document.addEventListener('visibilitychange', () => onFocusChange(!document.hidden));
-window.addEventListener('blur', () => onFocusChange(false));
-window.addEventListener('focus', () => onFocusChange(true));
+// Sound only plays while the game is actually on screen. 'focus' can arrive
+// while the page is still hidden on some phones, so every event checks it.
+const visible = () => onFocusChange(!document.hidden);
+const hidden = () => onFocusChange(false);
+document.addEventListener('visibilitychange', visible);
+document.addEventListener('freeze', hidden);
+document.addEventListener('resume', visible);
+window.addEventListener('pagehide', hidden);
+window.addEventListener('pageshow', visible);
+window.addEventListener('blur', hidden);
+window.addEventListener('focus', visible);
 
 // ---------- menu background disc ----------
 const demo = { x: W * 0.3, y: 500, vx: 250, vy: -330, path: [{ x: W * 0.3, y: 500 }], spin: 0 };

@@ -21,15 +21,29 @@ class Sfx {
         this.ctx = new AC();
         this.build();
       }
-      if (this.ctx.state === 'suspended' && this.focused !== false) this.ctx.resume();
+      if (this.ctx.state === 'suspended' && this.focused !== false && !document.hidden) this.ctx.resume();
     } catch (e) { /* audio unavailable */ }
   }
 
   // Mute everything while the page is hidden / unfocused (suspends the clock too).
+  // The master gain drops to zero first, so no tail (delay, reverb, engine
+  // whine) escapes while the context takes a moment to suspend.
   setFocus(on) {
+    on = on && !document.hidden;
     this.focused = on;
     if (!this.ctx) return;
-    try { if (on) this.ctx.resume(); else this.ctx.suspend(); } catch (e) { /* ignore */ }
+    try {
+      const g = this.master.gain, now = this.ctx.currentTime;
+      g.cancelScheduledValues(now);
+      g.value = 0;
+      g.setValueAtTime(0, now);
+      if (on) {
+        g.setTargetAtTime(this.enabled ? 0.55 : 0, now, 0.05);
+        this.ctx.resume();
+      } else {
+        this.ctx.suspend();
+      }
+    } catch (e) { /* ignore */ }
   }
 
   build() {
@@ -410,7 +424,7 @@ class Music {
 
   tick() {
     const c = this.s.ctx;
-    if (!c || !this.track || !this.s.musicOn || c.state !== 'running') return;
+    if (!c || !this.track || !this.s.musicOn || c.state !== 'running' || document.hidden) return;
     const T = TRACKS[this.track];
     const d = 60 / (T.bpm * (this.fury ? 1.1 : 1)) / 4;
     if (this.next < c.currentTime) this.next = c.currentTime + 0.05;
