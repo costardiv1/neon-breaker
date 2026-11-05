@@ -7,7 +7,7 @@
 **Um quebra-blocos minimalista em neon, feito para o celular.**
 Rebata o disco, atravesse os distritos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.0-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.1-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -41,12 +41,13 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 ## Destaques
 
 - **5 distritos jogáveis, 20 fases e 5 chefões**, cada um com dois estágios de vida e MODO FÚRIA.
+- **A história em capítulos**: a cada chefão derrotado, um terminal digita um trecho do diário de quem está derrubando o sistema.
 - **Mecânicas que se acumulam**: cada distrito traz uma nova e mantém as anteriores.
 - **Mapa em cidade 3D isométrica**: o caminho das fases é uma rua, com cercas de neon nos portões, carros de luz que passam atrás dos prédios e a torre AURUM no fim.
-- **Plataforma personalizável**: 5 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.
-- **Poderes da plataforma** evoluídos com chips: MEGA LASER, ONDA DE CHOQUE, ESCUDO, ÍMÃ e PLATAFORMA LARGA.
+- **Plataforma personalizável**: 7 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.
+- **Árvore de poderes** evoluídos com chips: ESCUDO, ONDA DE CHOQUE, CÂMERA LENTA, ÍMÃ, MEGA LASER, RELÂMPAGO e PLATAFORMA LARGA.
 - **12 cápsulas** de poderes e desvantagens, incluindo míssil teleguiado e o disco FANTASMA, que some perto dos blocos.
-- **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança e a ASA bate as asas.
+- **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança, a ASA bate as asas, a ONDA ondula e o FUNIL afunda.
 - **Trilha sonora sintetizada** por distrito, cada vez mais rápida e frenética, com a borda do campo pulsando na batida.
 - **Feito para celular**: toque para levar a plataforma até o dedo, qualidade gráfica ajustável e padrões diferentes para PC e celular.
 - **Modo dev secreto** (5 toques na versão + senha), com painel dentro da partida, controles deslizantes e uma aba VISUAL.
@@ -55,7 +56,7 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 
 | # | Distrito | Mecânica nova | Chefão | |
 |:-:|---|---|---|---|
-| 1 | PERIFERIA | DESLIZE: as fileiras deslizam | SENTINELA | ✅ |
+| 1 | SUBÚRBIO | DESLIZE: as fileiras deslizam | SENTINELA | ✅ |
 | 2 | LAN HOUSE | GRAVIDADE: núcleos curvam o disco | SINGULARIDADE | ✅ |
 | 3 | HORA EXTRA | PRESSÃO: os blocos descem até a linha de alerta | O SUPERVISOR | ✅ |
 | 4 | MADRUGADA | FASE: blocos tracejados que o disco atravessa | O RELÓGIO DE PONTO | ✅ |
@@ -109,7 +110,7 @@ Ao derrotar O SISTEMA, o jogo finge travar: a tela congela e se rasga, e um term
 | Moeda | Como ganhar | Serve para |
 |---|---|---|
 | **Chips** | 1 por bloco, 10 por fase, 5 por acerto no chefão, 60 por chefão | Comprar e evoluir os poderes da plataforma |
-| **Moedas** | Caem de 7% dos blocos e precisam ser pegas com a plataforma | Cores, emblemas, discos e rastros |
+| **Moedas** | Caem de 7% dos blocos e precisam ser pegas com a plataforma (as que ainda caem no fim da fase contam) | Cores, emblemas, discos e rastros |
 
 ## Controles
 
@@ -155,7 +156,7 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 ## Documentação
 
 - 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, distritos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.0.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.1.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>

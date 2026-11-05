@@ -54,8 +54,10 @@ export const ABILITIES = {
   shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai da plataforma, danifica os blocos mais próximos e desvia o disco.', cost: [50, 110, 200] },
   shield:    { name: 'ESCUDO', desc: 'Uma barreira de energia embaixo da plataforma rebate o disco por alguns segundos.', cost: [40, 90, 170] },
   magnet:    { name: 'ÍMÃ', desc: 'Por alguns segundos a plataforma segura o disco a cada toque. Solte para mirar e lançar.', cost: [40, 90, 170] },
+  slow:      { name: 'CÂMERA LENTA', desc: 'O tempo desacelera: por alguns segundos o disco anda na metade da velocidade.', cost: [110, 220, 380] },
+  bolt:      { name: 'RELÂMPAGO', desc: 'Um raio sai do disco e salta de bloco em bloco, danificando cada um no caminho.', cost: [130, 260, 450] },
 };
-export const WIDTH_COST = [50, 110, 200];
+export const WIDTH_COST = [140, 280, 480];
 
 export function tierTone(col, hp) {
   return hp === 1 ? mix(col, '#000000', 0.35) : hp === 2 ? col : hp === 3 ? mix(col, WHITE, 0.3) : mix(col, WHITE, 0.55);
@@ -290,6 +292,13 @@ export function drawAbilityIcon(c, type, x, y, s, color) {
     c.arc(x, y - s * 0.1, s * 0.75, Math.PI, 0, false); c.lineTo(x + s * 0.75, y + s * 0.8);
     c.moveTo(x - s * 0.75, y - s * 0.1); c.lineTo(x - s * 0.75, y + s * 0.8); c.stroke();
     c.beginPath(); c.moveTo(x - s, y + s * 0.8); c.lineTo(x - s * 0.5, y + s * 0.8); c.moveTo(x + s * 0.5, y + s * 0.8); c.lineTo(x + s, y + s * 0.8); c.stroke();
+  } else if (type === 'slow') {
+    c.arc(x, y, s, 0, TAU); c.stroke();
+    c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - s * 0.65); c.moveTo(x, y); c.lineTo(x + s * 0.45, y + s * 0.2); c.stroke();
+    c.beginPath(); c.moveTo(x - s * 1.35, y - s * 0.5); c.lineTo(x - s * 1.35, y + s * 0.5); c.stroke();
+  } else if (type === 'bolt') {
+    c.moveTo(x + s * 0.3, y - s); c.lineTo(x - s * 0.45, y + s * 0.1); c.lineTo(x + s * 0.15, y + s * 0.1); c.lineTo(x - s * 0.3, y + s); c.stroke();
+    c.beginPath(); c.arc(x + s * 0.75, y - s * 0.55, s * 0.18, 0, TAU); c.arc(x - s * 0.8, y + s * 0.6, s * 0.18, 0, TAU); c.fill();
   } else if (type === 'width') {
     c.moveTo(x - s, y); c.lineTo(x + s, y);
     c.moveTo(x - s * 0.6, y - s * 0.4); c.lineTo(x - s, y); c.lineTo(x - s * 0.6, y + s * 0.4);
@@ -693,7 +702,8 @@ export class Game {
       }
     }
 
-    const target = this.baseSpeed * this.speedFactor();
+    const slow = this.abil && this.abil.type === 'slow' ? 0.5 : 1;   // CÂMERA LENTA
+    const target = this.baseSpeed * this.speedFactor() * slow;
     const rTarget = BALL_R * this.discScale();
     // FANTASMA: the disc fades out as it nears the bricks and comes back on its way down
     let zoneY = -1e9;
@@ -708,7 +718,7 @@ export class Game {
       b.spin += dt * 9;
       b.r += (rTarget - b.r) * Math.min(1, dt * 8);
       if (b.held) { b.x = p.x + clamp(b.hold || 0, -p.hw * 0.8, p.hw * 0.8); b.y = p.y + Math.min(0, this.shape.y(0, p.hw)) - b.r - 6; b.path = [{ x: b.x, y: b.y }]; continue; }
-      b.s += (target - b.s) * Math.min(1, dt * 3);
+      b.s += (target - b.s) * Math.min(1, dt * (slow < 1 ? 8 : 3));
       if (b.cap && this.boss) { this.boss.holdBall(b, dt); trimTrail(b.path, b.x, b.y); continue; }
       b.cap = null;
       this.moveBall(b, dt);
@@ -732,6 +742,7 @@ export class Game {
       this.balls = [];
       this.drops = [];
       this.bolts = []; this.missiles = []; this.shots = [];
+      this.collectCoins();
       sfx.clear();
       this.emit('chip', 10);
       this.emit('stageClear', this.index);
@@ -765,6 +776,17 @@ export class Game {
       }
     }
     this.coins = this.coins.filter((q) => !q.got && q.y < this.bottom + 30);
+  }
+
+  // When a stage ends, coins still falling go straight to the player's wallet.
+  collectCoins() {
+    const left = this.coins.filter((q) => !q.got);
+    this.coins = [];
+    if (!left.length) return;
+    for (const q of left) this.burst(q.x, q.y, 6, 0.5, [COIN_COL, WHITE]);
+    this.emit('coin', left.length);
+    sfx.coin();
+    this.float('+' + left.length + (left.length > 1 ? ' MOEDAS' : ' MOEDA'), this.paddle.x, this.paddle.y - 60, 18);
   }
 
   updateMechanics(dt) {
@@ -1271,6 +1293,7 @@ export class Game {
     for (const b of this.balls) this.burst(b.x, b.y, 12);
     this.balls = [];
     this.drops = []; this.bolts = []; this.missiles = []; this.shots = [];
+    this.collectCoins();
     for (const br of this.bricks) br.dead = true;
     sfx.bossDie();
     vibrate(200);
@@ -1348,6 +1371,27 @@ export class Game {
     } else if (a.type === 'magnet') {
       this.abil = { type: 'magnet', t: 6 + 3 * L, max: 6 + 3 * L };
       sfx.capture();
+    } else if (a.type === 'slow') {
+      this.abil = { type: 'slow', t: 4 + 1.5 * L, max: 4 + 1.5 * L };
+      sfx.capture();
+    } else if (a.type === 'bolt') {
+      // chain: from the disc to the nearest brick, then on to the nearest one from there
+      const src = this.balls.find((b) => !b.cap) || { x: this.paddle.x, y: this.paddle.y - 30 };
+      const pts = [{ x: src.x, y: src.y }], left = this.bricks.filter((q) => !q.dead && q.kind !== 'wall' && !q.out);
+      let cx = src.x, cy = src.y;
+      for (let n = 0; n < 3 + 2 * L && left.length; n++) {
+        let bi = 0, bd = Infinity;
+        left.forEach((q, i) => { const d = Math.hypot(q.x + q.w / 2 - cx, q.y + q.h / 2 - cy); if (d < bd) { bd = d; bi = i; } });
+        const q = left.splice(bi, 1)[0];
+        cx = q.x + q.w / 2; cy = q.y + q.h / 2;
+        pts.push({ x: cx, y: cy });
+        this.damage(q, false, L >= 3 ? 2 : 1);
+        this.burst(cx, cy, 6, 0.6);
+      }
+      if (this.boss && !this.boss.dead) { pts.push({ x: this.boss.cx, y: this.boss.cy }); this.boss.damage(0.5, false, true); }
+      this.abil = { type: 'bolt', t: 0.5, max: 0.5, pts, seed: Math.random() * 100 };
+      sfx.laser(); sfx.blast();
+      this.shake = Math.max(this.shake, 0.4);
     }
     this.emit('ability');
     return true;
@@ -1446,6 +1490,34 @@ export class Game {
       c.setLineDash([10, 10]); c.lineDashOffset = -this.t * 80;
       c.beginPath(); c.moveTo(LEFT + 6, y + 8); c.lineTo(RIGHT - 6, y + 8);
       c.strokeStyle = rgba(col, 0.5); c.lineWidth = 1.5; c.stroke();
+      c.restore();
+    } else if (A && A.type === 'slow') {
+      // a cold tint and a clock ring around the platform
+      const k = Math.min(1, A.t / 0.6, (A.max - A.t) / 0.3);
+      c.fillStyle = rgba(col, 0.05 * k); c.fillRect(LEFT, this.top, RIGHT - LEFT, this.bottom - this.top);
+      c.save();
+      c.setLineDash([2, 10]); c.lineDashOffset = -this.t * 6;
+      c.beginPath(); c.arc(p.x, p.y, p.hw + 26, Math.PI, TAU);
+      c.strokeStyle = rgba(col, 0.6 * k); c.lineWidth = 3; c.stroke();
+      c.restore();
+      c.beginPath(); c.arc(p.x, p.y, p.hw + 26, Math.PI, Math.PI + Math.PI * (A.t / A.max));
+      c.strokeStyle = rgba(WHITE, 0.7 * k); c.lineWidth = 2; c.stroke();
+    } else if (A && A.type === 'bolt') {
+      const k = A.t / A.max;
+      c.save();
+      c.lineJoin = 'round'; c.lineCap = 'round';
+      for (const [w, st] of [[5, rgba(col, 0.6 * k)], [2, rgba(WHITE, k)]]) {
+        c.beginPath();
+        A.pts.forEach((q, i) => {
+          if (!i) { c.moveTo(q.x, q.y); return; }
+          const a = A.pts[i - 1];
+          for (let j = 1; j <= 4; j++) {
+            const f = j / 4, jit = j < 4 ? Math.sin(A.seed + i * 7 + j * 3 + this.t * 40) * 14 : 0;
+            c.lineTo(a.x + (q.x - a.x) * f + jit, a.y + (q.y - a.y) * f - jit * 0.5);
+          }
+        });
+        c.strokeStyle = st; c.lineWidth = w; c.shadowColor = col; c.shadowBlur = 16 * view.blur; c.stroke();
+      }
       c.restore();
     } else if (A && A.type === 'magnet') {
       c.save();

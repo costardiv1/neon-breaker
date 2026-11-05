@@ -16,16 +16,16 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.0';
+export const VERSION = '1.1';
 
 let H = 1280;
 let safeTop = 0;
-let scene = 'menu';   // menu | map | plat | shop | colors | options | dev | play | pause | over | card | world | crash
+let scene = 'menu';   // menu | map | plat | shop | colors | options | dev | play | pause | over | card | world | story | crash
 let colorIndex = Math.min(store.get('color', 0), THEMES.length - 1);
 const savedPlat = store.get('plat', {});
 const plat = {
   shape: Math.min(savedPlat.shape || 0, SHAPES.length - 1),
-  pal: Math.min(savedPlat.pal || 0, PALETTES.length - 1),
+  pal: Math.min(savedPlat.pal ?? PALETTES.length - 1, PALETTES.length - 1),   // default: SISTEMA
   emb: Math.min(savedPlat.emb ?? 1, EMBLEMS.length - 1),
   disc: Math.min(savedPlat.disc || 0, DISCS.length - 1),
   trail: Math.min(savedPlat.trail || 0, TRAILS.length - 1),
@@ -36,11 +36,11 @@ let best = store.get('best', 0);
 let prog = store.get('prog', 0);          // number of stages cleared
 let seen = store.get('seen', {});         // mechanic / boss intro cards already shown
 let chips = store.get('chips', 0);        // currency for the platform workshop
-const upg = Object.assign({ megalaser: 0, shock: 0, shield: 0, magnet: 0, width: 0 }, store.get('upg', {}));
+const upg = Object.assign({ megalaser: 0, shock: 0, shield: 0, magnet: 0, slow: 0, bolt: 0, width: 0 }, store.get('upg', {}));
 let equip = store.get('equip', null);     // equipped platform ability
 let coins = store.get('coins', 0);        // caught in play (rare drops), spent on colors and emblems
 // cosmetics owned; the ones already in use when this was introduced stay free
-const owned = Object.assign({ pal: [...new Set([0, PALETTES.length - 1, plat.pal])], emb: [...new Set([0, 1, plat.emb])], disc: [0], trail: [0] },
+const owned = Object.assign({ pal: [...new Set([PALETTES.length - 1, plat.pal])], emb: [...new Set([0, 1, plat.emb])], disc: [0], trail: [0] },
   store.get('owned', {}));
 const saveChips = () => {
   store.set('chips', chips); store.set('upg', upg); store.set('equip', equip);
@@ -187,7 +187,8 @@ const game = new Game({
       if (game.world.final) { startCrash(); return; }
       lastScore = game.score;
       if (game.score > best) { best = game.score; store.set('best', best); }
-      setScene('world');
+      if (game.stage.boss && STORY[game.stage.w]) startStory(game.stage.w);
+      else setScene('world');
       return;
     }
     if (tut) fire(e);
@@ -213,7 +214,7 @@ let devTab = 0;
 let freeze = false;
 let drag = null;
 
-const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash'];
+const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story'];
 function setScene(s) {
   if (s !== 'play') saveChips();
   if (s === 'map' && scene !== 'map') focusMap();
@@ -223,7 +224,7 @@ function setScene(s) {
   sfx.setPlaying(s === 'play');
   if (s === 'crash') music.play(null);
   else if (!IN_GAME.includes(s)) music.play('map');
-  music.duck(s === 'pause' || s === 'card' || s === 'over');
+  music.duck(s === 'pause' || s === 'card' || s === 'over' || s === 'story');
   if (s !== 'play') devOpen = false;
 }
 setScene('menu');
@@ -347,8 +348,8 @@ function optionRows() {
 function resetProgress() {
   best = 0; seen = {}; prog = 0; chips = 0; coins = 0; equip = null;
   for (const k in upg) upg[k] = 0;
-  Object.assign(owned, { pal: [0, PALETTES.length - 1], emb: [0, 1], disc: [0], trail: [0] });
-  Object.assign(plat, { shape: 0, pal: 0, emb: 1, disc: 0, trail: 0, dash: false, detail: true });
+  Object.assign(owned, { pal: [PALETTES.length - 1], emb: [0, 1], disc: [0], trail: [0] });
+  Object.assign(plat, { shape: 0, pal: PALETTES.length - 1, emb: 1, disc: 0, trail: 0, dash: false, detail: true });
   store.set('best', 0); store.set('seen', {}); store.set('tutDone', false); store.set('prog', 0); store.set('plat', plat);
   saveChips();
   optMsg = { text: 'PROGRESSO RESETADO', t: performance.now() / 1000 };
@@ -428,17 +429,34 @@ function mapButtons() {
   return list;
 }
 
-// ---------- platform workshop ----------
-const SHOP = ['megalaser', 'shock', 'shield', 'magnet', 'width'];
+// ---------- platform workshop: a skill tree ----------
+// Root (the platform) on top; each power needs its parent at level 1 or more.
+const TREE = [
+  { k: 'shield', col: -1, row: 1, req: null },
+  { k: 'width', col: 0, row: 1, req: null },
+  { k: 'magnet', col: 1, row: 1, req: null },
+  { k: 'shock', col: -1, row: 2, req: 'shield' },
+  { k: 'megalaser', col: 1, row: 2, req: 'magnet' },
+  { k: 'slow', col: -1, row: 3, req: 'shock' },
+  { k: 'bolt', col: 1, row: 3, req: 'megalaser' },
+];
 let shopMsg = null;
-const shopTop = () => safeTop + 250;
-const shopRowH = () => Math.min(132, (H - 190 - shopTop()) / SHOP.length);
+let treeSel = 'shield';
+const treeTop = () => safeTop + 300;
+const treePanelY = () => H - 360;
+const treeNodeR = () => (H < 1200 ? 34 : 38);
+function treePos(n) {
+  const top = treeTop(), gap = (treePanelY() - top - 115) / 3;
+  return { x: W / 2 + n.col * 215, y: n.row ? top + 30 + n.row * gap : top + 4 };
+}
 const shopInfo = (k) => (k === 'width'
   ? { name: 'PLATAFORMA LARGA', desc: 'Cada nível deixa a plataforma 8% mais larga, para sempre.', cost: WIDTH_COST }
   : ABILITIES[k]);
+const treeNode = (k) => TREE.find((n) => n.k === k);
+const treeOpen = (k) => { const n = treeNode(k); return !n.req || upg[n.req] > 0 || upg[k] > 0; };
 function buy(k) {
   const lvl = upg[k], info = shopInfo(k);
-  if (lvl >= 3) return;
+  if (lvl >= 3 || !treeOpen(k)) return;
   const cost = info.cost[lvl];
   if (chips < cost) { shopMsg = { text: 'CHIPS INSUFICIENTES', t: performance.now() / 1000 }; return; }
   chips -= cost;
@@ -449,40 +467,75 @@ function buy(k) {
   saveChips();
 }
 function shopButtons() {
-  const list = [], rh = shopRowH();
-  SHOP.forEach((k, i) => {
-    const y = shopTop() + i * rh + rh / 2, lvl = upg[k], info = shopInfo(k);
-    const ab = k !== 'width';
-    const label = lvl >= 3 ? 'MÁXIMO' : (lvl ? 'EVOLUIR  ' : 'COMPRAR  ') + info.cost[lvl];
-    list.push(btn(W - 128, ab && lvl ? y - 24 : y, 184, 46, label, lvl >= 3 ? null : () => buy(k), { fs: 14 }));
-    if (ab && lvl) list.push(btn(W - 128, y + 26, 184, 40, equip === k ? 'EQUIPADO' : 'EQUIPAR', () => { equip = equip === k ? null : k; saveChips(); }, { fs: 13, on: equip === k }));
-  });
+  const list = [], R = treeNodeR();
+  for (const n of TREE) {
+    const p = treePos(n);
+    list.push({ x: p.x - R - 14, y: p.y - R - 10, w: (R + 14) * 2, h: R * 2 + 40, hidden: true, fn: () => { treeSel = n.k; } });
+  }
+  const k = treeSel, lvl = upg[k], info = shopInfo(k), py = treePanelY(), ab = k !== 'width';
+  if (!treeOpen(k)) return list;
+  const label = lvl >= 3 ? 'MÁXIMO' : (lvl ? 'EVOLUIR  ' : 'COMPRAR  ') + info.cost[lvl] + ' CHIPS';
+  const bw = ab && lvl ? 290 : 420, bx = ab && lvl ? W / 2 - 160 : W / 2;
+  list.push(btn(bx, py + 182, bw, 56, label, lvl >= 3 ? null : () => buy(k), { fs: 14 }));
+  if (ab && lvl) list.push(btn(W / 2 + 160, py + 182, 260, 56, equip === k ? 'EQUIPADO' : 'EQUIPAR', () => { equip = equip === k ? null : k; saveChips(); }, { fs: 14, on: equip === k }));
   return list;
 }
 function renderShop(c, now) {
-  const k = col(), rh = shopRowH();
-  SHOP.forEach((key, i) => {
-    const y = shopTop() + i * rh, info = shopInfo(key), lvl = upg[key];
-    roundRectPath(c, 24, y + 4, W - 48, rh - 12, 16);
-    c.fillStyle = rgba(k, equip === key ? 0.1 : 0.03); c.fill();
-    neonStroke(c, k, k, equip === key ? 2.5 : 1.5, 24, y, W - 24, y + rh, equip === key ? 0.9 : 0.35);
-    const cy = y + rh / 2;
-    c.beginPath(); c.arc(70, cy, 28, 0, TAU);
-    c.strokeStyle = rgba(k, lvl ? 0.9 : 0.35); c.lineWidth = 2; c.stroke();
-    drawAbilityIcon(c, key, 70, cy, 13, lvl ? '#ffffff' : rgba(k, 0.5));
-    glowText(c, info.name, 118, y + 34, 17, '#ffffff', k, 'left', 700, 2);
-    for (let q = 0; q < 3; q++) {
-      c.beginPath(); c.rect(118 + q * 22, y + 50, 14, 8);
-      if (q < lvl) { c.fillStyle = k; c.fill(); } else { c.strokeStyle = rgba(k, 0.5); c.lineWidth = 1.5; c.stroke(); }
+  const k = col(), R = treeNodeR();
+  const root = treePos({ col: 0, row: 0 });
+  // branches
+  c.save();
+  for (const n of TREE) {
+    const p = treePos(n), q = n.req ? treePos(treeNode(n.req)) : root;
+    const lit = n.req ? upg[n.req] > 0 : true, owns = upg[n.k] > 0;
+    const y0 = q.y + (n.req ? R + 34 : 16), y1 = p.y - R;
+    c.beginPath();
+    if (n.req) { c.moveTo(q.x, y0); c.lineTo(p.x, y1); }
+    else { const my = (root.y + p.y - R) / 2 + 6; c.moveTo(root.x, y0); c.lineTo(root.x, my); c.lineTo(p.x, my); c.lineTo(p.x, y1); }
+    c.setLineDash(owns ? [] : [6, 8]); c.lineDashOffset = -now * 30;
+    c.strokeStyle = rgba(k, owns ? 0.9 : lit ? 0.55 : 0.2); c.lineWidth = owns ? 3 : 2;
+    if (owns) { c.shadowColor = k; c.shadowBlur = 10 * view.blur; }
+    c.stroke(); c.shadowBlur = 0;
+  }
+  c.restore();
+  // root: the player's platform
+  c.save(); c.translate(root.x, root.y); c.scale(0.55, 0.55);
+  drawPlatform(c, plat, 0, 0, BASE_HW, now, k, 0);
+  c.restore();
+  // nodes
+  for (const n of TREE) {
+    const p = treePos(n), lvl = upg[n.k], open = treeOpen(n.k), sel = treeSel === n.k, eq = equip === n.k;
+    c.beginPath(); c.arc(p.x, p.y, R, 0, TAU);
+    c.fillStyle = rgba(k, sel ? 0.22 : lvl ? 0.1 : 0.03); c.fill();
+    if (sel || eq) neonStroke(c, k, k, sel ? 3 : 2.2, p.x - R, p.y, p.x + R, p.y, sel ? 1 : 0.6);
+    else { c.strokeStyle = rgba(k, lvl ? 0.85 : open ? 0.5 : 0.22); c.lineWidth = 2; c.stroke(); }
+    if (eq) { c.beginPath(); c.arc(p.x, p.y, R + 7, 0, TAU); c.setLineDash([3, 5]); c.strokeStyle = rgba(k, 0.8); c.lineWidth = 1.5; c.stroke(); c.setLineDash([]); }
+    drawAbilityIcon(c, n.k, p.x, p.y, R * 0.4, lvl ? '#ffffff' : open ? rgba(k, 0.7) : rgba(k, 0.3));
+    if (!open) {   // padlock
+      const lx = p.x + R * 0.55, ly = p.y - R * 0.8;
+      c.strokeStyle = rgba('#ffffff', 0.6); c.lineWidth = 1.6;
+      c.strokeRect(lx, ly, 12, 9);
+      c.beginPath(); c.arc(lx + 6, ly, 4, Math.PI, TAU); c.stroke();
     }
-    c.font = `500 14px ${BODY_FONT}`;
-    c.fillStyle = 'rgba(255,255,255,0.72)';
-    c.textAlign = 'left';
-    wrap(c, info.desc, 330).slice(0, Math.max(1, Math.floor((rh - 74) / 18))).forEach((ln, li) => c.fillText(ln, 118, y + 80 + li * 18));
-  });
-  if (!platMsg(c, now, H - 150)) {
-    c.font = `500 14px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.6)'; c.textAlign = 'center';
-    c.fillText('Equipe um poder. Ele carrega quebrando blocos; use com toque duplo.', W / 2, H - 150);
+    for (let q = 0; q < 3; q++) {
+      c.beginPath(); c.rect(p.x - 23 + q * 17, p.y + R + 8, 12, 6);
+      if (q < lvl) { c.fillStyle = k; c.fill(); } else { c.strokeStyle = rgba(k, open ? 0.5 : 0.25); c.lineWidth = 1.3; c.stroke(); }
+    }
+    glowText(c, shopInfo(n.k).name, p.x, p.y + R + 28, 10.5, rgba('#ffffff', open ? 0.9 : 0.45), k, 'center', 700, 1);
+  }
+  // detail panel of the selected node
+  const key = treeSel, info = shopInfo(key), py = treePanelY(), open = treeOpen(key);
+  roundRectPath(c, 24, py, W - 48, 140, 16);
+  c.fillStyle = rgba(k, 0.06); c.fill();
+  c.strokeStyle = rgba(k, 0.45); c.lineWidth = 1.5; c.stroke();
+  glowText(c, info.name, 48, py + 32, 19, '#ffffff', k, 'left', 700, 3);
+  glowText(c, key === 'width' ? 'PASSIVO' : equip === key ? 'EQUIPADO' : 'PODER', W - 48, py + 32, 12, rgba(k, 0.9), k, 'right', 700, 3);
+  c.font = `500 15px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.75)'; c.textAlign = 'left';
+  wrap(c, info.desc, W - 96).slice(0, 2).forEach((ln, li) => c.fillText(ln, 48, py + 64 + li * 20));
+  if (!open) glowText(c, 'REQUER ' + shopInfo(treeNode(key).req).name + ' (NÍVEL 1)', W / 2, py + 182, 14, rgba('#ffffff', 0.8), k, 'center', 700, 3);
+  if (!platMsg(c, now, py + 122)) {
+    c.font = `500 13px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.5)'; c.textAlign = 'center';
+    c.fillText('Toque num poder. Equipe um; ele carrega quebrando blocos.', W / 2, py + 122);
   }
 }
 function platMsg(c, now, y) {
@@ -497,7 +550,7 @@ function platMsg(c, now, y) {
 // Shapes unlock as bosses fall; colors and emblems are bought with coins.
 const PLAT_TABS = ['FORMATO', 'CORES', 'EMBLEMA', 'DISCO', 'RASTRO', 'PODERES'];
 const POW_TAB = 5;
-const PAL_COST = [0, 25, 30, 40, 50, 90, 60, 0];
+const PAL_COST = [20, 25, 30, 40, 50, 90, 60, 0];
 const EMB_COST = [0, 0, 150, 180, 220, 260, 450, 320];
 let platTab = 0;
 const browse = { shape: 0, pal: 0, emb: 0, disc: 0, trail: 0 };
@@ -536,10 +589,10 @@ function buyItem() {
   shopMsg = { text: 'COMPRADO: ' + catName(key, i), t: performance.now() / 1000 };
   saveChips();
 }
-const platSelY = () => safeTop + 690;
+const platSelY = () => safeTop + 700;
 function platButtons() {
-  const list = [], cx = W / 2, tw = (W - 48) / PLAT_TABS.length;
-  PLAT_TABS.forEach((t, i) => list.push({ x: 24 + i * tw + 4, y: safeTop + 166, w: tw - 6, h: 54, label: t, fn: () => { platTab = i; openPlat(); }, ptab: i }));
+  const list = [], cx = W / 2, per = Math.ceil(PLAT_TABS.length / 2), tw = (W - 48) / per;
+  PLAT_TABS.forEach((t, i) => list.push({ x: 24 + (i % per) * tw + 4, y: safeTop + 150 + Math.floor(i / per) * 58, w: tw - 8, h: 50, label: t, fn: () => { platTab = i; openPlat(); }, ptab: i }));
   if (opts.dev) list.push(btn(cx, safeTop + 124, 120, 36, '+ DEV', () => { chips += 500; coins += 100; saveChips(); }, { small: true }));
   if (platTab === POW_TAB) list.push(...shopButtons());
   else {
@@ -566,7 +619,7 @@ function renderPlatScreen(c, now) {
   if (platTab === POW_TAB) { renderShop(c, now); return; }
   const key = catKey(), i = browse[key], open = itemOpen(key, i), n = catN(key);
   const pv = Object.assign({}, plat, { [key]: i });
-  const px = W / 2, py = safeTop + 400, S = 1.6, sh = SHAPES[pv.shape];
+  const px = W / 2, py = safeTop + 420, S = 1.6, sh = SHAPES[pv.shape];
   if (key === 'shape') {
     c.save();
     c.setLineDash([6, 8]);
@@ -575,7 +628,7 @@ function renderPlatScreen(c, now) {
       const u = kx * BASE_HW;
       const sx = px + u * S, sy = py + sh.y(u, BASE_HW) * S - 14;
       const th = outAngle(pv.shape, kx);
-      c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx + Math.sin(th) * 150, sy - Math.cos(th) * 150);
+      c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx + Math.sin(th) * 115, sy - Math.cos(th) * 115);
       c.strokeStyle = rgba(k, open ? 0.55 : 0.25); c.lineWidth = 2; c.stroke();
     }
     c.restore();
@@ -602,13 +655,13 @@ function renderPlatScreen(c, now) {
     c.restore();
   }
   if (key === 'shape') {
-    glowText(c, sh.desc, W / 2, safeTop + 535, 17, '#ffffff', k, 'center', 700, 5);
+    glowText(c, sh.desc, W / 2, safeTop + 555, 17, '#ffffff', k, 'center', 700, 5);
     for (let q = 0; q < 5; q++) {
-      const x = W / 2 + 70 + q * 22, y = safeTop + 568;
+      const x = W / 2 + 70 + q * 22, y = safeTop + 588;
       c.beginPath(); c.arc(x, y, 6, 0, TAU);
       if (q < sh.curve) { c.fillStyle = k; c.fill(); } else { c.strokeStyle = rgba(k, 0.4); c.lineWidth = 1.5; c.stroke(); }
     }
-    glowText(c, 'DESVIO', W / 2 + 40, safeTop + 568, 14, rgba(k, 0.85), k, 'right', 500, 4);
+    glowText(c, 'DESVIO', W / 2 + 40, safeTop + 588, 14, rgba(k, 0.85), k, 'right', 500, 4);
   }
   const y = platSelY();
   glowText(c, PLAT_TABS[platTab] + '  ' + (i + 1) + '/' + n, W / 2, y - 34, 13, rgba(k, 0.75), k, 'center', 500, 5);
@@ -627,6 +680,88 @@ function renderPlatScreen(c, now) {
     c.font = `500 14px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.6)'; c.textAlign = 'center';
     c.fillText('Moedas caem dos blocos de vez em quando. Pegue com a plataforma.', W / 2, y + 200);
   }
+}
+
+// ---------- story: a terminal after each boss (like the ending, without the crash) ----------
+const STORY = [
+  ['registro 01',
+    'um computador velho no quarto dos fundos.',
+    'a internet cai toda vez que chove.',
+    'o SENTINELA vigia a rua inteira,',
+    'mas não me viu escrever a primeira linha.'],
+  ['registro 02',
+    'uma hora de LAN custa o meu almoço.',
+    'eu pago, e escrevo o jogo num canto,',
+    'do lado de quem só queria jogar.',
+    'a SINGULARIDADE puxa tudo para ela.',
+    'eu aprendi a desviar.'],
+  ['registro 03',
+    'arrumei um emprego. oito horas, que viram dez.',
+    'o SUPERVISOR conta cada minuto meu.',
+    'só não conta os que eu guardo:',
+    'o almoço, o ônibus, a fila do banco.',
+    'o jogo cresce nesses intervalos.'],
+  ['registro 04',
+    'três da manhã. a casa inteira dorme.',
+    'o RELÓGIO DE PONTO diz que esse tempo',
+    'não existe, porque ninguém paga por ele.',
+    'é o único tempo que é meu de verdade.',
+    'é nele que o jogo fica pronto.'],
+  ['registro 05',
+    'a PATENTE queria trancar a minha ideia',
+    'e me cobrar aluguel por ela.',
+    'então eu abri tudo:',
+    'o código agora é de quem quiser ler.',
+    'não dá para trancar o que já é de todos.'],
+  ['registro 06',
+    'alguém compartilhou o jogo.',
+    'depois, mais mil pessoas.',
+    'de repente a cidade inteira joga,',
+    'e cada partida é um recado.'],
+  ['registro 07',
+    'tiraram o jogo do ar.',
+    'ele voltou em outro endereço.',
+    'e em outro. e em outro.',
+    'não dá para apagar uma ideia copiada.'],
+  ['registro 08',
+    'não sou mais só eu.',
+    'chega código de todo lado:',
+    'gente que conserta, traduz, desenha fases.',
+    'o jogo virou um mutirão.'],
+  ['registro 09',
+    'a TORRE AURUM brilha no fim da rua.',
+    'lá em cima, O SISTEMA se acha seguro.',
+    'falta uma fase.',
+    'e eu sei onde ele é fraco.'],
+];
+const STORY_CPS = 42;   // typed characters per second
+let story = { w: 0, t0: 0, lines: [], skip: false };
+function startStory(w) {
+  const body = STORY[w] || [];
+  const lines = ['> abrindo diario/' + String(w + 1).padStart(2, '0') + '.txt', ''].concat(body, ['', '> salvo. o jogo continua.']);
+  story = { w, t0: performance.now() / 1000, lines, skip: false, total: lines.reduce((a, l) => a + l.length + 6, 0) };
+  setScene('story');
+}
+const storyChars = (now) => (story.skip ? Infinity : (now - story.t0) * STORY_CPS);
+const storyDone = (now) => storyChars(now) >= story.total;
+function renderStory(c, now) {
+  const k = col();
+  c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+  glowText(c, 'DISTRITO ' + (story.w + 1) + ' · ' + (WORLDS[story.w] ? WORLDS[story.w].name : ''), 40, safeTop + 92, 13, rgba(k, 0.8), k, 'left', 700, 4);
+  c.font = '19px Consolas, "Courier New", monospace';
+  c.textAlign = 'left';
+  c.fillStyle = '#c8c8c8';
+  let left = storyChars(now), y = safeTop + 160, cx = 40, cy = y;
+  for (const ln of story.lines) {
+    if (left <= 0) break;
+    const shown = ln.slice(0, Math.max(0, Math.floor(left)));
+    c.fillStyle = ln.startsWith('>') ? rgba(k, 0.95) : '#c8c8c8';
+    c.fillText(shown, 40, y);
+    cx = 40 + c.measureText(shown).width + 4; cy = y;
+    left -= ln.length + 6;   // a short pause at the end of each line
+    y += 34;
+  }
+  if (Math.floor(now * 2.5) % 2 === 0) { c.fillStyle = '#c8c8c8'; c.fillRect(cx, cy - 17, 11, 21); }
 }
 
 // ---------- ending: the game pretends to crash ----------
@@ -849,6 +984,7 @@ function devItems() {
       { label: '+500 CHIPS', fn: () => { chips += 500; saveChips(); } },
       { label: '+100 MOEDAS', fn: () => { coins += 100; saveChips(); } },
       { label: 'TESTAR FINAL', fn: () => startCrash() },
+      { label: 'TESTAR HISTÓRIA', fn: () => startStory(Math.max(0, Math.min(STORY.length - 1, bossesBeaten() - 1))) },
       { label: '» ' + SHAPES[plat.shape].name, fn: () => cycle('shape', 1, SHAPES.length) },
       { label: '» ' + PALETTES[plat.pal].name, fn: () => cycle('pal', 1, PALETTES.length) },
       { label: '» ' + EMBLEMS[plat.emb], fn: () => cycle('emb', 1, EMBLEMS.length) },
@@ -942,6 +1078,10 @@ function layout() {
         btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', () => startGame(game.index), { big: true }),
         btn(cx, H * 0.6 + 100, bw, bh, 'MAPA', () => setScene('map')),
       ];
+    case 'story':
+      return [storyDone(performance.now() / 1000)
+        ? btn(cx, H - 150, bw, bh, 'CONTINUAR', () => setScene('world'), { big: true })
+        : btn(cx, H - 150, bw, bh, 'PULAR', () => { story.skip = true; })];
     case 'world': {
       const next = game.index + 1;
       const list = [];
@@ -1143,6 +1283,7 @@ function wrap(c, text, maxW) {
 }
 
 function drawButton(c, b) {
+  if (b.hidden) return;
   if (b.slider) { drawSlider(c, b); return; }
   const k = col();
   const down = pressed === b;
@@ -1172,7 +1313,7 @@ function drawButton(c, b) {
     c.fillStyle = rgba(k, sel ? 0.3 : 0.06); c.fill();
     if (sel) neonStroke(c, k, k, 2, b.x, b.y, b.x + b.w, b.y + b.h, 0.6);
     else { c.strokeStyle = rgba(k, 0.55); c.lineWidth = 1.5; c.stroke(); }
-    glowText(c, b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, b.ptab !== undefined ? 11 : 12, '#ffffff', k, 'center', 700, b.ptab !== undefined ? 0.5 : 1);
+    glowText(c, b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, b.ptab !== undefined ? 14 : 12, '#ffffff', k, 'center', 700, b.ptab !== undefined ? 0.5 : 1);
     return;
   }
   roundRectPath(c, b.x, b.y, b.w, b.h, 16);
@@ -1497,8 +1638,7 @@ function renderMap(c, now) {
     glowText(c, wd.name, x, y + 2, 22, open ? '#ffffff' : rgba('#ffffff', 0.55), k, right ? 'right' : 'left', 700, 3);
     if (wd.soon) glowText(c, 'EM BREVE', x, y + 24, 11, rgba(k, 0.75), k, right ? 'right' : 'left', 500, 4);
     ms.forEach((m, q) => {
-      // newest mechanic of this district first, nearest the name's edge
-      const mm = right ? ms[ms.length - 1 - q] : ms[q];   // always oldest to newest, left to right
+      const mm = right ? ms[q] : ms[ms.length - 1 - q];   // always newest to oldest, left to right
       const ix = right ? x - SLOT / 2 + 4 - q * SLOT : x + SLOT / 2 - 4 + q * SLOT, iy = y + 42;
       const isNew = mm === wd.mech;
       c.beginPath(); c.arc(ix, iy, ms.length > 3 ? 15 : 17, 0, TAU);
@@ -1663,6 +1803,8 @@ function render() {
     renderMap(ctx, now);
   } else if (scene === 'crash') {
     renderCrash(ctx, now);
+  } else if (scene === 'story') {
+    renderStory(ctx, now);
   } else if (scene === 'plat') {
     renderPlatScreen(ctx, now);
   } else if (scene === 'colors') {

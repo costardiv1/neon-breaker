@@ -16,6 +16,10 @@ export const SHAPES = [
     y: (u, hw) => { const R = Math.max(hw * 1.15, 100); return R - Math.sqrt(Math.max(0, R * R - u * u)); } },
   { name: 'ASA', desc: 'PONTAS DEVOLVEM', curve: 4, aim: 0.2, max: 1.15,
     y: (u, hw) => -22 * Math.pow(Math.abs(u) / hw, 3) },
+  { name: 'ONDA', desc: 'ONDULADO', curve: 3, aim: 0.45, max: 1.15,
+    y: (u, hw) => 5 * (1 - Math.cos((2 * Math.PI * u) / hw)) },
+  { name: 'FUNIL', desc: 'CENTRALIZA', curve: 1, aim: 0.3, max: 0.85,
+    y: (u) => -0.22 * Math.abs(u) },
 ];
 
 export const PALETTES = [
@@ -94,7 +98,7 @@ export function outAngle(si, k, hw = 86) {
 
 // Each shape reacts to a hit in its own way. hit: 1 right after the hit -> 0.
 //   ARCO jumps, LÂMINA blinks, PONTA gets sharper and springs back,
-//   FERRADURA wobbles, ASA flaps its wings.
+//   FERRADURA wobbles, ASA flaps its wings, ONDA ripples, FUNIL swallows.
 export function drawPlatform(c, plat, x, y, hw, t, theme, hit = 0) {
   if (hit <= 0) { platformBody(c, plat, x, y, hw, t, theme, 0); return; }
   // eased curves: a quick rise and a long, soft settle
@@ -103,9 +107,11 @@ export function drawPlatform(c, plat, x, y, hw, t, theme, hit = 0) {
   c.translate(x, y);
   switch (SHAPES[plat.shape].name) {
     case 'ARCO': c.translate(0, -14 * bell); break;
-    case 'PONTA': c.scale(1 - 0.08 * bell, 1 + 0.9 * bell); break;
+    case 'PONTA': c.scale(1 - 0.04 * bell, 1 + 0.35 * bell); break;
     case 'FERRADURA': c.rotate(Math.sin(u * 4 * Math.PI) * 0.06 * fade); break;
     case 'ASA': { const f = Math.sin(u * 3 * Math.PI) * Math.pow(hit, 1.4); c.scale(1 + 0.12 * Math.abs(f), 1 - 0.4 * f); break; }
+    case 'ONDA': c.transform(1, Math.sin(u * 4 * Math.PI) * 0.09 * fade, 0, 1, 0, 0); break;
+    case 'FUNIL': c.translate(0, 9 * bell); c.scale(1 - 0.06 * bell, 1 + 0.25 * bell); break;
     default: break;
   }
   platformBody(c, plat, 0, 0, hw, t, theme, hit);
@@ -215,6 +221,17 @@ function emblemFrame(c, si, x, y, t, grad, ga, gb) {
         c.moveTo(s * (R + 2), -8); c.lineTo(s * (R + 9), -12);
       }
       break;
+    case 'ONDA': // a wave above and one below
+      for (const yy of [-R + 2, R - 2]) {
+        for (let q = 0; q <= 16; q++) {
+          const xx = -R - 4 + (q / 16) * (2 * R + 8);
+          c[q ? 'lineTo' : 'moveTo'](xx, yy + Math.sin(q / 16 * TAU * 1.5 + t * 1.2) * 3.5);
+        }
+      }
+      break;
+    case 'FUNIL': // two walls leaning in, open at the top
+      c.moveTo(-R - 6, -R + 2); c.lineTo(-7, R); c.lineTo(7, R); c.lineTo(R + 6, -R + 2);
+      break;
   }
   neon(c, grad, ga, gb, 1.8, 0.55);
   if (SHAPES[si].name === 'FERRADURA') {
@@ -274,6 +291,21 @@ function shapeDetail(c, si, x, y, hw, t, g2, g3, ga, gb) {
           dashed([[x + u, yy + 4], [x + u + s * 10, yy + 16 + q * 4]], 3, 3, 24, 1.3, 0.4);
         }
       }
+      break;
+    }
+    case 'ONDA': { // a dashed wave out of phase, under the main one
+      const pts = [];
+      for (let q = 0; q <= 24; q++) {
+        const u = -hw * 0.8 + (q / 24) * hw * 1.6;
+        pts.push([x + u, y + 14 - 5 * (1 - Math.cos((2 * Math.PI * u) / hw)) + 5]);
+      }
+      dashed(pts, 4, 5, 40, 1.4, 0.4);
+      break;
+    }
+    case 'FUNIL': { // dashed guides pointing to the center and a drain node
+      for (const s of [-1, 1]) dashed([[x + s * hw * 0.9, yAt(s * hw * 0.9) - 8], [x + s * 14, y - 6]], 4, 5, 34, 1.4, 0.45);
+      c.beginPath(); c.moveTo(x - 6, y + 4); c.lineTo(x, y + 10); c.lineTo(x + 6, y + 4);
+      neon(c, g2, gb, ga, 1.8, 0.6);
       break;
     }
   }

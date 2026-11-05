@@ -1,6 +1,32 @@
 # Changelog
 
-Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 é o primeiro lançamento oficial.
+Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
+
+## [1.1] · 05/11/2026 · História, árvore de poderes e novos formatos
+
+### Adicionado
+
+- História contada aos poucos: a cada chefão derrotado, um terminal digita um trecho do diário do protagonista (com botão PULAR).
+- Formatos de plataforma ONDA (ondulado, liberado pela PATENTE) e FUNIL (centraliza o disco, liberado pelo chefão do distrito 6).
+- Poderes CÂMERA LENTA (o disco anda na metade da velocidade) e RELÂMPAGO (raio que salta de bloco em bloco).
+- Aba PODERES em forma de árvore de habilidades: cada poder exige o anterior no nível 1.
+- Nomes das fases dos distritos 1 (QUINTAL, RUA DE TERRA, LAJE) e 2 (HORA AVULSA, PING ALTO, ÚLTIMA PARTIDA).
+- Moedas que ainda estão caindo quando a fase termina entram direto na conta do jogador.
+- Botão TESTAR HISTÓRIA no painel dev.
+- Link para jogar no navegador pelo GitHub Pages.
+
+### Alterado
+
+- Distrito 1 renomeado de PERIFERIA para SUBÚRBIO.
+- Animação da PONTA ao bater mais discreta.
+- Abas do menu PLATAFORMA em duas linhas.
+- Paleta padrão da plataforma agora é SISTEMA; PULSO passa a custar 20 moedas.
+- PLATAFORMA LARGA mais cara (140, 280 e 480 chips).
+- Ícones de mecânica no mapa em ordem invertida: a mais nova primeiro.
+
+### Corrigido
+
+- O áudio continuava tocando com o jogo fora da tela (tela bloqueada, outro app ou outra aba).
 
 ## [1.0] · 04/11/2026 · Lançamento oficial
 

@@ -15,23 +15,23 @@ export const MECHS = {
 
 export const WORLDS = [
   {
-    name: 'PERIFERIA', mech: 'slide', music: 'w1', bossMusic: 'boss1', border: 'flow',
+    name: 'SUBÚRBIO', mech: 'slide', music: 'w1', bossMusic: 'boss1', border: 'flow',
     boss: { type: 'sentinel', name: 'SENTINELA',
       text: 'Acerte o núcleo embaixo do casco quando a íris abrir.' },
     stages: [
-      { mech: null, rows: [
+      { name: 'QUINTAL', mech: null, rows: [
         '..22222..',
         '.1111111.',
         '.1111111.',
       ] },
-      { rows: [
+      { name: 'RUA DE TERRA', rows: [
         '...222...',
         '..11111..',
         '.1111....',
         '....1111.',
         '..11111..',
       ] },
-      { rows: [
+      { name: 'LAJE', rows: [
         '...333...',
         '.22222...',
         '...22222.',
@@ -46,19 +46,19 @@ export const WORLDS = [
     boss: { type: 'singularity', name: 'SINGULARIDADE',
       text: 'Acerte o núcleo pela abertura do anel.' },
     stages: [
-      { wells: [[0.5, 0.42]], rows: [
+      { name: 'HORA AVULSA', wells: [[0.5, 0.42]], rows: [
         '..33333..',
         '.2222222.',
         '111111111',
         '..1111...',
       ] },
-      { wells: [[0.28, 0.36], [0.72, 0.55]], rows: [
+      { name: 'PING ALTO', wells: [[0.28, 0.36], [0.72, 0.55]], rows: [
         '222222222',
         '.11111...',
         '...11111.',
         '2.......2',
       ] },
-      { wells: [[0.5, 0.45]], orbit: true, rows: [
+      { name: 'ÚLTIMA PARTIDA', wells: [[0.5, 0.45]], orbit: true, rows: [
         '.3.3.3.3.',
         '222222222',
         '..2.2.2..',
