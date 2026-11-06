@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.1** (05/11/2026)
+Versão atual publicada: **1.2** (06/11/2026)
 
 ## Objetivos
 
@@ -17,6 +17,23 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 _Nenhuma sugestão pendente._
 
 ## Histórico
+
+### 1.2 (06/11/2026)
+
+- [x] ÍMÃ puxa de leve o disco para a plataforma.
+- [x] Bug: botões de formato, cor e emblema do modo dev (e o formato voltando ao padrão com DESBLOQUEAR TUDO).
+- [x] MÍSSIL vai direto no chefão quando não há bloco na frente.
+- [x] Aceleração do disco de 1% por distrito (era 2%).
+- [x] Modo dev: DESBLOQUEAR TUDO libera os perks no nível 3; painel troca ativo e passivo.
+- [x] Aba PERKS em cartas, sem pré-requisito, dividida em ATIVOS e PASSIVOS (1 de cada).
+- [x] Passivos novos: GRANA, RECARGA, SORTE, VIDA EXTRA e DISCO PESADO (combo mortal com o ÍMÃ).
+- [x] Bug: laser e míssil acertavam blocos fora de fase (FASE).
+- [x] Menu PLATAFORMA renomeado para BREAKERS; PODERES para PERKS.
+- [x] Aviso (!) para perks e itens que dá para comprar e para formatos novos.
+- [x] Sino de NOVIDADES no menu.
+- [x] Pausa com botões EFEITOS e MÚSICA (agora independentes).
+- [x] Botão BREAKERS na tela de distrito concluído.
+- [x] Tutorial dos perks depois do primeiro chefão.
 
 ### 1.1 (05/11/2026)
 
@@ -36,5 +53,5 @@ _Nenhuma sugestão pendente._
 
 ### Pendências conhecidas
 
-- As capturas de tela do README e da documentação ainda mostram a aba PODERES antiga e o nome PERIFERIA.
+- As capturas de tela do README e da documentação ainda são da 1.0: mostram a aba de poderes antiga, o menu PLATAFORMA e o nome PERIFERIA.
 - O formato FUNIL só libera com o chefão do distrito 6, que ainda não existe.

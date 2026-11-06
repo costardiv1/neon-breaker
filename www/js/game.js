@@ -50,13 +50,25 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // Platform abilities (bought/evolved in the workshop). One is equipped; it
 // charges by breaking bricks and fires with a double tap or the HUD button.
 export const ABILITIES = {
-  megalaser: { name: 'MEGA LASER', desc: 'Carrega 0,5 s no centro da plataforma e dispara um feixe que destrói tudo em linha reta.', cost: [60, 120, 220] },
-  shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai da plataforma, danifica os blocos mais próximos e desvia o disco.', cost: [50, 110, 200] },
-  shield:    { name: 'ESCUDO', desc: 'Uma barreira de energia embaixo da plataforma rebate o disco por alguns segundos.', cost: [40, 90, 170] },
-  magnet:    { name: 'ÍMÃ', desc: 'Por alguns segundos a plataforma segura o disco a cada toque. Solte para mirar e lançar.', cost: [40, 90, 170] },
-  slow:      { name: 'CÂMERA LENTA', desc: 'O tempo desacelera: por alguns segundos o disco anda na metade da velocidade.', cost: [110, 220, 380] },
-  bolt:      { name: 'RELÂMPAGO', desc: 'Um raio sai do disco e salta de bloco em bloco, danificando cada um no caminho.', cost: [130, 260, 450] },
+  shield:    { name: 'ESCUDO', desc: 'Uma barreira de energia embaixo da plataforma rebate o disco.', lv: ['7 s', '9 s', '11 s'], cost: [40, 90, 170] },
+  shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai da plataforma, danifica os blocos mais próximos e desvia o disco.', lv: ['6 blocos', '8 blocos', '10 blocos, dano 2'], cost: [50, 110, 200] },
+  slow:      { name: 'CÂMERA LENTA', desc: 'O tempo desacelera e o disco anda na metade da velocidade.', lv: ['5,5 s', '7 s', '8,5 s'], cost: [110, 220, 380] },
+  magnet:    { name: 'ÍMÃ', desc: 'Puxa o disco para a plataforma e o segura a cada toque. Solte para mirar e lançar.', lv: ['9 s', '12 s', '15 s'], cost: [40, 90, 170] },
+  megalaser: { name: 'MEGA LASER', desc: 'Carrega 0,5 s no centro da plataforma e dispara um feixe que destrói tudo em linha reta.', lv: ['feixe fino', 'feixe médio', 'feixe largo'], cost: [60, 120, 220] },
+  bolt:      { name: 'RELÂMPAGO', desc: 'Um raio sai do disco e salta de bloco em bloco, danificando cada um. Também acerta o chefão.', lv: ['5 blocos', '7 blocos', '9 blocos, dano 2'], cost: [130, 260, 450] },
 };
+// Passive perks: always on while equipped (one at a time, besides the active one).
+export const PASSIVES = {
+  width:   { name: 'PLATAFORMA LARGA', desc: 'A plataforma fica mais larga.', lv: ['+8%', '+16%', '+24%'], cost: [140, 280, 480] },
+  grana:   { name: 'GRANA', desc: 'Mais moedas caem dos blocos.', lv: ['+30%', '+60%', 'o dobro'], cost: [80, 160, 300] },
+  recarga: { name: 'RECARGA', desc: 'O perk ativo carrega mais rápido.', lv: ['+25%', '+50%', '+80%'], cost: [100, 200, 360] },
+  sorte:   { name: 'SORTE', desc: 'Caem menos cápsulas de desvantagem.', lv: ['-30%', '-55%', '-75%'], cost: [90, 180, 320] },
+  vida:    { name: 'VIDA EXTRA', desc: 'Ganha 1 vida no começo de cada fase, até um limite.', lv: ['até 4 vidas', 'até 5 vidas', 'até 6 vidas'], cost: [150, 300, 520] },
+  pesado:  { name: 'DISCO PESADO', desc: 'Depois de cada lançamento, os primeiros acertos dão dano dobrado.', lv: ['1º acerto', '2 acertos', '3 acertos'], cost: [120, 240, 420] },
+};
+const GRANA_MUL = [1, 1.3, 1.6, 2];
+const RECARGA_MUL = [1, 1.25, 1.5, 1.8];
+const SORTE_MUL = [1, 0.7, 0.45, 0.25];
 export const WIDTH_COST = [140, 280, 480];
 
 export function tierTone(col, hp) {
@@ -303,6 +315,25 @@ export function drawAbilityIcon(c, type, x, y, s, color) {
     c.moveTo(x - s, y); c.lineTo(x + s, y);
     c.moveTo(x - s * 0.6, y - s * 0.4); c.lineTo(x - s, y); c.lineTo(x - s * 0.6, y + s * 0.4);
     c.moveTo(x + s * 0.6, y - s * 0.4); c.lineTo(x + s, y); c.lineTo(x + s * 0.6, y + s * 0.4); c.stroke();
+  } else if (type === 'grana') {   // a coin with a mark
+    c.arc(x, y, s, 0, TAU); c.stroke();
+    c.beginPath(); c.arc(x, y, s * 0.62, 0, TAU); c.stroke();
+    c.beginPath(); c.moveTo(x, y - s * 0.35); c.lineTo(x, y + s * 0.35); c.stroke();
+  } else if (type === 'recarga') {   // a circular arrow around a bolt
+    c.arc(x, y, s, -Math.PI * 0.35, Math.PI * 1.35); c.stroke();
+    c.beginPath(); c.moveTo(x + s * 0.45, y - s * 1.05); c.lineTo(x + s * 0.62, y - s * 0.68); c.lineTo(x + s * 0.2, y - s * 0.6); c.stroke();
+    c.beginPath(); c.moveTo(x + s * 0.12, y - s * 0.5); c.lineTo(x - s * 0.22, y + s * 0.05); c.lineTo(x + s * 0.18, y + s * 0.05); c.lineTo(x - s * 0.12, y + s * 0.5); c.stroke();
+  } else if (type === 'sorte') {   // four-leaf clover
+    for (let q = 0; q < 4; q++) { const a = q * Math.PI / 2 + Math.PI / 4; c.beginPath(); c.arc(x + Math.cos(a) * s * 0.42, y + Math.sin(a) * s * 0.42 - s * 0.15, s * 0.36, 0, TAU); c.stroke(); }
+    c.beginPath(); c.moveTo(x, y - s * 0.15); c.quadraticCurveTo(x + s * 0.1, y + s * 0.6, x + s * 0.4, y + s); c.stroke();
+  } else if (type === 'vida') {   // heart
+    c.moveTo(x, y + s * 0.85);
+    c.bezierCurveTo(x - s * 1.4, y - s * 0.1, x - s * 0.55, y - s * 1.1, x, y - s * 0.35);
+    c.bezierCurveTo(x + s * 0.55, y - s * 1.1, x + s * 1.4, y - s * 0.1, x, y + s * 0.85);
+    c.stroke();
+  } else if (type === 'pesado') {   // a heavy disc dropping
+    c.arc(x, y - s * 0.2, s * 0.62, 0, TAU); c.fill();
+    c.beginPath(); c.moveTo(x - s * 0.9, y + s * 0.65); c.lineTo(x - s * 0.9, y + s); c.moveTo(x, y + s * 0.65); c.lineTo(x, y + s * 1.05); c.moveTo(x + s * 0.9, y + s * 0.65); c.lineTo(x + s * 0.9, y + s); c.stroke();
   }
   c.restore();
 }
@@ -491,13 +522,14 @@ export class Game {
     this.infinite = false;
     this.dropChance = DROP_CHANCE;
     this.index = 0;
-    this.ability = null;      // { type, lvl } from the workshop
-    this.widthLvl = 0;
+    this.ability = null;      // { type, lvl } active perk from BREAKERS
+    this.passive = null;      // { type, lvl } passive perk from BREAKERS
     this.energy = 0;
     this.abil = null;         // running ability state
   }
 
   get bottom() { return this.H - BOTTOM_OFF; }
+  pLvl(k) { return this.passive && this.passive.type === k ? this.passive.lvl : 0; }
   get shape() { return SHAPES[this.plat.shape]; }
   get world() { return this.stage.world; }
   palette() { return paletteColors(this.plat.pal, this.col); }
@@ -579,9 +611,11 @@ export class Game {
     this.combo = 0;
     this.breaks = 0;
     this.clearT = 0;
-    // +2% disc speed per district on top of the per-stage ramp
-    this.baseSpeed = Math.min(620 + this.index * 14, 880) * (1 + 0.02 * st.w);
+    // +1% disc speed per district on top of the per-stage ramp
+    this.baseSpeed = Math.min(620 + this.index * 14, 880) * (1 + 0.01 * st.w);
     this.resetBall();
+    const vl = this.pLvl('vida');
+    if (vl && this.lives < 3 + vl) { this.lives++; this.float('+1 VIDA', W / 2, this.H - PADDLE_OFF - 120, 22); }
     const sub = st.name || (this.world.name + (this.mechs.length ? '  ·  ' + this.mechs.map((m) => MECHS[m].name).join(' + ') : ''));
     this.banner = { text: st.boss ? 'CHEFÃO' : stageLabel(this.index), sub: st.boss ? st.boss.name : sub, t: 2.4, max: 2.4 };
     music.play(st.boss ? this.world.bossMusic : this.world.music);
@@ -613,7 +647,7 @@ export class Game {
 
   sizeFactor() {
     const e = this.effects.size;
-    const base = 1 + 0.08 * this.widthLvl;
+    const base = 1 + 0.08 * this.pLvl('width');
     if (!e) return base;
     return base * (e.lvl > 0 ? 1 + 0.22 * e.lvl : Math.pow(0.8, -e.lvl));
   }
@@ -633,6 +667,7 @@ export class Game {
       const ang = b.hold ? clamp(b.hold / this.paddle.hw, -1, 1) * 0.9 : (Math.random() * 2 - 1) * 0.25;
       b.hold = 0;
       b.held = false;
+      b.heavy = this.pLvl('pesado');
       b.vx = Math.sin(ang) * b.s;
       b.vy = -Math.cos(ang) * b.s;
       b.path = [{ x: b.x, y: b.y }];
@@ -898,7 +933,7 @@ export class Game {
       for (let k = 0; k < 3 && !b.dead; k++) {
         b.y -= 1300 * dt / 3;
         if (b.y < this.top + 4) { b.dead = true; this.burst(b.x, this.top + 4, 3, 0.4); break; }
-        const br = this.bricks.find((q) => !q.dead && b.x > q.x - 2 && b.x < q.x + q.w + 2 && b.y > q.y && b.y < q.y + q.h);
+        const br = this.bricks.find((q) => !q.dead && !q.out && b.x > q.x - 2 && b.x < q.x + q.w + 2 && b.y > q.y && b.y < q.y + q.h);
         if (br) { b.dead = true; if (br.kind === 'wall') br.flash = 0.6; else this.damage(br, false); break; }
         if (this.boss) {
           const h = this.boss.hitShot(b.x, b.y, 4);
@@ -909,14 +944,19 @@ export class Game {
     this.bolts = this.bolts.filter((b) => !b.dead);
     // missiles
     for (const m of this.missiles) {
-      // homing: steer toward the nearest breakable brick (or the boss core)
+      // homing: straight at the boss core when no brick stands in the way,
+      // otherwise toward the nearest breakable brick
       let tx = null, ty = null, bd = Infinity;
-      for (const q of this.bricks) {
-        if (q.dead || q.kind === 'wall') continue;
-        const qx = q.x + q.w / 2, qy = q.y + q.h / 2, d = (qx - m.x) ** 2 + (qy - m.y) ** 2;
-        if (d < bd) { bd = d; tx = qx; ty = qy; }
+      const boss = this.boss && !this.boss.dead ? this.boss : null;
+      if (boss && !this.blocked(m.x, m.y, boss.cx, boss.cy)) { tx = boss.cx; ty = boss.cy; }
+      else {
+        for (const q of this.bricks) {
+          if (q.dead || q.out || q.kind === 'wall') continue;
+          const qx = q.x + q.w / 2, qy = q.y + q.h / 2, d = (qx - m.x) ** 2 + (qy - m.y) ** 2;
+          if (d < bd) { bd = d; tx = qx; ty = qy; }
+        }
+        if (tx === null && boss) { tx = boss.cx; ty = boss.cy; }
       }
-      if (tx === null && this.boss && !this.boss.dead) { tx = this.boss.cx; ty = this.boss.cy; }
       const sp = Math.min(1100, 320 + m.t * 1400);
       let ang = Math.atan2(m.vy, m.vx);
       if (tx !== null && m.t > 0.12) {
@@ -930,7 +970,7 @@ export class Game {
       m.t += dt;
       const ex = m.x - Math.cos(ang) * 16, ey = m.y - Math.sin(ang) * 16;
       if (Math.random() < 0.8 * gfx.fx) this.particles.push({ x: ex + (Math.random() - 0.5) * 4, y: ey, vx: -Math.cos(ang) * 120 + (Math.random() - 0.5) * 60, vy: -Math.sin(ang) * 120, life: 0.35, max: 0.35, col: WHITE, sq: true });
-      const hitBrick = this.bricks.some((q) => !q.dead && m.x > q.x - 8 && m.x < q.x + q.w + 8 && m.y > q.y - 8 && m.y < q.y + q.h + 8);
+      const hitBrick = this.bricks.some((q) => !q.dead && !q.out && m.x > q.x - 8 && m.x < q.x + q.w + 8 && m.y > q.y - 8 && m.y < q.y + q.h + 8);
       const hitBoss = this.boss && this.boss.hitShot(m.x, m.y, 12);
       const out = m.y < this.top + 12 || m.x < LEFT + 8 || m.x > RIGHT - 8 || m.y > this.bottom || m.t > 4;
       if (hitBrick || hitBoss || out) { m.dead = true; this.missileBlast(m.x, m.y); }
@@ -951,6 +991,19 @@ export class Game {
     this.shots = this.shots.filter((s) => !s.dead);
   }
 
+  // Is there a solid brick (walls included) on the straight line between two points?
+  blocked(x0, y0, x1, y1) {
+    const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(L / 10));
+    for (const q of this.bricks) {
+      if (q.dead || q.out) continue;
+      for (let i = 0; i <= n; i++) {
+        const x = x0 + ((x1 - x0) * i) / n, y = y0 + ((y1 - y0) * i) / n;
+        if (x > q.x - 8 && x < q.x + q.w + 8 && y > q.y - 8 && y < q.y + q.h + 8) return true;
+      }
+    }
+    return false;
+  }
+
   missileBlast(x, y) {
     this.ring(x, y, MISSILE_R);
     this.ring(x, y, MISSILE_R * 0.6);
@@ -958,7 +1011,7 @@ export class Game {
     this.shake = Math.max(this.shake, 0.55);
     sfx.blast();
     for (const br of this.bricks) {
-      if (br.dead || br.kind === 'wall') continue;
+      if (br.dead || br.out || br.kind === 'wall') continue;
       if (Math.hypot(br.x + br.w / 2 - x, br.y + br.h / 2 - y) < MISSILE_R + 20) { this.damage(br, false); this.damage(br, false); }
     }
     if (this.boss && !this.boss.dead && Math.hypot(this.boss.cx - x, this.boss.cy - y) < MISSILE_R + this.boss.coreR) this.boss.damage(1, false, true);
@@ -1008,8 +1061,10 @@ export class Game {
     const r = b.r;
     const top = this.top;
     const wells = this.allWells();
+    const mag = this.abil && this.abil.type === 'magnet' && this.abil.t > 0;
     for (let i = 0; i < n; i++) {
       if (wells.length) this.applyGravity(b, h, wells);
+      if (mag && b.vy > 0) this.magnetPull(b, h);
       b.x += b.vx * h;
       b.y += b.vy * h;
       let hit = null;
@@ -1038,6 +1093,16 @@ export class Game {
       this.brickHit(b, pierce);
       if (b.y > this.bottom + r * 2) { b.lost = true; break; }
     }
+  }
+
+  // ÍMÃ: a gentle pull toward the platform while the disc comes down
+  magnetPull(b, h) {
+    const p = this.paddle, dy = p.y - b.y;
+    if (dy <= 0 || dy > 520) return;
+    b.vx += clamp(p.x - b.x, -220, 220) * 3.2 * (1 - dy / 520) * h;
+    const s = Math.hypot(b.vx, b.vy) || 1;
+    b.vx = (b.vx / s) * b.s; b.vy = (b.vy / s) * b.s;
+    if (++b.gk % 4 === 0) this.mark(b);
   }
 
   applyGravity(b, h, wells) {
@@ -1125,7 +1190,9 @@ export class Game {
         if ((b.x - qx) ** 2 + (b.y - qy) ** 2 > b.r * b.r) continue;
       }
       if (br.kind === 'wall') { br.flash = 0.6; sfx.wall(); return; }
-      this.damage(br, pierce, this.ballDamage());
+      let amt = this.ballDamage();
+      if (b.heavy > 0) { b.heavy--; amt *= 2; this.ring(br.x + br.w / 2, br.y + br.h / 2, 46); this.shake = Math.max(this.shake, 0.2); }
+      this.damage(br, pierce, amt);
       if (bounce) return;
     }
   }
@@ -1159,7 +1226,7 @@ export class Game {
       vibrate(8);
       if (this.combo >= 3) this.float('x' + this.combo, cx, cy, 24);
       if (br.kind === 'exp') this.blasts.push({ br, t: 0.12 });
-      if (!this.tutorial && Math.random() < COIN_CHANCE) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
+      if (!this.tutorial && Math.random() < COIN_CHANCE * GRANA_MUL[this.pLvl('grana')]) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
       if (this.tutorial && this.breaks === 3) this.spawnDrop(cx, cy, 'wide');
       else if (!this.tutorial && Math.random() < (this.boss ? Math.max(this.dropChance, 0.3) : this.dropChance)) this.spawnDrop(cx, cy);
     } else {
@@ -1197,7 +1264,8 @@ export class Game {
     let type = forced;
     if (!type) {
       // in boss fights lasers and missiles are much more likely
-      const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 3.5 : v.w);
+      const luck = SORTE_MUL[this.pLvl('sorte')];
+      const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 3.5 : v.w) * (v.good ? 1 : luck);
       const pool = Object.entries(POWERS).filter(([k]) => !(k === 'life' && this.lives >= 6));
       const total = pool.reduce((s, [k, v]) => s + wt(k, v), 0);
       let roll = Math.random() * total;
@@ -1340,8 +1408,8 @@ export class Game {
   gainEnergy(n) {
     if (!this.ability) return;
     const was = this.energy;
-    this.energy = Math.min(1, this.energy + n);
-    if (was < 1 && this.energy >= 1) { sfx.power(true); this.float('PODER PRONTO', this.paddle.x, this.paddle.y - 100, 20); }
+    this.energy = Math.min(1, this.energy + n * RECARGA_MUL[this.pLvl('recarga')]);
+    if (was < 1 && this.energy >= 1) { sfx.power(true); this.float('PERK PRONTO', this.paddle.x, this.paddle.y - 100, 20); }
   }
 
   abilityRect() { return { x: RIGHT - 92, y: this.bottom - 92, w: 80, h: 80 }; }

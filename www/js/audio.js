@@ -38,7 +38,7 @@ class Sfx {
       g.value = 0;
       g.setValueAtTime(0, now);
       if (on) {
-        g.setTargetAtTime(this.enabled ? 0.55 : 0, now, 0.05);
+        g.setTargetAtTime(0.55, now, 0.05);
         this.ctx.resume();
       } else {
         this.ctx.suspend();
@@ -49,7 +49,7 @@ class Sfx {
   build() {
     const c = this.ctx;
     this.master = c.createGain();
-    this.master.gain.value = this.enabled ? 0.55 : 0;
+    this.master.gain.value = 0.55;
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -14; comp.ratio.value = 4;
     this.master.connect(comp); comp.connect(c.destination);
@@ -94,8 +94,9 @@ class Sfx {
   }
 
   setEnabled(on) {
+    // effects only: the music has its own switch (setMusic)
     this.enabled = on;
-    if (this.master) this.master.gain.setTargetAtTime(on ? 0.55 : 0, this.ctx.currentTime, 0.05);
+    if (this.engGain && !on) this.engGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
   }
 
   setMusic(on) {
@@ -105,7 +106,7 @@ class Sfx {
 
   voice({ f, to = null, dur = 0.2, type = 'sawtooth', detune = [0], vol = 0.2, filter = 'lowpass', ff = 4000,
     fto = null, q = 1, send = 0.3, delay = 0, attack = 0.005, at = null, out = null }) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.ctx || (!this.enabled && out !== this.musicBus)) return;
     const c = this.ctx, t = at ?? c.currentTime + delay;
     const flt = c.createBiquadFilter();
     flt.type = filter; flt.Q.value = q;
@@ -129,7 +130,7 @@ class Sfx {
   }
 
   noise({ dur = 0.2, vol = 0.2, filter = 'bandpass', ff = 3000, fto = 300, q = 2, send = 0.3, delay = 0, at = null, out = null }) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.ctx || (!this.enabled && out !== this.musicBus)) return;
     const c = this.ctx, t = at ?? c.currentTime + delay;
     const src = c.createBufferSource(); src.buffer = this.noiseBuf;
     const flt = c.createBiquadFilter(); flt.type = filter; flt.Q.value = q;
@@ -149,7 +150,7 @@ class Sfx {
   }
 
   engine(speed) {
-    if (!this.ctx || !this.playing) return;
+    if (!this.ctx || !this.playing || !this.enabled) return;
     const t = this.ctx.currentTime;
     const s = Math.min(speed, 2500);
     for (const o of this.engOsc) o.frequency.setTargetAtTime(70 + s * 0.16, t, 0.05);

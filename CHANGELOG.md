@@ -2,6 +2,32 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.2] · 06/11/2026 · BREAKERS, perks ativos e passivos e novidades
+
+### Adicionado
+
+- Perks passivos: GRANA, RECARGA, SORTE, VIDA EXTRA e DISCO PESADO, além da PLATAFORMA LARGA. O jogador equipa 1 ativo e 1 passivo.
+- Aba PERKS em cartas (uma por vez, com setas ou deslizando), dividida em ATIVOS e PASSIVOS, sem pré-requisito.
+- Aviso (!) no botão BREAKERS, nas abas e nos itens quando há formato novo ou algo que dá para comprar.
+- Sino de NOVIDADES no menu, com tudo o que está disponível.
+- Botão BREAKERS na tela de distrito concluído.
+- Botões EFEITOS e MÚSICA no menu de pausa; efeitos e música agora são independentes.
+- Tutorial dos perks depois do primeiro chefão.
+- Modo dev: DESBLOQUEAR TUDO libera todos os perks no nível 3; o painel da partida troca o perk ativo e o passivo.
+
+### Alterado
+
+- Menu PLATAFORMA renomeado para BREAKERS e PODERES para PERKS.
+- ÍMÃ também puxa de leve o disco para a plataforma.
+- MÍSSIL vai direto no chefão quando não há bloco na frente.
+- O disco acelera 1% por distrito, em vez de 2%.
+
+### Corrigido
+
+- Modo dev: os botões de formato, cor e emblema do painel da partida não funcionavam.
+- Modo dev: o formato escolhido voltava ao padrão ao abrir o jogo com DESBLOQUEAR TUDO.
+- Laser e míssil acertavam blocos da mecânica FASE quando estavam fora de fase.
+
 ## [1.1] · 05/11/2026 · História, árvore de poderes e novos formatos
 
 ### Adicionado
