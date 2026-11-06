@@ -103,7 +103,7 @@ Ao derrotar O SISTEMA, o jogo finge travar: a tela congela e se rasga, e um term
 <tr>
 <td align="center"><img src="docs/img/12_plataforma.png" width="200"><br><sub>Formatos e opções de estilo</sub></td>
 <td align="center"><img src="docs/img/13_discos.png" width="200"><br><sub>Discos e rastros com prévia</sub></td>
-<td align="center"><img src="docs/img/14_poderes.png" width="200"><br><sub>Perks evoluídos com chips (captura da 1.0)</sub></td>
+<td align="center"><img src="docs/img/14_poderes.png" width="200"><br><sub>Perks em cartas, evoluídos com chips</sub></td>
 </tr>
 </table>
 </div>

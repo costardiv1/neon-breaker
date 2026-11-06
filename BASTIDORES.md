@@ -53,5 +53,4 @@ _Nenhuma sugestão pendente._
 
 ### Pendências conhecidas
 
-- As capturas de tela do README e da documentação ainda são da 1.0: mostram a aba de poderes antiga, o menu PLATAFORMA e o nome PERIFERIA.
 - O formato FUNIL só libera com o chefão do distrito 6, que ainda não existe.
