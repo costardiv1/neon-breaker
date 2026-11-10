@@ -63,7 +63,7 @@ export const ABILITIES = {
   shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai da plataforma, danifica os blocos mais próximos e desvia o disco.', lv: ['6 blocos', '8 blocos', '10 blocos, dano 2'], cost: [50, 110, 200] },
   slow:      { name: 'CÂMERA LENTA', desc: 'O tempo desacelera e o disco anda na metade da velocidade.', lv: ['5,5 s', '7 s', '8,5 s'], cost: [110, 220, 380] },
   magnet:    { name: 'ÍMÃ', desc: 'Puxa o disco para a plataforma e o segura a cada toque. Solte para mirar e lançar.', lv: ['9 s', '12 s', '15 s'], cost: [40, 90, 170] },
-  megalaser: { name: 'MEGA LASER', desc: 'Carrega 0,5 s no centro da plataforma e dispara um feixe que destrói tudo em linha reta.', lv: ['feixe fino', 'feixe médio', 'feixe largo'], cost: [60, 120, 220] },
+  megalaser: { name: 'MEGA LASER', desc: 'Carrega 0,5 s no centro da plataforma e dispara um feixe que destrói tudo em linha reta. A plataforma fica travada enquanto dispara.', lv: ['feixe fino', 'feixe médio', 'feixe largo'], cost: [60, 120, 220] },
   bolt:      { name: 'RELÂMPAGO', desc: 'Um raio sai do disco e salta de bloco em bloco, danificando cada um. Também acerta o chefão.', lv: ['5 blocos', '7 blocos', '9 blocos, dano 2'], cost: [130, 260, 450] },
 };
 // Passive perks: always on while equipped (one at a time, besides the active one).
@@ -737,6 +737,7 @@ export class Game {
     p.hw += (BASE_HW * this.sizeFactor() - p.hw) * Math.min(1, dt * 10);
     const lo = LEFT + p.hw + 10, hi = RIGHT - p.hw - 10;
     p.tx = clamp(p.tx, lo, hi);
+    if (this.abil && this.abil.type === 'megalaser') p.tx = p.x;   // MEGA LASER locks the platform in place
     p.x += (p.tx - p.x) * Math.min(1, dt * (this.effects.drag ? 4.5 : 30));   // PLATAFORMA LENTA
     if (p.hit) p.hit = Math.max(0, p.hit - dt / HIT_T);
     p.x = clamp(p.x, lo, hi);

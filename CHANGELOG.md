@@ -2,6 +2,12 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.3.1] · 10/11/2026 · MEGA LASER com a plataforma travada
+
+### Alterado
+
+- MEGA LASER: a plataforma fica travada enquanto o perk carrega e dispara, e o feixe não varre mais a tela inteira.
+
 ## [1.3] · 10/11/2026 · Distritos 6 e 7, cápsulas por distrito e ícone
 
 ### Adicionado

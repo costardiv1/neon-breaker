@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.3** (10/11/2026)
+Versão atual publicada: **1.3.1** (10/11/2026)
 
 ## Objetivos
 
@@ -17,6 +17,10 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 _Nenhuma sugestão pendente._
 
 ## Histórico
+
+### 1.3.1 (10/11/2026)
+
+- [x] MEGA LASER trava o breaker enquanto carrega e dispara.
 
 ### 1.3 (10/11/2026)
 
