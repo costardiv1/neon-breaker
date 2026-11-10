@@ -160,7 +160,6 @@ export const WORLDS = [
 
 // Stages per world = its stages + the boss.
 export const worldCount = (w) => (WORLDS[w].soon ? 0 : WORLDS[w].stages.length + 1);
-export const PLAYABLE = WORLDS.filter((x) => !x.soon).length;
 export function worldStart(w) {
   let n = 0;
   for (let k = 0; k < w; k++) n += worldCount(k);
@@ -169,7 +168,7 @@ export function worldStart(w) {
 export const TOTAL_STAGES = worldStart(WORLDS.length);
 
 // Stage index -> { w, s }.
-export function locate(i) {
+function locate(i) {
   let w = 0;
   while (w < WORLDS.length - 1 && i >= worldStart(w + 1)) w++;
   return { w, s: i - worldStart(w) };

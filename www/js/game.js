@@ -9,7 +9,7 @@ export const BALL_R = 16;
 export const BASE_HW = 86;
 const PAD_TH = 8;
 const PADDLE_OFF = 190;
-export const LEFT = 14, RIGHT = W - 14;
+const LEFT = 14, RIGHT = W - 14;
 const CR = 34;
 const BOTTOM_OFF = 62;
 const COLS = 9, MARGIN = 32, GAP = 8, BH = 28;
@@ -47,7 +47,7 @@ export const POWERS = {
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-// Platform abilities (bought/evolved in the workshop). One is equipped; it
+// Active perks (bought/evolved in BREAKERS > PERKS). One is equipped; it
 // charges by breaking bricks and fires with a double tap or the HUD button.
 export const ABILITIES = {
   shield:    { name: 'ESCUDO', desc: 'Uma barreira de energia embaixo da plataforma rebate o disco.', lv: ['7 s', '9 s', '11 s'], cost: [40, 90, 170] },
@@ -69,7 +69,6 @@ export const PASSIVES = {
 const GRANA_MUL = [1, 1.3, 1.6, 2];
 const RECARGA_MUL = [1, 1.25, 1.5, 1.8];
 const SORTE_MUL = [1, 0.7, 0.45, 0.25];
-export const WIDTH_COST = [140, 280, 480];
 
 export function tierTone(col, hp) {
   return hp === 1 ? mix(col, '#000000', 0.35) : hp === 2 ? col : hp === 3 ? mix(col, WHITE, 0.3) : mix(col, WHITE, 0.55);
@@ -85,7 +84,7 @@ function cached(key, build) {
 }
 export function clearSprites() { cache.clear(); }
 
-// Disc looks (bought with coins in the PLATAFORMA screen). Purely cosmetic.
+// Disc looks (bought with coins in BREAKERS). Purely cosmetic.
 export const DISCS = [
   { name: 'NÚCLEO', cost: 0 },
   { name: 'ANEL', cost: 40 },
@@ -338,7 +337,7 @@ export function drawAbilityIcon(c, type, x, y, s, color) {
   c.restore();
 }
 
-// Trail looks (bought with coins in the PLATAFORMA screen).
+// Trail looks (bought with coins in BREAKERS).
 export const TRAILS = [
   { name: 'PADRÃO', cost: 0 },
   { name: 'FAÍSCAS', cost: 50 },
@@ -525,7 +524,7 @@ export class Game {
     this.ability = null;      // { type, lvl } active perk from BREAKERS
     this.passive = null;      // { type, lvl } passive perk from BREAKERS
     this.energy = 0;
-    this.abil = null;         // running ability state
+    this.abil = null;         // running active perk state
   }
 
   get bottom() { return this.H - BOTTOM_OFF; }
@@ -917,7 +916,6 @@ export class Game {
 
   updateWeapons(dt) {
     const p = this.paddle;
-    // lasers
     // lasers: a fixed number of shots (each shot = both guns firing)
     const lz = this.effects.laser;
     if (lz) {
@@ -1012,7 +1010,7 @@ export class Game {
     sfx.blast();
     for (const br of this.bricks) {
       if (br.dead || br.out || br.kind === 'wall') continue;
-      if (Math.hypot(br.x + br.w / 2 - x, br.y + br.h / 2 - y) < MISSILE_R + 20) { this.damage(br, false); this.damage(br, false); }
+      if (Math.hypot(br.x + br.w / 2 - x, br.y + br.h / 2 - y) < MISSILE_R + 20) this.damage(br, false, 2);
     }
     if (this.boss && !this.boss.dead && Math.hypot(this.boss.cx - x, this.boss.cy - y) < MISSILE_R + this.boss.coreR) this.boss.damage(1, false, true);
   }
@@ -1404,7 +1402,7 @@ export class Game {
   }
 
 
-  // ---------- platform abilities ----------
+  // ---------- active perks ----------
   gainEnergy(n) {
     if (!this.ability) return;
     const was = this.energy;
@@ -1599,7 +1597,7 @@ export class Game {
     }
   }
 
-  // HUD button with the equipped ability, filling with energy.
+  // HUD button with the equipped active perk, filling with energy.
   renderAbilityButton(c) {
     if (!this.ability) return;
     const r = this.abilityRect(), col = this.col;

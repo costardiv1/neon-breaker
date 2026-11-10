@@ -2,7 +2,7 @@
 // view.res is the device-pixel scale, needed because shadowBlur ignores transforms.
 export const view = { res: 1, glow: 1, blur: 1 };
 export const TAU = Math.PI * 2;
-export const FONT = '"Orbitron", "Segoe UI", Roboto, Arial, sans-serif';
+const FONT = '"Orbitron", "Segoe UI", Roboto, Arial, sans-serif';
 
 // Blend two hex colors (t = 0 -> a, 1 -> b).
 export function mix(a, b, t) {

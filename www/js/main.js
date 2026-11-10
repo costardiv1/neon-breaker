@@ -16,7 +16,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.2';
+export const VERSION = '1.2.1';
 
 let H = 1280;
 let safeTop = 0;
@@ -35,7 +35,7 @@ const plat = {
 let best = store.get('best', 0);
 let prog = store.get('prog', 0);          // number of stages cleared
 let seen = store.get('seen', {});         // mechanic / boss intro cards already shown
-let chips = store.get('chips', 0);        // currency for the platform workshop
+let chips = store.get('chips', 0);        // currency for the perks
 const upg = Object.assign({ megalaser: 0, shock: 0, shield: 0, magnet: 0, slow: 0, bolt: 0,
   width: 0, grana: 0, recarga: 0, sorte: 0, vida: 0, pesado: 0 }, store.get('upg', {}));
 let equip = store.get('equip', null);     // equipped active perk
@@ -441,7 +441,7 @@ function mapButtons() {
 // Two kinds: ATIVOS (fired in play) and PASSIVOS (always on). One of each is equipped.
 const ACTIVE_KEYS = ['shield', 'shock', 'slow', 'magnet', 'megalaser', 'bolt'];
 const PASSIVE_KEYS = ['width', 'grana', 'recarga', 'sorte', 'vida', 'pesado'];
-let shopMsg = null;
+let buyMsg = null;
 let perkKind = 0;                  // 0 ATIVOS, 1 PASSIVOS
 const perkSel = [0, 0];
 const perkKeys = (kind = perkKind) => (kind ? PASSIVE_KEYS : ACTIVE_KEYS);
@@ -454,12 +454,12 @@ function buy(k) {
   const lvl = upg[k], info = perkInfo(k);
   if (lvl >= 3 || devAll()) return;
   const cost = info.cost[lvl];
-  if (chips < cost) { shopMsg = { text: 'CHIPS INSUFICIENTES', t: performance.now() / 1000 }; return; }
+  if (chips < cost) { buyMsg = { text: 'CHIPS INSUFICIENTES', t: performance.now() / 1000 }; return; }
   chips -= cost;
   upg[k] = lvl + 1;
   if (isPassive(k)) { if (!equipP) equipP = k; } else if (!equip) equip = k;
   sfx.power(true);
-  shopMsg = { text: (lvl ? 'EVOLUÍDO: ' : 'COMPRADO: ') + info.name, t: performance.now() / 1000 };
+  buyMsg = { text: (lvl ? 'EVOLUÍDO: ' : 'COMPRADO: ') + info.name, t: performance.now() / 1000 };
   saveChips();
 }
 function toggleEquip(k) {
@@ -473,7 +473,7 @@ const perkCard = () => {
   const y = safeTop + 352;
   return { x: 140, y, w: W - 280, h: H - 300 - y };
 };
-function shopButtons() {
+function perkButtons() {
   const list = [], cx = W / 2, cd = perkCard();
   ['ATIVOS', 'PASSIVOS'].forEach((t, i) => list.push(btn(cx + (i ? 150 : -150), safeTop + 302, 280, 50, t, () => { perkKind = i; }, { small: true, sel: perkKind === i, fs: 14, bang: perkAlert(i) })));
   list.push(btn(cx - 300, cd.y + cd.h / 2, 84, 84, '', () => browsePerk(-1), { arrow: -1 }));
@@ -486,7 +486,7 @@ function shopButtons() {
   } else list.push(btn(cx, y, 420, 64, label, () => buy(k), { fs: 15, bang: canBuyPerk(k) }));
   return list;
 }
-function renderShop(c, now) {
+function renderPerks(c, now) {
   const k = col(), cd = perkCard(), key = perkKey(), info = perkInfo(key), lvl = perkLvl(key), eq = isEquipped(key);
   const cx = W / 2;
   // the card
@@ -553,7 +553,7 @@ const cheapest = (key) => {
   return best;
 };
 const itemAlert = (key) => !devAll() && cheapest(key) >= 0;
-const tabAlert = (i) => (i === 0 ? shapeAlert() : i === POW_TAB ? perkAlert(0) || perkAlert(1) : itemAlert(['shape', 'pal', 'emb', 'disc', 'trail'][i]));
+const tabAlert = (i) => (i === 0 ? shapeAlert() : i === PERK_TAB ? perkAlert(0) || perkAlert(1) : itemAlert(['shape', 'pal', 'emb', 'disc', 'trail'][i]));
 const breakersAlert = () => PLAT_TABS.some((_, i) => tabAlert(i));
 let platBack = 'menu';
 function openBreakers(tab, back = 'menu', kind = null, sel = null) {
@@ -572,8 +572,8 @@ function notes() {
     const ks = perkKeys(kind).filter(canBuyPerk);
     if (!ks.length) return;
     const kk = ks[0], i = perkKeys(kind).indexOf(kk), tag = kind ? 'PERK PASSIVO' : 'PERK ATIVO';
-    if (ks.length === 1) list.push({ title: (upg[kk] ? 'EVOLUA: ' : 'COMPRE: ') + perkInfo(kk).name, sub: tag + '  ·  ' + perkInfo(kk).cost[upg[kk]] + ' CHIPS', go: () => openBreakers(POW_TAB, 'notif', kind, i) });
-    else list.push({ title: ks.length + (kind ? ' PERKS PASSIVOS' : ' PERKS ATIVOS') + ' PARA COMPRAR', sub: 'A PARTIR DE ' + Math.min(...ks.map((q) => perkInfo(q).cost[upg[q]])) + ' CHIPS', go: () => openBreakers(POW_TAB, 'notif', kind, i) });
+    if (ks.length === 1) list.push({ title: (upg[kk] ? 'EVOLUA: ' : 'COMPRE: ') + perkInfo(kk).name, sub: tag + '  ·  ' + perkInfo(kk).cost[upg[kk]] + ' CHIPS', go: () => openBreakers(PERK_TAB, 'notif', kind, i) });
+    else list.push({ title: ks.length + (kind ? ' PERKS PASSIVOS' : ' PERKS ATIVOS') + ' PARA COMPRAR', sub: 'A PARTIR DE ' + Math.min(...ks.map((q) => perkInfo(q).cost[upg[q]])) + ' CHIPS', go: () => openBreakers(PERK_TAB, 'notif', kind, i) });
   });
   ['pal', 'emb', 'disc', 'trail'].forEach((key, ti) => {
     const i = cheapest(key);
@@ -646,22 +646,22 @@ function perkTutButtons() {
   if (perkTut < PERK_TUT.length - 1) return [btn(cx, by, 340, 70, 'CONTINUAR', () => { perkTut++; }, { big: true })];
   return [
     btn(cx - 140, by, 250, 70, 'DEPOIS', () => setScene('world'), { fs: 16 }),
-    btn(cx + 140, by, 250, 70, 'BREAKERS', () => openBreakers(POW_TAB, 'world'), { big: true, fs: 20 }),
+    btn(cx + 140, by, 250, 70, 'BREAKERS', () => openBreakers(PERK_TAB, 'world'), { big: true, fs: 20 }),
   ];
 }
 
 function platMsg(c, now, y) {
-  if (!shopMsg || now - shopMsg.t >= 1.8) return false;
-  c.globalAlpha = Math.min(1, (1.8 - (now - shopMsg.t)) * 2);
-  glowText(c, shopMsg.text, W / 2, y, 16, '#ffffff', col(), 'center', 700, 3);
+  if (!buyMsg || now - buyMsg.t >= 1.8) return false;
+  c.globalAlpha = Math.min(1, (1.8 - (now - buyMsg.t)) * 2);
+  glowText(c, buyMsg.text, W / 2, y, 16, '#ffffff', col(), 'center', 700, 3);
   c.globalAlpha = 1;
   return true;
 }
 
-// ---------- platform screen: shape, colors, emblem and powers ----------
+// ---------- BREAKERS screen: shape, colors, emblem, disc, trail and perks ----------
 // Shapes unlock as bosses fall; colors and emblems are bought with coins.
 const PLAT_TABS = ['FORMATO', 'CORES', 'EMBLEMA', 'DISCO', 'RASTRO', 'PERKS'];
-const POW_TAB = 5;
+const PERK_TAB = 5;
 const PAL_COST = [20, 25, 30, 40, 50, 90, 60, 0];
 const EMB_COST = [0, 0, 150, 180, 220, 260, 450, 320];
 let platTab = 0;
@@ -693,12 +693,12 @@ function browseItem(d) {
 }
 function buyItem() {
   const key = catKey(), i = browse[key], cost = itemCost(key, i);
-  if (coins < cost) { shopMsg = { text: 'MOEDAS INSUFICIENTES', t: performance.now() / 1000 }; return; }
+  if (coins < cost) { buyMsg = { text: 'MOEDAS INSUFICIENTES', t: performance.now() / 1000 }; return; }
   coins -= cost;
   owned[key].push(i);
   plat[key] = i; store.set('plat', plat);
   sfx.power(true);
-  shopMsg = { text: 'COMPRADO: ' + catName(key, i), t: performance.now() / 1000 };
+  buyMsg = { text: 'COMPRADO: ' + catName(key, i), t: performance.now() / 1000 };
   saveChips();
 }
 const platSelY = () => safeTop + 700;
@@ -706,7 +706,7 @@ function platButtons() {
   const list = [], cx = W / 2, per = Math.ceil(PLAT_TABS.length / 2), tw = (W - 48) / per;
   PLAT_TABS.forEach((t, i) => list.push({ x: 24 + (i % per) * tw + 4, y: safeTop + 150 + Math.floor(i / per) * 58, w: tw - 8, h: 50, label: t, fn: () => { platTab = i; openPlat(); }, ptab: i, bang: tabAlert(i) }));
   if (opts.dev) list.push(btn(cx, safeTop + 124, 120, 36, '+ DEV', () => { chips += 500; coins += 100; saveChips(); }, { small: true }));
-  if (platTab === POW_TAB) list.push(...shopButtons());
+  if (platTab === PERK_TAB) list.push(...perkButtons());
   else {
     const y = platSelY(), key = catKey(), i = browse[key];
     list.push(btn(cx - 270, y, 84, 84, '', () => browseItem(-1), { arrow: -1 }));
@@ -729,7 +729,7 @@ function renderPlatScreen(c, now) {
   glowText(c, coins + ' MOEDAS', 72, safeTop + 124, 17, '#ffffff', '#ffd84a', 'left', 700, 2);
   c.strokeStyle = rgba(k, 0.9); c.lineWidth = 2; c.strokeRect(W - 60, safeTop + 113, 22, 22); c.strokeRect(W - 54, safeTop + 119, 10, 10);
   glowText(c, chips + ' CHIPS', W - 70, safeTop + 124, 17, '#ffffff', k, 'right', 700, 2);
-  if (platTab === POW_TAB) { renderShop(c, now); return; }
+  if (platTab === PERK_TAB) { renderPerks(c, now); return; }
   const key = catKey(), i = browse[key], open = itemOpen(key, i), n = catN(key);
   const pv = Object.assign({}, plat, { [key]: i });
   const px = W / 2, py = safeTop + 420, S = 1.6, sh = SHAPES[pv.shape];
@@ -1279,7 +1279,7 @@ canvas.addEventListener('pointerdown', (e) => {
       }
     }
     if (game.ability && inside(game.abilityRect(), p)) { game.useAbility(); return; }
-    // double tap anywhere fires the platform ability
+    // double tap anywhere fires the active perk
     const tn = performance.now();
     if (tn - lastTap.t < 300 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 90) { game.useAbility(); lastTap.t = 0; }
     else lastTap = { t: tn, x: p.x, y: p.y };
@@ -1333,7 +1333,7 @@ canvas.addEventListener('pointerup', (e) => {
     swipe = null;
     if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) {
       const d = dx < 0 ? 1 : -1;
-      if (platTab === POW_TAB) browsePerk(d); else browseItem(d);
+      if (platTab === PERK_TAB) browsePerk(d); else browseItem(d);
       sfx.click(); pressed = null; return;
     }
   }

@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.2** (06/11/2026)
+Versão atual publicada: **1.2.1** (09/11/2026)
 
 ## Objetivos
 
@@ -14,7 +14,12 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
-_Nenhuma sugestão pendente._
+- [ ] Bug: ao vencer um chefão, o jogador perde uma vida (ou vai para FIM DE JOGO, sem a história e sem PRÓXIMO DISTRITO, se era a última). Causa: quando o chefão morre no meio do quadro (por míssil, laser ou perk), os discos são removidos e, no mesmo quadro, o jogo vê "nenhum disco em campo" e tira uma vida. Correção: parar a atualização assim que o chefão morre (08/11/2026)
+- [ ] Bug: o MEGA LASER destrói blocos da mecânica FASE quando estão fora de fase. A ONDA DE CHOQUE também pode mirar neles (09/11/2026)
+- [ ] Lançar o disco sozinho depois de 10 s parado na plataforma (09/11/2026)
+- [ ] O arco que acende na plataforma quando o disco rebate está fora do padrão em todos os formatos, menos no ARCO (09/11/2026)
+- [ ] Criar os distritos 6 (VIRAL) e 7 (CENSURA): fases, mecânicas novas e chefões (09/11/2026)
+- [ ] MEGA LASER forte demais: os blocos que ele destrói recarregam o próprio perk, então dá para usar em sequência. Ideia: blocos destruídos por perks não carregam energia (08/11/2026)
 
 ## Histórico
 

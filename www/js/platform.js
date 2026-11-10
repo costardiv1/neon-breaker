@@ -311,7 +311,7 @@ function shapeDetail(c, si, x, y, hw, t, g2, g3, ga, gb) {
   }
 }
 
-export function drawEmblem(c, ei, x, y, t, grad, ga, gb) {
+function drawEmblem(c, ei, x, y, t, grad, ga, gb) {
   const name = EMBLEMS[ei];
   if (name === 'NENHUM') return;
   c.save();

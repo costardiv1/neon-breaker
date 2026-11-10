@@ -2,6 +2,14 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.2.1] · 09/11/2026 · Revisão e limpeza do código
+
+### Alterado
+
+- Código revisado: removidas constantes, importações e exportações sem uso, e renomeados os restos da antiga loja e da árvore de habilidades.
+- Removidos do repositório um PDF antigo da documentação e uma captura de tela sem uso.
+- Documentação e diagramas atualizados com os perks ativos e passivos.
+
 ## [1.2] · 06/11/2026 · BREAKERS, perks ativos e passivos e novidades
 
 ### Adicionado

@@ -2,7 +2,7 @@
 // Each boss has a weak point, abilities that mess with the disc
 // (deflect, capture & throw...) and 2 health bars; losing the first one
 // triggers FURY mode.
-import { TAU, rgba, mix, neonStroke, view, glowText } from './render.js';
+import { TAU, rgba, neonStroke, view, glowText } from './render.js';
 import { sfx, vibrate } from './audio.js';
 
 const W = 720;
