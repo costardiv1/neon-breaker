@@ -365,6 +365,42 @@ function codeTrack(s, step, t, d, fury, boss) {
   if ((boss || fury) && i % 2 === 1) I.lead(s, t, root + 48 + iv[(step >> 1) % 3], d * 1.2);
 }
 
+// District 6 "VIRAL": a bouncy offbeat bass and a short hook that keeps repeating,
+// an octave up every other bar, like something being shared around.
+const PROG6 = [[43, [0, 3, 7]], [46, [0, 4, 7]], [41, [0, 4, 7]], [48, [0, 3, 7]]]; // Gm A# F Cm
+function viralTrack(s, step, t, d, fury, boss) {
+  const bar = Math.floor(step / 16) % 4, i = step % 16;
+  const [root, iv] = PROG6[bar];
+  if (i % 4 === 0) I.kick(s, t, 0.55);
+  if (i % 4 === 2) { I.hat(s, t, true, 0.05); I.bass(s, t, root + 12, d * 1.4, 0.13, 1100); }
+  else if (i % 2 === 1) I.hat(s, t, false, 0.025);
+  if (i === 4 || i === 12) I.snare(s, t);
+  if (boss && (i === 7 || i === 15)) I.snare(s, t);
+  if (i === 0 || i === 8) I.bass(s, t, root, d * 1.8, 0.15, 700);
+  const hook = [0, 2, 1, 2, 0, 2, 1, 0];
+  if (boss || i % 2 === 0) I.arp(s, t, root + 24 + iv[hook[(i >> 1) % 8]] + (bar % 2 ? 12 : 0), 0.04, 'square', 3400);
+  if (i === 0) I.pad(s, t, iv.map((x) => root + 12 + x), d * 16, 0.018);
+  if ((boss || fury) && i % 4 === 3) I.lead(s, t, root + 48 + iv[(step >> 2) % 3], d * 1.5);
+}
+
+// District 7 "CENSURA": cold and mechanical. Outside boss fights the end of
+// every fourth bar is cut to silence, as if the track itself were censored.
+const PROG7 = [[37, [0, 3, 7]], [37, [0, 3, 7]], [40, [0, 4, 7]], [35, [0, 4, 7]]]; // C#m C#m E B
+function censorTrack(s, step, t, d, fury, boss) {
+  const bar = Math.floor(step / 16) % 4, i = step % 16;
+  const [root, iv] = PROG7[bar];
+  if (!boss && bar === 3 && i >= 12) return;
+  if (i === 0 || i === 6 || i === 8) I.kick(s, t, 0.55);
+  if (i === 4 || i === 12) I.snare(s, t);
+  if (i % 2 === 0) I.hat(s, t, false, i % 4 === 2 ? 0.05 : 0.025);
+  if (boss && i % 4 === 3) I.hat(s, t, true, 0.04);
+  if (i === 0 || i === 3 || i === 8 || i === 11) I.bass(s, t, root, d * 2.4, 0.16, 520);
+  if (i % 4 === 2) I.arp(s, t, root + 24 + iv[(step >> 2) % 3], 0.04, 'sawtooth', 2000);
+  if (i === 0) I.pad(s, t, iv.map((x) => root + 12 + x), d * 16, 0.02);
+  if ((boss || fury) && i % 8 === 4) I.lead(s, t, root + 36 + iv[(step >> 3) % 3], d * 3);
+  if (fury && i % 2 === 1) I.arp(s, t, root + 48, 0.03, 'square', 5200);
+}
+
 function mapTrack(s, step, t, d) {
   const bar = Math.floor(step / 16) % 4, i = step % 16;
   const [root, iv] = PROG1[bar];
@@ -391,6 +427,10 @@ const TRACKS = {
   boss4: { bpm: 160, fn: (s, st, t, d, f) => nightTrack(s, st, t, d, f, true) },
   w5:    { bpm: 154, fn: (s, st, t, d, f) => codeTrack(s, st, t, d, f, false) },
   boss5: { bpm: 162, fn: (s, st, t, d, f) => codeTrack(s, st, t, d, f, true) },
+  w6:    { bpm: 156, fn: (s, st, t, d, f) => viralTrack(s, st, t, d, f, false) },
+  boss6: { bpm: 164, fn: (s, st, t, d, f) => viralTrack(s, st, t, d, f, true) },
+  w7:    { bpm: 158, fn: (s, st, t, d, f) => censorTrack(s, st, t, d, f, false) },
+  boss7: { bpm: 166, fn: (s, st, t, d, f) => censorTrack(s, st, t, d, f, true) },
 };
 
 class Music {

@@ -99,13 +99,13 @@ export function outAngle(si, k, hw = 86) {
 // Each shape reacts to a hit in its own way. hit: 1 right after the hit -> 0.
 //   ARCO jumps, LÂMINA blinks, PONTA gets sharper and springs back,
 //   FERRADURA wobbles, ASA flaps its wings, ONDA ripples, FUNIL swallows.
-export function drawPlatform(c, plat, x, y, hw, t, theme, hit = 0) {
-  if (hit <= 0) { platformBody(c, plat, x, y, hw, t, theme, 0); return; }
+// Applies a shape's hit animation to the context (origin = the platform's centre).
+// Shared with the game, so the light of a bounce follows the animated platform.
+export function hitTransform(c, si, hit) {
+  if (hit <= 0) return;
   // eased curves: a quick rise and a long, soft settle
   const u = 1 - hit, bell = Math.sin(Math.PI * Math.pow(u, 0.65)), fade = hit * hit;
-  c.save();
-  c.translate(x, y);
-  switch (SHAPES[plat.shape].name) {
+  switch (SHAPES[si].name) {
     case 'ARCO': c.translate(0, -14 * bell); break;
     case 'PONTA': c.scale(1 - 0.04 * bell, 1 + 0.35 * bell); break;
     case 'FERRADURA': c.rotate(Math.sin(u * 4 * Math.PI) * 0.06 * fade); break;
@@ -114,6 +114,13 @@ export function drawPlatform(c, plat, x, y, hw, t, theme, hit = 0) {
     case 'FUNIL': c.translate(0, 9 * bell); c.scale(1 - 0.06 * bell, 1 + 0.25 * bell); break;
     default: break;
   }
+}
+
+export function drawPlatform(c, plat, x, y, hw, t, theme, hit = 0) {
+  if (hit <= 0) { platformBody(c, plat, x, y, hw, t, theme, 0); return; }
+  c.save();
+  c.translate(x, y);
+  hitTransform(c, plat.shape, hit);
   platformBody(c, plat, 0, 0, hw, t, theme, hit);
   c.restore();
 }

@@ -1,6 +1,6 @@
 import { view, TAU, rgba, mix, roundRectPath, neonStroke, makeSprite, drawSprite, glowText, neonTitle } from './render.js';
 import { getStage, stageLabel, MECHS, TOTAL_STAGES, worldStart, worldCount } from './levels.js';
-import { SHAPES, drawPlatform, paletteColors, samplePal, shapePoints } from './platform.js';
+import { SHAPES, drawPlatform, hitTransform, paletteColors, samplePal, shapePoints } from './platform.js';
 import { createBoss, collideRect } from './boss.js';
 import { sfx, music, vibrate } from './audio.js';
 
@@ -25,24 +25,33 @@ const COIN_CHANCE = 0.07;   // coins: rare drops, caught with the platform, spen
 const COIN_R = 13;
 const PHASE_T = 2.8;   // FASE: seconds each group stays solid / out of phase
 const PORTAL_R = 24;
+const PORTAL_ALT = ['#ff45c0', '#ffd21f', '#2bff88'];   // colors of the 2nd, 3rd... pair of portals
+const AUTO_LAUNCH = 10;   // seconds a disc may sit on the platform before it launches by itself
+const BAR_H = 74;         // TARJA: height of a censor bar
 export const HIT_T = 0.6;   // length of the platform's hit animation (s)
 // graphics quality (set from the dev panel): particle amount and trail detail
 export const gfx = { fx: 1, trail: 1, grid: 1 };
 const BORDER_BASE = { flow: [3, 0.8], beat: [2.5, 0.5], scan: [2.5, 0.55] };
 
+// Capsules. d = the district that introduces it: each district brings one good
+// and one bad capsule, and keeps the ones from the districts before it.
 export const POWERS = {
-  multi:   { good: true,  w: 3,   label: 'MULTI' },
-  wide:    { good: true,  w: 2.6, label: 'PLATAFORMA +' },
-  slow:    { good: true,  w: 1.8, label: 'LENTO' },
-  pierce:  { good: true,  w: 1.6, label: 'PERFURAR' },
-  laser:   { good: true,  w: 2.2, label: 'LASER' },
-  missile: { good: true,  w: 2,   label: 'MÍSSIL' },
-  mega:    { good: true,  w: 1.8, label: 'MEGA DISCO' },
-  ghost:   { good: true,  w: 1.4, label: 'FANTASMA' },
-  life:    { good: true,  w: 0.6, label: '+1 VIDA' },
-  shrink:  { good: false, w: 2,   label: 'PLATAFORMA -' },
-  fast:    { good: false, w: 2,   label: 'RÁPIDO' },
-  mini:    { good: false, w: 1.8, label: 'MINI DISCO' },
+  wide:    { good: true,  d: 1, w: 2.6, label: 'PLATAFORMA +' },
+  multi:   { good: true,  d: 2, w: 3,   label: 'MULTI' },
+  life:    { good: true,  d: 3, w: 0.6, label: '+1 VIDA' },
+  laser:   { good: true,  d: 4, w: 2.2, label: 'LASER' },
+  missile: { good: true,  d: 5, w: 2,   label: 'MÍSSIL' },
+  pierce:  { good: true,  d: 6, w: 1.6, label: 'PERFURAR' },
+  mega:    { good: true,  d: 7, w: 1.8, label: 'MEGA DISCO' },
+  slow:    { good: true,  d: 8, w: 1.8, label: 'LENTO' },
+  ghost:   { good: true,  d: 9, w: 1.4, label: 'FANTASMA' },
+  shrink:  { good: false, d: 1, w: 2,   label: 'PLATAFORMA -' },
+  fast:    { good: false, d: 2, w: 2,   label: 'RÁPIDO' },
+  mini:    { good: false, d: 3, w: 1.8, label: 'MINI DISCO' },
+  dark:    { good: false, d: 4, w: 1.6, label: 'APAGÃO' },
+  invert:  { good: false, d: 5, w: 1.5, label: 'INVERTIDO' },
+  wobble:  { good: false, d: 6, w: 1.6, label: 'INSTÁVEL' },
+  drag:    { good: false, d: 7, w: 1.6, label: 'PLATAFORMA LENTA' },
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -271,6 +280,25 @@ function dropSprite(type, col) {
       case 'mega': c.beginPath(); c.arc(cx, m, 8, 0, TAU); c.stroke(); c.beginPath(); c.arc(cx, m, 2.5, 0, TAU); c.fill(); break;
       case 'mini': c.beginPath(); c.arc(cx, m, 3.5, 0, TAU); c.fill(); line([cx - 14, m, cx - 8, m]); line([cx + 8, m, cx + 14, m]); break;
       case 'life': line([cx, m - 7, cx, m + 7]); line([cx - 7, m, cx + 7, m]); break;
+      case 'dark':   // a crossed-out sun
+        c.beginPath(); c.arc(cx, m, 5, 0, TAU); c.stroke();
+        line([cx - 11, m + 8, cx + 11, m - 8]);
+        break;
+      case 'invert':   // two arrows pointing opposite ways
+        line([cx - 13, m - 4, cx + 9, m - 4]); line([cx + 4, m - 8, cx + 9, m - 4]);
+        line([cx + 13, m + 4, cx - 9, m + 4]); line([cx - 4, m + 8, cx - 9, m + 4]);
+        break;
+      case 'wobble':   // a wavy path
+        c.beginPath(); c.moveTo(cx - 14, m);
+        c.bezierCurveTo(cx - 9, m - 11, cx - 5, m + 11, cx, m);
+        c.bezierCurveTo(cx + 5, m - 11, cx + 9, m + 11, cx + 14, m);
+        c.stroke();
+        break;
+      case 'drag':   // a platform with a weight under it
+        line([cx - 13, m - 5, cx + 13, m - 5]);
+        line([cx, m - 5, cx, m + 2]);
+        c.beginPath(); c.rect(cx - 5, m + 2, 10, 6); c.fill();
+        break;
       case 'ghost':
         c.lineWidth = 1.6;
         line([cx - 2, m - 8, cx - 2, m + 8]); line([cx + 3, m - 8, cx + 3, m + 8]);
@@ -528,6 +556,7 @@ export class Game {
   }
 
   get bottom() { return this.H - BOTTOM_OFF; }
+  get mirror() { return !!this.effects && !!this.effects.invert; }   // INVERTIDO: controls are mirrored
   pLvl(k) { return this.passive && this.passive.type === k ? this.passive.lvl : 0; }
   get shape() { return SHAPES[this.plat.shape]; }
   get world() { return this.stage.world; }
@@ -571,12 +600,13 @@ export class Game {
     st.rows.forEach((row, r) => {
       for (let c = 0; c < COLS; c++) {
         const ch = row[c];
-        let kind = 'n', hp = +ch || 0;
+        let kind = 'n', hp = +ch || 0, inf = false;
+        if (ch === 'V') { hp = 2; inf = true; }   // CONTÁGIO: an infected brick
         if (ch === 'X') { kind = 'wall'; hp = 1; }
         if (ch === 'E') { kind = 'exp'; hp = 1; }
         if (!hp) continue;
         const x = MARGIN + c * (BW + GAP);
-        this.bricks.push({ x, baseX: x, y: y0 + r * (BH + GAP), w: BW, h: BH, hp, kind, row: r, col: c, flash: 0, dead: false });
+        this.bricks.push({ x, baseX: x, y: y0 + r * (BH + GAP), w: BW, h: BH, hp, kind, inf, row: r, col: c, flash: 0, dead: false });
       }
     });
     this.alive = this.bricks.filter((b) => b.kind !== 'wall').length;
@@ -591,6 +621,13 @@ export class Game {
     if (this.mechs.includes('phase') && !st.boss) {
       for (const br of this.bricks) if (br.kind === 'n' && br.row % 2 === 1) br.phase = br.col % 2;
     }
+    // TARJA: censor bars sweep the bricks (in boss fights only the boss calls them)
+    this.bars = [];
+    for (let i = 0; i < (st.bars || 0); i++) this.bars.push({ ph: i * 2.3 });
+    this.barY0 = st.boss ? this.top + 430 : this.top + 52;
+    this.barRange = st.boss ? 180 : Math.max(60, lowY - this.top - 52 - BAR_H + 30);
+    this.viralT = 5;
+    this.holdT = 0;
     this.boss = st.boss ? createBoss(st.boss.type, this) : null;
     this.bandT = 9;
     if (this.boss) this.fillBand(12);
@@ -659,6 +696,7 @@ export class Game {
   get holding() { return this.balls.some((b) => b.held); }
 
   launch() {
+    this.holdT = 0;
     let any = false;
     for (const b of this.balls) {
       if (!b.held) continue;
@@ -693,12 +731,13 @@ export class Game {
     }
 
     const p = this.paddle;
-    if (this.keys.left) p.tx -= 1000 * dt;
-    if (this.keys.right) p.tx += 1000 * dt;
+    const kdir = this.effects.invert ? -1 : 1;
+    if (this.keys.left) p.tx -= 1000 * dt * kdir;
+    if (this.keys.right) p.tx += 1000 * dt * kdir;
     p.hw += (BASE_HW * this.sizeFactor() - p.hw) * Math.min(1, dt * 10);
     const lo = LEFT + p.hw + 10, hi = RIGHT - p.hw - 10;
     p.tx = clamp(p.tx, lo, hi);
-    p.x += (p.tx - p.x) * Math.min(1, dt * 30);
+    p.x += (p.tx - p.x) * Math.min(1, dt * (this.effects.drag ? 4.5 : 30));   // PLATAFORMA LENTA
     if (p.hit) p.hit = Math.max(0, p.hit - dt / HIT_T);
     p.x = clamp(p.x, lo, hi);
     const inst = Math.abs(p.x - p.lastX) / dt;
@@ -736,6 +775,9 @@ export class Game {
       }
     }
 
+    // a disc left sitting on the platform launches by itself
+    if (this.holding) { this.holdT += dt; if (this.holdT >= AUTO_LAUNCH) this.launch(); } else this.holdT = 0;
+
     const slow = this.abil && this.abil.type === 'slow' ? 0.5 : 1;   // CÂMERA LENTA
     const target = this.baseSpeed * this.speedFactor() * slow;
     const rTarget = BALL_R * this.discScale();
@@ -762,6 +804,9 @@ export class Game {
 
     this.updateWeapons(dt);
     this.updateAbility(dt);
+    // the boss died during this step: its death already removed the discs, so
+    // stop before the "no disc left" check below takes a life for it
+    if (this.boss && this.boss.dead) return;
 
     for (const bl of this.blasts) { bl.t -= dt; if (bl.t <= 0) this.explode(bl.br); }
     this.blasts = this.blasts.filter((bl) => bl.t > 0);
@@ -852,10 +897,60 @@ export class Game {
     for (const w of this.wells) {
       if (w.orbit) { w.x = W / 2 + 140 * Math.cos(this.mt * 0.6); w.y = w.by + 55 * Math.sin(this.mt * 0.6); }
     }
+    // CONTÁGIO: while an infected brick lives, one of them grows a new brick now and then
+    if (this.bricks.some((b) => b.inf && !b.dead)) {
+      this.viralT -= dt;
+      if (this.viralT <= 0) { this.viralT = this.boss ? 5 : 4.2; this.replicate(); }
+    }
+    // TARJA: temporary bars (called by the boss) run out
+    if (this.bars.length) {
+      for (const q of this.bars) if (q.t !== undefined) q.t -= dt;
+      this.bars = this.bars.filter((q) => q.t === undefined || q.t > 0);
+    }
     // FASE: each group spends PHASE_T seconds solid and PHASE_T out of phase
     const cyc = this.mt % (PHASE_T * 2), cur = cyc < PHASE_T ? 0 : 1;
     this.phaseWarn = PHASE_T - (cyc % PHASE_T) < 0.5;
     for (const br of this.bricks) if (br.phase !== undefined) br.out = br.phase === cur;
+  }
+
+  // CONTÁGIO: a random infected brick grows a common brick into a free cell next to it.
+  replicate() {
+    const inf = this.bricks.filter((b) => b.inf && !b.dead && !b.out);
+    if (!inf.length) return;
+    const src = inf[Math.floor(Math.random() * inf.length)];
+    const dirs = [[0, -1], [0, 1], [1, 0], [-1, 0]].sort(() => Math.random() - 0.5);
+    for (const [dr, dc] of dirs) {
+      const r = src.row + dr, col = src.col + dc, y = src.y + dr * (BH + GAP);
+      if (col < 0 || col >= COLS) continue;
+      if (this.boss ? (r < 100 || r > 101) : (r < 0 || r > 11)) continue;
+      if (y + BH > this.dangerY - 120) continue;
+      if (this.bricks.some((b) => !b.dead && b.row === r && b.col === col)) continue;
+      const step = dc * (BW + GAP);
+      this.bricks.push({ x: src.x + step, baseX: src.baseX + step, y, w: BW, h: BH, hp: 1, kind: 'n', inf: false, row: r, col, flash: 1, dead: false });
+      this.alive++;
+      if (!this.boss && this.mechs.includes('slide')) this.rows[r] = this.rowMotion(r);
+      this.ring(src.x + step + BW / 2, y + BH / 2, 60);
+      return;
+    }
+  }
+
+  // Boss ability: one of the common bricks of the boss stage becomes infected.
+  infectBand() {
+    const list = this.bricks.filter((b) => b.row >= 100 && !b.dead && !b.inf);
+    if (!list.length) return;
+    const br = list[Math.floor(Math.random() * list.length)];
+    br.inf = true; br.hp = Math.max(br.hp, 2); br.flash = 1;
+    this.ring(br.x + br.w / 2, br.y + br.h / 2, 90);
+  }
+
+  // Boss ability: a censor bar covers part of the field for t seconds.
+  addBar(t) { if (this.bars.length < 2) this.bars.push({ ph: Math.random() * 6, t }); }
+  barY(q) { return this.barY0 + this.barRange * (0.5 + 0.5 * Math.sin(this.mt * 0.55 + q.ph)); }
+
+  portalColor(i) {
+    if (i === 0) return this.col;
+    const alt = PORTAL_ALT.filter((x) => x !== this.col.toLowerCase());
+    return alt[(i - 1) % alt.length];
   }
 
   allPortals() {
@@ -1058,6 +1153,13 @@ export class Game {
     const pierce = !!this.effects.pierce;
     const r = b.r;
     const top = this.top;
+    if (this.effects.wobble) {
+      const a = Math.sin(this.t * 7) * 1.6 * dt, cs = Math.cos(a), sn = Math.sin(a);
+      const vx = b.vx * cs - b.vy * sn;
+      b.vy = b.vx * sn + b.vy * cs; b.vx = vx;
+      this.fixAngle(b);
+      if (++b.gk % 6 === 0) this.mark(b);
+    }
     const wells = this.allWells();
     const mag = this.abil && this.abil.type === 'magnet' && this.abil.t > 0;
     for (let i = 0; i < n; i++) {
@@ -1201,7 +1303,8 @@ export class Game {
     return e ? (e.type === 'mega' ? 2 : 0.5) : 1;
   }
 
-  damage(br, full, amt = 1) {
+  // perk = true when an active perk dealt the damage: those kills do not recharge the perk.
+  damage(br, full, amt = 1, perk = false) {
     if (br.dead || br.kind === 'wall') return;
     const tier = Math.ceil(br.hp);
     br.hp = full ? 0 : br.hp - amt;
@@ -1216,7 +1319,7 @@ export class Game {
       br.dead = true;
       this.alive--;
       this.breaks++;
-      this.gainEnergy(0.075);
+      if (!perk) this.gainEnergy(0.075);
       this.emit('chip', 1);
       this.score += 50 * tier;
       this.derez(br, tone);
@@ -1264,7 +1367,7 @@ export class Game {
       // in boss fights lasers and missiles are much more likely
       const luck = SORTE_MUL[this.pLvl('sorte')];
       const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 3.5 : v.w) * (v.good ? 1 : luck);
-      const pool = Object.entries(POWERS).filter(([k]) => !(k === 'life' && this.lives >= 6));
+      const pool = Object.entries(POWERS).filter(([k, v]) => v.d <= this.stage.w + 1 && !(k === 'life' && this.lives >= 6));
       const total = pool.reduce((s, [k, v]) => s + wt(k, v), 0);
       let roll = Math.random() * total;
       for (const [k, v] of pool) { roll -= wt(k, v); if (roll <= 0) { type = k; break; } }
@@ -1328,6 +1431,8 @@ export class Game {
       }
       case 'ghost':
         this.effects.ghost = { type, t: 10, max: 10, good: true }; break;
+      case 'dark': case 'invert': case 'wobble': case 'drag':
+        this.effects[type] = { type, t: 8, max: 8, good: false }; break;
       case 'missile':
         this.missiles.push({ x: p.x, y: p.y - 20, vx: 0, vy: -320, t: 0 }); sfx.missile(); break;
       case 'life':
@@ -1424,7 +1529,7 @@ export class Game {
     } else if (a.type === 'shock') {
       // the wave reaches the K bricks nearest to the platform, wherever they are
       const p = this.paddle, K = 4 + 2 * L;
-      const near = this.bricks.filter((q) => !q.dead && q.kind !== 'wall')
+      const near = this.bricks.filter((q) => !q.dead && !q.out && q.kind !== 'wall')
         .map((q) => ({ q, d: Math.hypot(q.x + q.w / 2 - p.x, q.y + q.h / 2 - p.y) }))
         .sort((u, v) => u.d - v.d).slice(0, K);
       const R = Math.max(300, near.length ? near[near.length - 1].d + 30 : 300);
@@ -1451,7 +1556,7 @@ export class Game {
         const q = left.splice(bi, 1)[0];
         cx = q.x + q.w / 2; cy = q.y + q.h / 2;
         pts.push({ x: cx, y: cy });
-        this.damage(q, false, L >= 3 ? 2 : 1);
+        this.damage(q, false, L >= 3 ? 2 : 1, true);
         this.burst(cx, cy, 6, 0.6);
       }
       if (this.boss && !this.boss.dead) { pts.push({ x: this.boss.cx, y: this.boss.cy }); this.boss.damage(0.5, false, true); }
@@ -1480,8 +1585,8 @@ export class Game {
       A.t -= dt;
       const x0 = p.x - A.w / 2, x1 = p.x + A.w / 2;
       for (const br of this.bricks) {
-        if (br.dead || br.kind === 'wall' || br.y > p.y) continue;
-        if (br.x + br.w > x0 && br.x < x1) this.damage(br, true);
+        if (br.dead || br.out || br.kind === 'wall' || br.y > p.y) continue;
+        if (br.x + br.w > x0 && br.x < x1) this.damage(br, true, 1, true);
       }
       if (this.boss && !this.boss.dead && A.hitBoss <= 0) {
         if (this.boss.hitShot(p.x, this.boss.cy, A.w / 2) === 'core') { this.boss.damage(1.5, false, true); A.hitBoss = 0.3; }
@@ -1495,7 +1600,7 @@ export class Game {
       for (const br of this.bricks) {
         if (br.dead || A.hit.has(br) || !A.targets.has(br)) continue;
         const qx = clamp(cx, br.x, br.x + br.w), qy = clamp(cy, br.y, br.y + br.h);
-        if (Math.hypot(qx - cx, qy - cy) < A.r) { A.hit.add(br); if (br.kind === 'wall') br.flash = 0.6; else this.damage(br, false, A.dmg); }
+        if (Math.hypot(qx - cx, qy - cy) < A.r) { A.hit.add(br); if (br.kind === 'wall') br.flash = 0.6; else if (!br.out) this.damage(br, false, A.dmg, true); }
       }
       for (const b of this.balls) {
         if (b.held || b.cap || A.hitB.has(b)) continue;
@@ -1809,8 +1914,11 @@ export class Game {
       c.beginPath(); c.arc(w.x, w.y, 6 + Math.sin(t * 6) * 1.5, 0, TAU);
       c.fillStyle = WHITE; c.fill();
     }
+    let pair = 0;
     for (const P of this.allPortals()) {
-      for (const [q, tint] of [[P.a, col], [P.b, P.flip ? '#ff4060' : WHITE]]) {
+      // both gates of a pair share a color, so the player can tell where the disc comes out
+      const tint = P.flip ? '#ff4060' : this.portalColor(pair++);
+      for (const q of [P.a, P.b]) {
         c.save();
         c.translate(q.x, q.y);
         for (let i = 0; i < 3; i++) {
@@ -1820,7 +1928,7 @@ export class Game {
           c.strokeStyle = rgba(tint, 0.9 - i * 0.25); c.lineWidth = 2.4 - i * 0.5; c.stroke();
         }
         c.restore();
-        c.beginPath(); c.arc(q.x, q.y, 4 + Math.sin(t * 7) * 1.5, 0, TAU); c.fillStyle = tint; c.fill();
+        c.beginPath(); c.arc(q.x, q.y, 4 + Math.sin(t * 7) * 1.5, 0, TAU); c.fillStyle = WHITE; c.fill();
       }
       if (P.flip && P.t !== undefined) {
         c.save(); c.setLineDash([3, 9]); c.lineDashOffset = -t * 40;
@@ -1870,34 +1978,30 @@ export class Game {
   }
 
   renderPadPulses(c) {
-    const p = this.paddle, pal = this.palette();
+    if (!this.padPulses.length) return;
+    const p = this.paddle, pal = this.palette(), sh = this.shape;
+    c.save();
+    c.translate(p.x, p.y);
+    hitTransform(c, this.plat.shape, p.hit || 0);
+    c.lineCap = 'round'; c.lineJoin = 'round';
     for (const q of this.padPulses) {
       const k = q.t / 0.5;
       const u = clamp(q.u, -p.hw, p.hw);
-      const x = p.x + u, y = p.y + this.shape.y(u, p.hw);
       const colA = samplePal(pal, this.t * 0.22 + ((u / p.hw + 1) / 2) * 0.8);
-      c.save();
-      c.translate(x, y - 6);
-      c.scale(1, 0.42);
-      const rad = 60 + 60 * k;
-      const g = c.createRadialGradient(0, 0, 0, 0, 0, rad);
-      g.addColorStop(0, rgba(colA, 0.5 * (1 - k)));
-      g.addColorStop(0.45, rgba(colA, 0.2 * (1 - k)));
-      g.addColorStop(1, rgba(colA, 0));
-      c.fillStyle = g;
-      c.beginPath(); c.arc(0, 0, rad, Math.PI, TAU); c.closePath();
-      c.fill();
-      c.restore();
-      // bright stretch of the platform line around the contact point
-      const seg = [];
-      for (let i = -4; i <= 4; i++) { const uu = clamp(u + i * 6 * (1 + k), -p.hw, p.hw); seg.push([p.x + uu, p.y + this.shape.y(uu, p.hw)]); }
-      c.beginPath(); c.moveTo(seg[0][0], seg[0][1]);
-      for (const s of seg) c.lineTo(s[0], s[1]);
+      // a stretch of the platform's own line around the contact point, growing as it fades
+      const half = 34 + 44 * k;
+      c.beginPath();
+      for (let i = -8; i <= 8; i++) {
+        const uu = clamp(u + (i / 8) * half, -p.hw, p.hw), y = sh.y(uu, p.hw);
+        if (i === -8) c.moveTo(uu, y); else c.lineTo(uu, y);
+      }
+      for (const [w, al] of [[32, 0.1], [20, 0.18], [11, 0.3]]) { c.strokeStyle = rgba(colA, al * (1 - k)); c.lineWidth = w; c.stroke(); }
       c.globalAlpha = 1 - k;
-      c.strokeStyle = WHITE; c.lineWidth = 6; c.lineCap = 'round';
+      c.strokeStyle = WHITE; c.lineWidth = 6;
       c.shadowColor = colA; c.shadowBlur = 24 * view.blur;
       c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
     }
+    c.restore();
   }
 
   render(c, showHud = true) {
@@ -1933,6 +2037,14 @@ export class Game {
       }
       drawSprite(c, s, br.x, br.y);
       c.globalAlpha = 1;
+      if (br.inf) {   // CONTÁGIO: a pulsing virus mark
+        const vx = br.x + br.w / 2, vy = br.y + br.h / 2, pr = 4 + Math.sin(this.t * 6 + br.col) * 1.2;
+        c.strokeStyle = c.fillStyle = WHITE; c.lineWidth = 1.6;
+        c.beginPath(); c.arc(vx, vy, pr, 0, TAU); c.fill();
+        c.beginPath();
+        for (let q = 0; q < 6; q++) { const a = (q * TAU) / 6 + this.t; c.moveTo(vx + Math.cos(a) * (pr + 2), vy + Math.sin(a) * (pr + 2)); c.lineTo(vx + Math.cos(a) * (pr + 6), vy + Math.sin(a) * (pr + 6)); }
+        c.stroke();
+      }
       if (br.kind === 'exp') {
         c.globalCompositeOperation = 'lighter';
         c.globalAlpha = 0.25 + 0.25 * Math.sin(this.t * 6 + br.col);
@@ -1970,6 +2082,11 @@ export class Game {
     }
     this.renderWeapons(c);
     this.renderAbility(c);
+    if (this.effects.dark) {
+      const e = this.effects.dark;
+      c.fillStyle = `rgba(0,0,0,${0.84 * Math.min(1, e.t / 0.4, (e.max - e.t) / 0.25)})`;
+      c.fillRect(LEFT + 3, this.top + 3, RIGHT - LEFT - 6, this.bottom - this.top - 6);
+    }
 
     c.globalCompositeOperation = 'lighter';
     c.lineCap = 'round';
@@ -2034,6 +2151,17 @@ export class Game {
       }
     }
 
+    for (const q of this.bars) {
+      const by = this.barY(q), fade = q.t === undefined ? 1 : Math.min(1, q.t / 0.4);
+      c.globalAlpha = fade;
+      c.fillStyle = '#000000';
+      c.fillRect(LEFT + 3, by, RIGHT - LEFT - 6, BAR_H);
+      c.strokeStyle = rgba(col, 0.7); c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(LEFT + 3, by); c.lineTo(RIGHT - 3, by); c.moveTo(LEFT + 3, by + BAR_H); c.lineTo(RIGHT - 3, by + BAR_H); c.stroke();
+      for (let x = 70; x < W; x += 200) glowText(c, 'CENSURADO', x + ((this.t * 24) % 200) - 40, by + BAR_H / 2 + 1, 12, rgba(WHITE, 0.28), col, 'center', 700, 0);
+      c.globalAlpha = 1;
+    }
+
     let ey = p.y + 68;
     c.lineCap = 'round';
     c.lineWidth = 3;
@@ -2076,6 +2204,7 @@ export class Game {
       c.globalAlpha = 0.45 + 0.35 * Math.sin(this.t * 4);
       glowText(c, 'SOLTE PARA LANÇAR', W / 2, this.H * 0.62, 18, WHITE, col, 'center', 500, 4);
       c.globalAlpha = 1;
+      if (this.holdT > AUTO_LAUNCH - 5) glowText(c, 'LANÇANDO EM ' + Math.ceil(AUTO_LAUNCH - this.holdT), W / 2, this.H * 0.62 + 34, 15, WHITE, col, 'center', 700, 3);
     }
     if (this.clearT > 0) {
       c.globalAlpha = Math.min(1, (1.6 - this.clearT) / 0.3);

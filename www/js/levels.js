@@ -1,7 +1,8 @@
 // Worlds (city districts): each adds ONE new mechanic and keeps the ones from
 // the previous districts (cumulative). Each has its own music and border-light
 // style, a list of stages and a boss that guards the frontier to the next.
-// Rows: 9 columns. '.' empty, '1'..'4' hits needed, 'X' wall, 'E' explosive.
+// Rows: 9 columns. '.' empty, '1'..'4' hits needed, 'X' wall, 'E' explosive,
+// 'V' infected (CONTÁGIO). Every district has 4 stages and a boss.
 
 export const MECHS = {
   slide:    { name: 'DESLIZE',   text: 'As fileiras de blocos deslizam de um lado para o outro.' },
@@ -11,6 +12,8 @@ export const MECHS = {
   blast:    { name: 'REAÇÃO',    text: 'Blocos com X explodem e atingem os vizinhos.' },
   phase:    { name: 'FASE',      text: 'Blocos tracejados estão fora de fase: o disco atravessa.' },
   descent:  { name: 'PRESSÃO',   text: 'Os blocos descem. Se tocarem a linha de alerta, você perde uma vida.' },
+  viral:    { name: 'CONTÁGIO',  text: 'Blocos com o símbolo de vírus criam blocos novos ao redor. Destrua-os primeiro.' },
+  censor:   { name: 'TARJA',     text: 'Tarjas pretas escondem parte do campo. O que está atrás continua lá.' },
 };
 
 export const WORLDS = [
@@ -39,6 +42,13 @@ export const WORLDS = [
         '....1111.',
         '..11111..',
       ] },
+      { name: 'PONTO FINAL', rows: [
+        '2.2.2.2.2',
+        '.1111111.',
+        '..22222..',
+        '.1111111.',
+        '1.1.1.1.1',
+      ] },
     ],
   },
   {
@@ -65,6 +75,12 @@ export const WORLDS = [
         '111111111',
         '..11111..',
       ] },
+      { name: 'CORUJÃO', wells: [[0.3, 0.5], [0.7, 0.5]], rows: [
+        '33.222.33',
+        '.2222222.',
+        '11.111.11',
+        '.1111111.',
+      ] },
     ],
   },
   {
@@ -90,6 +106,12 @@ export const WORLDS = [
         '.1111111.',
         'X.......X',
         '..11111..',
+      ] },
+      { name: 'BANCO DE HORAS', rows: [
+        '3X33333X3',
+        '222222222',
+        '.1111111.',
+        '1.1.1.1.1',
       ] },
     ],
   },
@@ -120,6 +142,13 @@ export const WORLDS = [
         '.1111111.',
         '..22.22..',
       ] },
+      { name: 'CAFÉ FRIO', wells: [[0.5, 0.55]], rows: [
+        '.3333333.',
+        '2.22222.2',
+        '111111111',
+        'X.22222.X',
+        '.1111111.',
+      ] },
     ],
   },
   {
@@ -147,10 +176,86 @@ export const WORLDS = [
         '.1111111.',
         '..2E2E2..',
       ] },
+      { name: 'DEPLOY', portals: [[0.2, 0.5, 0.8, 0.5]], rows: [
+        'E3333333E',
+        '.2222222.',
+        'X.11111.X',
+        '.2222222.',
+        '..1E1E1..',
+      ] },
     ],
   },
-  { name: 'VIRAL', soon: true },
-  { name: 'CENSURA', soon: true },
+  {
+    // The game gets out: one share, then a thousand.
+    name: 'VIRAL', mech: 'viral', music: 'w6', bossMusic: 'boss6', border: 'beat',
+    boss: { type: 'algorithm', name: 'O ALGORITMO',
+      text: 'Acerte o núcleo passando entre os satélites que giram em volta.' },
+    stages: [
+      { name: 'PRIMEIRO SHARE', rows: [
+        '..22222..',
+        '.1111111.',
+        '....V....',
+        '.1111111.',
+      ] },
+      { name: 'CORRENTE', portals: [[0.14, 0.45, 0.86, 0.45]], rows: [
+        'V.......V',
+        '.2222222.',
+        '..11111..',
+        '.2222222.',
+        '....V....',
+      ] },
+      { name: 'TRENDING', wells: [[0.5, 0.5]], rows: [
+        '3.3.V.3.3',
+        '.2222222.',
+        'V.......V',
+        '.1111111.',
+        '..2...2..',
+      ] },
+      { name: 'MIL CÓPIAS', rows: [
+        'X..V.V..X',
+        '.2222222.',
+        '.V.....V.',
+        '.1111111.',
+        '...E.E...',
+      ] },
+    ],
+  },
+  {
+    // The system answers: the game is taken down, piece by piece.
+    name: 'CENSURA', mech: 'censor', music: 'w7', bossMusic: 'boss7', border: 'scan',
+    boss: { type: 'censor', name: 'O CENSOR',
+      text: 'Acerte a lente quando a tarja do meio abrir.' },
+    stages: [
+      { name: 'FORA DO AR', bars: 1, rows: [
+        '222222222',
+        '.1111111.',
+        '222222222',
+        '.1111111.',
+      ] },
+      { name: 'TARJA PRETA', bars: 2, rows: [
+        '3.33333.3',
+        '111111111',
+        '.22.2.22.',
+        '111111111',
+        '..2.V.2..',
+      ] },
+      { name: 'DENÚNCIA', bars: 1, portals: [[0.12, 0.55, 0.88, 0.12]], rows: [
+        'X3333333X',
+        '.2222222.',
+        'V.11111.V',
+        '.2222222.',
+        '..1E1E1..',
+      ] },
+      { name: 'ESPELHO', bars: 2, wells: [[0.5, 0.5]], rows: [
+        '33.333.33',
+        '2.22222.2',
+        '.1111111.',
+        'X.2V2V2.X',
+        '.1111111.',
+        '..22.22..',
+      ] },
+    ],
+  },
   { name: 'RESISTÊNCIA', soon: true },
   { name: 'TORRE AURUM', soon: true },
   { name: 'O SISTEMA', soon: true, final: true, music: 'w3', bossMusic: 'boss3', border: 'scan',
@@ -191,5 +296,5 @@ export function getStage(i) {
   if (s === worldCount(w) - 1) return { w, s, world, mech: world.mech, mechs: all, boss: world.boss, rows: [] };
   const st = world.stages[s];
   const mech = st.mech === undefined ? world.mech : st.mech;
-  return { w, s, world, mech, mechs: mech ? all : [], rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, name: st.name };
+  return { w, s, world, mech, mechs: mech ? all : [], rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, name: st.name };
 }

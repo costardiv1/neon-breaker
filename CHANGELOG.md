@@ -2,6 +2,30 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.3] · 10/11/2026 · Distritos 6 e 7, cápsulas por distrito e ícone
+
+### Adicionado
+
+- Distrito 6, VIRAL: mecânica CONTÁGIO (blocos infectados criam blocos novos), 4 fases e o chefão O ALGORITMO.
+- Distrito 7, CENSURA: mecânica TARJA (barras pretas escondem parte do campo), 4 fases e o chefão O CENSOR.
+- Uma quarta fase em cada um dos distritos 1 a 5: PONTO FINAL, CORUJÃO, BANCO DE HORAS, CAFÉ FRIO e DEPLOY. O progresso salvo é convertido para a numeração nova.
+- Progressão de cápsulas: cada distrito traz uma cápsula boa e uma ruim. Quatro cápsulas ruins novas: APAGÃO, INVERTIDO, INSTÁVEL e PLATAFORMA LENTA.
+- Ícone do jogo (o disco com rastro) na aba do navegador e na tela inicial do celular, e manifesto para instalar o jogo como app.
+- O disco é lançado sozinho depois de 10 s parado na plataforma, com contagem nos últimos 5 s.
+- Músicas dos distritos 6 e 7.
+
+### Alterado
+
+- Portais: os dois portais de um par têm a mesma cor, e cada par tem a sua.
+- O brilho da plataforma quando o disco rebate acompanha a linha e a animação de todos os formatos.
+- Blocos destruídos pelos perks ativos (MEGA LASER, ONDA DE CHOQUE, RELÂMPAGO) não recarregam mais o perk.
+- O formato FUNIL passa a ser liberado por O ALGORITMO.
+
+### Corrigido
+
+- Vencer um chefão com míssil, laser ou perk tirava uma vida; na última vida, o jogo ia para FIM DE JOGO sem a história e sem o botão PRÓXIMO DISTRITO.
+- MEGA LASER e ONDA DE CHOQUE acertavam blocos da mecânica FASE quando estavam fora de fase.
+
 ## [1.2.1] · 09/11/2026 · Revisão e limpeza do código
 
 ### Alterado

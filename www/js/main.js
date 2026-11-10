@@ -16,7 +16,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.2.1';
+export const VERSION = '1.3';
 
 let H = 1280;
 let safeTop = 0;
@@ -34,6 +34,13 @@ const plat = {
 };
 let best = store.get('best', 0);
 let prog = store.get('prog', 0);          // number of stages cleared
+// 1.3: districts went from 3 to 4 stages (plus the boss). Progress saved in the
+// old layout is converted, keeping the district and the stages cleared in it.
+const oldLayout = store.get('layout', 1) < 2;
+if (oldLayout) {
+  if (prog > 0) { prog = Math.floor(prog / 4) * 5 + (prog % 4); store.set('prog', prog); }
+  store.set('layout', 2);
+}
 let seen = store.get('seen', {});         // mechanic / boss intro cards already shown
 let chips = store.get('chips', 0);        // currency for the perks
 const upg = Object.assign({ megalaser: 0, shock: 0, shield: 0, magnet: 0, slow: 0, bolt: 0,
@@ -59,7 +66,7 @@ sfx.musicOn = store.get('music', true);
 const DROP_STEPS = [0.13, 0.25, 0.5, 1];
 const opts = Object.assign({ vibe: true, sens: 1.25, dev: false, inf: false, speed: 1, startStage: 0, fps: false, drop: 0, unlock: false },
   store.get('opts', {}));
-if (!(opts.startStage >= 0 && opts.startStage < TOTAL_STAGES)) opts.startStage = 0;
+if (oldLayout || !(opts.startStage >= 0 && opts.startStage < TOTAL_STAGES)) opts.startStage = 0;
 
 // graphics quality (dev panel > VISUAL). Phones start lighter: less neon glow,
 // lower render resolution and fewer particles.
@@ -173,7 +180,9 @@ const game = new Game({
       } else if (st.mech && !seen[st.mech]) {
         markSeen(st.mech);
         const extra = st.w > 0 ? ' Continuam valendo: ' + worldMechs(st.w - 1).map((m) => MECHS[m].name).join(', ') + '.' : '';
-        card = { kicker: `DISTRITO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text + extra, focus: 'mech' };
+        const caps = Object.values(POWERS).filter((v) => v.d === st.w + 1).map((v) => v.label);
+        const news = st.w > 0 && caps.length ? ' Cápsulas novas: ' + caps.join(' e ') + '.' : '';
+        card = { kicker: `DISTRITO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text + extra + news, focus: 'mech' };
         showCard();
       }
       return;
@@ -1079,9 +1088,9 @@ function devItems() {
   const pw = (k) => ({ label: POWERS[k].label, fn: () => game.applyPower(k) });
   const set = (fn) => () => { fn(); applyOpts(); };
   switch (devTab) {
-    case 0: return ['multi', 'wide', 'slow', 'pierce', 'laser', 'missile', 'mega', 'ghost', 'life'].map(pw)
+    case 0: return Object.keys(POWERS).filter((k) => POWERS[k].good).map(pw)
       .concat([{ label: 'PLAT. + x2', fn: () => game.applyPower('wide', 2) }]);
-    case 1: return ['shrink', 'fast', 'mini'].map(pw)
+    case 1: return Object.keys(POWERS).filter((k) => !POWERS[k].good).map(pw)
       .concat([{ label: 'PLAT. - x2', fn: () => game.applyPower('shrink', 2) }]);
     case 2: return [
       { label: 'VELOCIDADE', slider: SL.speed },
@@ -1284,7 +1293,7 @@ canvas.addEventListener('pointerdown', (e) => {
     if (tn - lastTap.t < 300 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 90) { game.useAbility(); lastTap.t = 0; }
     else lastTap = { t: tn, x: p.x, y: p.y };
     drag = { id: e.pointerId, lastX: p.x, type: e.pointerType };
-    game.paddle.tx = p.x;   // the platform rushes to where the finger touched, then follows the drag
+    game.paddle.tx = game.mirror ? W - p.x : p.x;   // the platform rushes to where the finger touched, then follows the drag
   } else {
     // secret: 5 taps on the version number open the dev mode gate
     if (scene === 'menu' && p.x > W - 150 && p.y > H - 60) {
@@ -1313,9 +1322,9 @@ canvas.addEventListener('pointermove', (e) => {
   }
   if (scene !== 'play') return;
   const p = toLogical(e);
-  if (e.pointerType === 'mouse') { if (!(devOpen && inside(devPanel().rect, p))) game.paddle.tx = p.x; return; }
+  if (e.pointerType === 'mouse') { if (!(devOpen && inside(devPanel().rect, p))) game.paddle.tx = game.mirror ? W - p.x : p.x; return; }
   if (drag && drag.id === e.pointerId) {
-    game.paddle.tx += (p.x - drag.lastX) * opts.sens;
+    game.paddle.tx += (p.x - drag.lastX) * opts.sens * (game.mirror ? -1 : 1);
     drag.lastX = p.x;
   }
 });
@@ -1665,6 +1674,14 @@ function drawMechIcon(c, m, x, y, s, color) {
       arrow(x, y - s * 0.3, x, y + s * 0.45);
       c.stroke(); c.beginPath(); c.setLineDash([3, 3]); c.moveTo(x - s, y + s * 0.85); c.lineTo(x + s, y + s * 0.85);
       break;
+    case 'viral': // a virus: a core with spikes
+      c.arc(x, y, s * 0.45, 0, TAU);
+      for (let q = 0; q < 6; q++) { const a = (q * TAU) / 6; c.moveTo(x + Math.cos(a) * s * 0.6, y + Math.sin(a) * s * 0.6); c.lineTo(x + Math.cos(a) * s, y + Math.sin(a) * s); }
+      break;
+    case 'censor': // a block with a black bar across it
+      c.strokeRect(x - s * 0.8, y - s * 0.75, s * 1.6, s * 1.5);
+      c.stroke(); c.beginPath(); c.fillRect(x - s * 1.1, y - s * 0.22, s * 2.2, s * 0.44);
+      break;
     default:
       c.arc(x, y, s * 0.5, 0, TAU);
   }
@@ -1771,7 +1788,7 @@ function renderMap(c, now) {
     if (!vis(s0.y)) continue;
     const right = s0.x < W / 2, x = right ? W - 26 : 26, y = s0.y + 18;
     const wd = WORLDS[d.w], open = districtOpen(d.w);
-    const ms = wd.soon ? [] : worldMechs(d.w), SLOT = ms.length > 3 ? 62 : 86;
+    const ms = wd.soon ? [] : worldMechs(d.w), SLOT = ms.length > 5 ? 50 : ms.length > 3 ? 62 : 86;
     c.font = `700 22px "Orbitron", sans-serif`;
     const tw = Math.max(c.measureText(wd.name).width, 150, ms.length * SLOT) + 28;
     c.fillStyle = 'rgba(0,0,0,0.72)';

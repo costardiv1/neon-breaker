@@ -1101,7 +1101,263 @@ function roundRectPath2(c, x, y, w, h, r) {
   c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
 }
 
+// Deflect waves shared by the bosses of districts 6 and 7: an expanding ring
+// that bends the course of every disc it crosses.
+function updateWaves(boss, dt) {
+  for (const wv of boss.waves) {
+    wv.r += 720 * dt;
+    for (const b of boss.freeBalls()) {
+      if (wv.hit.has(b)) continue;
+      if (Math.abs(Math.hypot(b.x - boss.cx, b.y - boss.cy) - wv.r) < 26) {
+        wv.hit.add(b);
+        const a = (Math.random() < 0.5 ? -1 : 1) * (0.6 + Math.random() * 0.5);
+        const cs = Math.cos(a), sn = Math.sin(a);
+        const vx = b.vx * cs - b.vy * sn, vy = b.vx * sn + b.vy * cs;
+        b.vx = vx; b.vy = vy;
+        boss.g.fixAngle(b);
+        boss.g.mark(b);
+        boss.g.ring(b.x, b.y, 50);
+        sfx.deflect();
+      }
+    }
+  }
+  boss.waves = boss.waves.filter((w) => w.r < 900);
+}
+function renderWaves(c, boss, col) {
+  for (const wv of boss.waves) {
+    c.beginPath(); c.arc(boss.cx, boss.cy, wv.r, 0, TAU);
+    c.strokeStyle = rgba(col, Math.max(0, 0.7 * (1 - wv.r / 900)));
+    c.lineWidth = 3;
+    c.stroke();
+  }
+}
+
+// ---------- DISTRICT 6: O ALGORITMO (contágio) ----------
+// A core with satellites orbiting it: the disc has to slip between them.
+class Algorithm extends Boss {
+  constructor(g) {
+    super(g, 'O ALGORITMO');
+    this.coreR = 34;
+    this.orbit = 98;
+    this.satR = 17;
+    this.rot = 0;
+    this.ph = 0;
+    this.cx = W / 2;
+    this.cy = g.top + 320;
+    this.waves = [];
+  }
+
+  get bandY() { return this.g.top + 50; }
+
+  sats() {
+    const n = this.fury ? 5 : 3, list = [];
+    for (let i = 0; i < n; i++) {
+      const a = this.rot + (i * TAU) / n;
+      list.push({ x: this.cx + Math.cos(a) * this.orbit, y: this.cy + Math.sin(a) * this.orbit });
+    }
+    return list;
+  }
+
+  move(dt) {
+    this.ph += dt;
+    this.cx = W / 2 + 170 * Math.sin(this.ph * 0.45);
+    this.cy = this.g.top + 320 + 44 * Math.sin(this.ph * 0.8);
+    this.rot += dt * (this.fury ? 1.9 : 1.2);
+  }
+
+  updateExtra(dt) { updateWaves(this, dt); }
+
+  pickAbility() {
+    const opts = ['pulse', 'spam'];
+    if (this.g.bricks.some((b) => b.row >= 100 && !b.dead && !b.inf)) opts.push('viral', 'viral');
+    if (this.fury) opts.push('shots', 'shots');
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  exec(a) {
+    if (a === 'pulse') { this.waves.push({ r: 30, hit: new Set() }); sfx.pulse(); }
+    else if (a === 'spam') { this.g.fillBand(4); this.g.ring(W / 2, this.bandY + 30, 300); }
+    else if (a === 'viral') this.g.infectBand();
+    else if (a === 'shots') this.shootAtPlayer(3);
+  }
+
+  holdBall(b) { this.throwBall(b); }
+
+  collide(b) {
+    if (this.dead) return false;
+    if (!this.g.effects.ghost) for (const s of this.sats()) {
+      if (collideCircle(b, s.x, s.y, this.satR)) { sfx.clang(); this.g.ring(b.x, b.y, 40); return true; }
+    }
+    if (collideCircle(b, this.cx, this.cy, this.coreR)) {
+      if (this.coreCool <= 0) { this.coreCool = 0.35; this.damage(this.g.ballDamage()); }
+      else sfx.clang();
+      return true;
+    }
+    return false;
+  }
+
+  hitShot(x, y, rad) {
+    if (this.dead) return null;
+    for (const s of this.sats()) if (Math.hypot(x - s.x, y - s.y) < this.satR + rad) return 'armor';
+    if (Math.hypot(x - this.cx, y - this.cy) < this.coreR + rad) return 'core';
+    return null;
+  }
+
+  render(c) {
+    const col = this.g.col, t = this.t, x = this.cx, y = this.cy, R = this.coreR;
+    const glow = 0.8 + this.flash * 1.2 + (this.charge ? 0.6 * Math.sin(t * 30) : 0);
+    const jit = this.fury ? 2 : 0;
+    renderWaves(c, this, col);
+    // orbit and links
+    c.save();
+    c.setLineDash([4, 9]); c.lineDashOffset = -t * 30;
+    c.beginPath(); c.arc(x, y, this.orbit, 0, TAU);
+    c.strokeStyle = rgba(col, 0.35); c.lineWidth = 1.5; c.stroke();
+    c.restore();
+    const sats = this.sats();
+    c.beginPath();
+    for (const s of sats) { c.moveTo(x, y); c.lineTo(s.x, s.y); }
+    c.strokeStyle = rgba(col, 0.3); c.lineWidth = 1.5; c.stroke();
+    // satellites: small shields
+    for (const s of sats) {
+      const sx = s.x + (Math.random() - 0.5) * jit, sy = s.y + (Math.random() - 0.5) * jit;
+      c.beginPath(); c.arc(sx, sy, this.satR, 0, TAU);
+      c.fillStyle = rgba(col, 0.18); c.fill();
+      neonStroke(c, col, col, 2.6, sx - this.satR, sy, sx + this.satR, sy, 0.8);
+      c.beginPath(); c.arc(sx, sy, 4, 0, TAU); c.fillStyle = rgba('#ffffff', 0.8); c.fill();
+    }
+    // core: a hexagon turning the other way
+    const hex = [];
+    for (let k = 0; k < 6; k++) { const a = (k * TAU) / 6 - t * 0.7; hex.push([x + Math.cos(a) * R, y + Math.sin(a) * R]); }
+    poly(c, hex);
+    c.fillStyle = rgba(col, 0.2 + this.flash * 0.3); c.fill();
+    neonStroke(c, col, col, 3.5, x - R, y, x + R, y, glow);
+    c.beginPath(); c.arc(x, y, R * 0.42 + 2 * Math.sin(t * 6), 0, TAU);
+    c.fillStyle = '#ffffff';
+    c.shadowColor = col; c.shadowBlur = 22 * view.blur;
+    c.fill(); c.shadowBlur = 0;
+    if (!this.dead) {
+      c.beginPath(); c.arc(x, y, R + 8 + 3 * Math.sin(t * 8), 0, TAU);
+      c.strokeStyle = rgba('#ffffff', 0.3); c.lineWidth = 1.5; c.stroke();
+    }
+  }
+}
+
+// ---------- DISTRICT 7: O CENSOR (tarja) ----------
+// A black bar with a lens in the middle; two plates slide apart to show it.
+class Censor extends Boss {
+  constructor(g) {
+    super(g, 'O CENSOR');
+    this.cx = W / 2;
+    this.y0 = g.top + 160;
+    this.hw = 150;
+    this.hh = 24;
+    this.coreR = 26;
+    this.open = 0;
+    this.cycle = 0;
+    this.ph = 0;
+    this.waves = [];
+  }
+
+  get cy() { return this.y0; }
+  get bandY() { return this.g.top + 150 + 215; }
+  get coreOpen() { return this.open > 0.6; }
+
+  // the two halves of the bar: closed they meet in the middle, covering the lens
+  plates() {
+    const gap = (this.coreR + 14) * this.open, w = this.hw - gap;
+    return [{ x: this.cx - this.hw, y: this.y0 - this.hh, w, h: this.hh * 2 }, { x: this.cx + gap, y: this.y0 - this.hh, w, h: this.hh * 2 }];
+  }
+
+  move(dt) {
+    this.ph += dt * (this.fury ? 0.75 : 0.45);
+    this.cx = W / 2 + 180 * Math.sin(this.ph);
+    const openT = this.fury ? 2.6 : 3.6, closedT = this.fury ? 1.6 : 1.3;
+    this.cycle = (this.cycle + dt) % (openT + closedT);
+    const target = this.cycle < openT && !this.charge ? 1 : 0;
+    this.open += (target - this.open) * Math.min(1, dt * 8);
+  }
+
+  updateExtra(dt) { updateWaves(this, dt); }
+
+  pickAbility() {
+    const opts = ['pulse', 'tarja'];
+    if (!this.g.effects.dark) opts.push('blackout');
+    if (this.fury) opts.push('shots', 'shots');
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  exec(a) {
+    if (a === 'pulse') { this.waves.push({ r: 30, hit: new Set() }); sfx.pulse(); }
+    else if (a === 'tarja') { this.g.addBar(this.fury ? 9 : 7); sfx.capture(); }
+    else if (a === 'blackout') {
+      this.g.effects.dark = { type: 'dark', t: 4.5, max: 4.5, good: false };
+      this.g.float('APAGÃO', W / 2, this.y0 + 120, 26);
+      sfx.power(false);
+    } else if (a === 'shots') this.shootAtPlayer(3);
+  }
+
+  holdBall(b) { this.throwBall(b); }
+
+  collide(b) {
+    if (this.dead) return false;
+    if (!this.g.effects.ghost) for (const pl of this.plates()) {
+      if (pl.w > 0 && collideRect(b, pl.x, pl.y, pl.w, pl.h)) { sfx.clang(); this.g.ring(b.x, b.y, 40); return true; }
+    }
+    if (collideCircle(b, this.cx, this.y0, this.coreR)) {
+      if (this.coreOpen && this.coreCool <= 0) { this.coreCool = 0.35; this.damage(this.g.ballDamage()); }
+      else sfx.clang();
+      return true;
+    }
+    return false;
+  }
+
+  hitShot(x, y, rad) {
+    if (this.dead) return null;
+    for (const pl of this.plates()) if (x > pl.x - rad && x < pl.x + pl.w + rad && y > pl.y - rad && y < pl.y + pl.h + rad) return 'armor';
+    if (Math.hypot(x - this.cx, y - this.y0) < this.coreR + rad) return this.coreOpen ? 'core' : 'armor';
+    return null;
+  }
+
+  render(c) {
+    const col = this.g.col, t = this.t, x = this.cx, y = this.y0, R = this.coreR;
+    const glow = 0.8 + this.flash * 1.2 + (this.charge ? 0.6 * Math.sin(t * 30) : 0);
+    const jit = this.fury ? 1.5 : 0;
+    renderWaves(c, this, col);
+    // antennas
+    c.beginPath();
+    for (const s of [-1, 1]) { c.moveTo(x + s * 96, y - this.hh); c.lineTo(x + s * 118, y - this.hh - 30); }
+    neonStroke(c, col, col, 2, x - 118, y, x + 118, y, 0.6);
+    // lens
+    c.beginPath(); c.arc(x, y, R, 0, TAU);
+    c.fillStyle = rgba(col, 0.25); c.fill();
+    neonStroke(c, col, col, 3, x - R, y, x + R, y, this.coreOpen ? 1.4 : 0.5);
+    c.beginPath(); c.arc(x, y, R * 0.42 * (0.5 + 0.5 * this.open), 0, TAU);
+    c.fillStyle = '#ffffff';
+    c.shadowColor = col; c.shadowBlur = 20 * view.blur * (0.4 + this.open);
+    c.fill(); c.shadowBlur = 0;
+    // the two plates: black, with "redacted" lines
+    for (const pl of this.plates()) {
+      if (pl.w <= 0) continue;
+      const px = pl.x + (Math.random() - 0.5) * jit;
+      c.beginPath(); c.rect(px, pl.y, pl.w, pl.h);
+      c.fillStyle = '#000000'; c.fill();
+      c.fillStyle = rgba(col, 0.12 + this.flash * 0.3); c.fill();
+      neonStroke(c, col, col, 3, px, pl.y, px + pl.w, pl.y, glow);
+      c.fillStyle = rgba('#ffffff', this.fury ? 0.85 : 0.55);
+      c.fillRect(px + 12, pl.y + 13, Math.max(0, pl.w - 24), 5);
+      c.fillRect(px + 12, pl.y + 28, Math.max(0, (pl.w - 24) * 0.6), 5);
+    }
+    if (this.coreOpen && !this.dead) {
+      c.beginPath(); c.arc(x, y, R + 8 + 3 * Math.sin(t * 8), 0, TAU);
+      c.strokeStyle = rgba('#ffffff', 0.35); c.lineWidth = 1.5; c.stroke();
+    }
+  }
+}
+
 export function createBoss(type, g) {
+  if (type === 'algorithm') return new Algorithm(g);
+  if (type === 'censor') return new Censor(g);
   if (type === 'clock') return new Clock(g);
   if (type === 'patent') return new Patent(g);
   if (type === 'system') return new System(g);

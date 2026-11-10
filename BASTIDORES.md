@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.2.1** (09/11/2026)
+Versão atual publicada: **1.3** (10/11/2026)
 
 ## Objetivos
 
@@ -14,14 +14,26 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
-- [ ] Bug: ao vencer um chefão, o jogador perde uma vida (ou vai para FIM DE JOGO, sem a história e sem PRÓXIMO DISTRITO, se era a última). Causa: quando o chefão morre no meio do quadro (por míssil, laser ou perk), os discos são removidos e, no mesmo quadro, o jogo vê "nenhum disco em campo" e tira uma vida. Correção: parar a atualização assim que o chefão morre (08/11/2026)
-- [ ] Bug: o MEGA LASER destrói blocos da mecânica FASE quando estão fora de fase. A ONDA DE CHOQUE também pode mirar neles (09/11/2026)
-- [ ] Lançar o disco sozinho depois de 10 s parado na plataforma (09/11/2026)
-- [ ] O arco que acende na plataforma quando o disco rebate está fora do padrão em todos os formatos, menos no ARCO (09/11/2026)
-- [ ] Criar os distritos 6 (VIRAL) e 7 (CENSURA): fases, mecânicas novas e chefões (09/11/2026)
-- [ ] MEGA LASER forte demais: os blocos que ele destrói recarregam o próprio perk, então dá para usar em sequência. Ideia: blocos destruídos por perks não carregam energia (08/11/2026)
+_Nenhuma sugestão pendente._
 
 ## Histórico
+
+### 1.3 (10/11/2026)
+
+- [x] Bug: vencer um chefão com míssil, laser ou perk tirava uma vida (e dava FIM DE JOGO na última).
+- [x] Bug: MEGA LASER e ONDA DE CHOQUE acertavam blocos fora de fase.
+- [x] Disco lançado sozinho depois de 10 s parado.
+- [x] Brilho do rebote acompanha todos os formatos de plataforma.
+- [x] Distritos 6 (VIRAL, CONTÁGIO, O ALGORITMO) e 7 (CENSURA, TARJA, O CENSOR).
+- [x] Blocos destruídos pelos perks não recarregam mais o perk.
+- [x] Ícone do jogo: o disco com rastro.
+- [x] Progressão de cápsulas: uma boa e uma ruim por distrito; 4 cápsulas ruins novas.
+- [x] Distritos com 4 fases cada, mais o chefão; progresso salvo convertido.
+- [x] Portais com uma cor por par.
+
+### 1.2.1 (09/11/2026)
+
+- [x] Revisão e limpeza do código, do repositório e da documentação.
 
 ### 1.2 (06/11/2026)
 
@@ -58,4 +70,6 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 ### Pendências conhecidas
 
-- O formato FUNIL só libera com o chefão do distrito 6, que ainda não existe.
+- Faltam as cápsulas ruins dos distritos 8 a 10 (a boa do 8 é LENTO e a do 9 é FANTASMA).
+- O chefão do distrito 7 ainda não libera nenhum formato novo: só existem 7 formatos.
+- As capturas 03 a 17 da documentação são anteriores à 1.3 (numeração antiga das fases no topo da tela).
