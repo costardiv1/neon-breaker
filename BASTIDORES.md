@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.4** (10/11/2026)
+Versão atual publicada: **1.5** (10/11/2026)
 
 ## Objetivos
 
@@ -17,6 +17,18 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 _Nenhuma sugestão pendente._
 
 ## Histórico
+
+### 1.5 (10/11/2026)
+
+- [x] Modo dev refeito no estilo do Quebrabloco: painel flutuante com seções, controles deslizantes e ícones.
+- [x] Modo dev: tocar numa cápsula faz ela cair em cima da plataforma.
+- [x] Menu inicial: botões quadrados com ícones (paleta, engrenagem, troféu do PLACAR e estrela dos CRÉDITOS) e layout reorganizado.
+- [x] Créditos com os arquivos dos chefões (reler o diário) e links para o repositório e o Instagram (em breve).
+- [x] Placar acumula entre fases e distritos até o fim de jogo; pontos divididos por 10.
+- [x] Tela de placar: melhores partidas do aparelho, GERAL e SEMANA online, apelido.
+- [x] Placar online com Supabase pronto no código (desligado até criar o projeto).
+- [x] ONDA DE CHOQUE mais fraca: centro fixo, 4/6/8 blocos e desvio do disco só perto da plataforma.
+- [x] Anúncio do QUEBRABLOCO com cara de obra (faixas zebradas, muro de tijolos, escavadeira).
 
 ### 1.4 (10/11/2026)
 
@@ -89,3 +101,5 @@ _Nenhuma sugestão pendente._
 - Os chefões dos distritos 7, 8 e 9 ainda não liberam formato novo: só existem 7 formatos.
 - As capturas 03 a 17 da documentação são anteriores à 1.3 (numeração antiga das fases no topo da tela).
 - Os anúncios são de teste; os de verdade dependem de uma conta de anúncios na Play Store.
+- O placar online está desligado: falta criar o projeto no Supabase, rodar supabase/schema.sql e colocar a URL e a chave pública em www/js/online.js.
+- O placar acumulado pode ser engordado rejogando fases fáceis sem morrer; vale rever quando o placar online estiver no ar.

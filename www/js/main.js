@@ -1,9 +1,11 @@
 import { view, rgba, mix, roundRectPath, neonStroke, neonTitle, glowText, drawSprite, TAU, drawVirus } from './render.js';
-import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone } from './game.js';
+import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone, dropSprite } from './game.js';
 import { SHAPES, PALETTES, EMBLEMS, drawPlatform, outAngle, paletteColors } from './platform.js';
 import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, worldMechs, worldStart, worldCount } from './levels.js';
 import { THEMES } from './themes.js';
 import { sfx, music, haptics } from './audio.js';
+import { createDevPanel } from './devpanel.js';
+import { ONLINE, submitRun, fetchTop, getName, setName, NAME_RE } from './online.js';
 
 // ---------- persistence ----------
 const store = {
@@ -16,7 +18,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.4';
+export const VERSION = '1.5';
 
 let H = 1280;
 let safeTop = 0;
@@ -33,6 +35,14 @@ const plat = {
   detail: savedPlat.detail !== false,     // extra decoration of each shape
 };
 let best = store.get('best', 0);
+// 1.5: points were divided by 10
+if (store.get('scoreV', 1) < 2) { best = Math.round(best / 10); store.set('best', best); store.set('scoreV', 2); }
+// The score carries over from stage to stage (and district to district) until
+// a game over. It is banked at every stage cleared.
+let run = Object.assign({ score: 0, cleared: 0, dev: false }, store.get('run', {}));
+let runs = store.get('runs', []);          // best runs on this device: { score, stage, date }
+let devUI = null;                          // in-game dev panel (created further down)
+const REPO_URL = 'https://github.com/costardiv1/neon-breaker';
 let prog = store.get('prog', 0);          // number of stages cleared
 // 1.3: districts went from 3 to 4 stages (plus the boss). Progress saved in the
 // old layout is converted, keeping the district and the stages cleared in it.
@@ -162,15 +172,32 @@ function skipTutorial() {
 
 function markSeen(k) { seen[k] = true; store.set('seen', seen); }
 
+// A run ends at a game over: it goes to the local records and, when it was
+// played without the dev mode, to the online leaderboard.
+function finishRun(score, stage) {
+  if (score > 0) {
+    runs.push({ score, stage, date: Date.now() });
+    runs.sort((a, b) => b.score - a.score);
+    runs = runs.slice(0, 10);
+    store.set('runs', runs);
+    if (!run.dev && !opts.dev) submitRun({ score, cleared: run.cleared, stage, version: VERSION });
+    board.data = [null, null, null];
+  }
+  run = { score: 0, cleared: 0, dev: false };
+  store.set('run', run);
+}
+
 const game = new Game({
   onGameOver(score) {
     lastScore = score;
     newBest = score > best;
     if (newBest) { best = score; store.set('best', best); }
+    finishRun(score, game.index);
     setScene('over');
   },
   onEvent(e, data) {
     if (e === 'level') {
+      if (devUI) devUI.refresh();
       if (tut && game.index === 0) { fire('start'); return; }
       const st = game.stage;
       if (st.boss && !seen['boss_' + st.boss.type]) {
@@ -192,6 +219,7 @@ const game = new Game({
     if (e === 'stageClear') {
       const nb0 = bossesBeaten();
       prog = Math.max(prog, data + 1); store.set('prog', prog);
+      run.score = game.score; run.cleared++; if (opts.dev) run.dev = true; store.set('run', run);
       const nb1 = bossesBeaten();
       if (nb1 > nb0 && SHAPES[nb1]) newShape = SHAPES[nb1].name;
       saveChips();
@@ -201,7 +229,7 @@ const game = new Game({
     if (e === 'worldClear') {
       saveChips();
       reward = game.stageCoins > 0 ? { n: game.stageCoins, back: 'world', done: false } : null;
-      if (game.world.final) { startCrash(); return; }
+      if (game.world.final) { finishRun(game.score, game.index); startCrash(); return; }
       lastScore = game.score;
       if (game.score > best) { best = game.score; store.set('best', best); }
       if (game.stage.boss && STORY[game.stage.w]) startStory(game.stage.w);
@@ -227,7 +255,6 @@ applyOpts();
 
 // ---------- in-game dev panel state ----------
 let devOpen = false;
-let devTab = 0;
 let freeze = false;
 let drag = null;
 
@@ -237,6 +264,7 @@ function setScene(s) {
   if (s === 'map' && scene !== 'map') focusMap();
   if (s === 'plat' && scene !== 'plat') openPlat();
   showGateInput(s === 'devgate' && !opts.dev);
+  if (s !== 'scores') showNameInput(false);
   scene = s;
   sfx.setPlaying(s === 'play');
   if (s === 'crash') music.play(null);
@@ -264,7 +292,12 @@ function resize() {
   game.setLayout(H, safeTop + 130);
   clearSprites();
 }
-window.addEventListener('resize', () => { resize(); if (gateInput && gateInput.style.display !== 'none') placeGateInput(); });
+window.addEventListener('resize', () => {
+  resize();
+  if (gateInput && gateInput.style.display !== 'none') placeGateInput();
+  if (nameInput && nameInput.style.display !== 'none') placeNameInput();
+  if (devUI) devUI.place();
+});
 resize();
 try { for (const w of [500, 700, 800, 900]) document.fonts.load(`${w} 32px Orbitron`); } catch (e) { /* ignore */ }
 
@@ -341,7 +374,6 @@ function optionRows() {
         presetGfx({ glow: NEON[i < 0 ? 2 : (i + d + n) % n].v });
       }, wide: true },
       { label: 'TUTORIAL', val: () => 'REVER', tap: () => { store.set('tutDone', false); startGame(0); } },
-      { label: 'CRÉDITOS', val: () => 'VER  ›', tap: () => setScene('credits') },
     ];
     if (opts.dev) {
       rows.push({ label: 'MODO DEV', val: () => onOff(true), tap: () => { opts.dev = false; } });
@@ -365,7 +397,7 @@ function optionRows() {
 
 // Wipes progress, chips, coins and everything bought with them.
 function resetProgress() {
-  best = 0; seen = {}; prog = 0; chips = 0; coins = 0; equip = null; equipP = null; seenShape = 0; store.set('seenShape', 0);
+  best = 0; seen = {}; prog = 0; run = { score: 0, cleared: 0, dev: false }; runs = []; store.set('run', run); store.set('runs', []); chips = 0; coins = 0; equip = null; equipP = null; seenShape = 0; store.set('seenShape', 0);
   for (const k in upg) upg[k] = 0;
   Object.assign(owned, { pal: [PALETTES.length - 1], emb: [0, 1], disc: [0], trail: [0] });
   Object.assign(plat, { shape: 0, pal: PALETTES.length - 1, emb: 1, disc: 0, trail: 0, dash: false, detail: true });
@@ -850,25 +882,65 @@ function adText(c, text, x, y, size, color, weight = 800, font = BODY_FONT) {
   c.font = `${weight} ${size}px ${font}`; c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillStyle = color; c.fillText(text, x, y);
 }
-// Quebrabloco: the original, flat and colorful, a ball breaking a wall
-function adQuebrabloco(c, t) {
-  c.fillStyle = '#14204a'; c.fillRect(0, 0, W, H);
-  const cols = ['#e8423f', '#f39a2b', '#f5d23a', '#4cc35a', '#3c8de0'];
-  const bx = 60, by = safeTop + 380, bw = 66, bh = 26, gone = Math.floor(t * 3);
-  for (let r = 0; r < 5; r++) for (let q = 0; q < 9; q++) {
-    if (((r * 9 + q) * 7) % 45 < gone) continue;
-    c.fillStyle = cols[r]; c.fillRect(bx + q * 67, by + r * 30, bw - 4, bh);
-    c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(bx + q * 67, by + r * 30, bw - 4, 5);
+// Quebrabloco: the original, a construction site where a digger breaks a brick wall
+function hazard(c, x, y, w, h, t) {
+  c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+  c.fillStyle = '#1b1b1b'; c.fillRect(x, y, w, h);
+  c.fillStyle = '#f5c21b';
+  const off = (t * 40) % (h * 2);
+  for (let q = x - h * 2 + off; q < x + w + h; q += h * 2) {
+    c.beginPath(); c.moveTo(q, y + h); c.lineTo(q + h, y); c.lineTo(q + h * 2, y); c.lineTo(q + h, y + h); c.closePath(); c.fill();
   }
-  const px = W / 2 + Math.sin(t * 2.1) * 200, ox = Math.abs(((t * 340) % 1200) - 600);
-  const ballX = 70 + ox * ((W - 140) / 600), ballY = by + 170 + Math.abs(Math.sin(t * 3.2)) * 330;
-  c.fillStyle = '#ffffff'; c.fillRect(ballX - 9, ballY - 9, 18, 18);
-  c.fillStyle = '#c8cbd6'; c.fillRect(px - 70, by + 540, 140, 18);
-  adText(c, 'QUEBRABLOCO', W / 2, safeTop + 200, 70, '#ffffff', 900, '"Courier New", monospace');
-  adText(c, 'O JOGO QUE DEU ORIGEM AO NEON BREAKER', W / 2, safeTop + 270, 19, '#f5d23a', 700);
-  const cy = H - 190 + Math.sin(t * 4) * 4;
-  c.fillStyle = '#e8423f'; c.fillRect(W / 2 - 200, cy - 40, 400, 80);
-  adText(c, 'JOGUE O CLÁSSICO', W / 2, cy, 26, '#ffffff', 900);
+  c.restore();
+}
+function adQuebrabloco(c, t) {
+  // dirt and tracks
+  c.fillStyle = '#6e5233'; c.fillRect(0, 0, W, H);
+  const rng0 = rng(7);
+  for (let i = 0; i < 160; i++) { c.fillStyle = rng0() < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,230,190,0.08)'; c.fillRect(rng0() * W, rng0() * H, 3 + rng0() * 5, 3 + rng0() * 4); }
+  const py = H - 330;   // top of the dark panel
+  c.fillStyle = 'rgba(0,0,0,0.18)';
+  const ty = py - 70;
+  for (let x = 0; x < W; x += 26) { c.fillRect(x, ty, 14, 8); c.fillRect(x, ty + 46, 14, 8); }
+  // brick wall with the logo painted on it
+  const wy = safeTop + 300, rows = 7, bh = 34, bw = 72, gone = Math.floor(t * 4);
+  c.fillStyle = '#8a8178'; c.fillRect(0, wy, W, rows * bh);
+  for (let r = 0; r < rows; r++) for (let q = -1; q < 11; q++) {
+    const x = q * bw + (r % 2 ? bw / 2 : 0), idx = r * 12 + q + 1;
+    if (r >= 4 && ((idx * 7) % 36) < gone) continue;   // the digger knocks out the bottom rows
+    c.fillStyle = (idx * 13) % 5 === 0 ? '#9c3b2a' : (idx * 7) % 3 === 0 ? '#b5482f' : '#a8432c';
+    c.fillRect(x + 2, wy + r * bh + 2, bw - 4, bh - 4);
+    c.fillStyle = 'rgba(255,255,255,0.10)'; c.fillRect(x + 2, wy + r * bh + 2, bw - 4, 4);
+  }
+  c.font = `900 70px ${BODY_FONT}`; c.textBaseline = 'middle'; c.textAlign = 'left';
+  const w1 = c.measureText('QUEBRA').width, w2 = c.measureText('BLOCO').width, lx = W / 2 - (w1 + w2) / 2, ly = wy + 2 * bh;
+  c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillText('QUEBRA', lx + 4, ly + 4); c.fillText('BLOCO', lx + w1 + 4, ly + 4);
+  c.fillStyle = '#f2f2f2'; c.fillText('QUEBRA', lx, ly);
+  c.fillStyle = '#f5c21b'; c.fillText('BLOCO', lx + w1, ly);
+  // the digger, going back and forth
+  const dx = W / 2 + Math.sin(t * 1.4) * 170, dy = py - 130, arm = Math.sin(t * 5) * 0.25;
+  c.fillStyle = '#2a2a2a'; roundRectPath(c, dx - 95, dy + 50, 190, 36, 18); c.fill();
+  c.fillStyle = '#555'; for (let k = 0; k < 5; k++) { c.beginPath(); c.arc(dx - 72 + k * 36, dy + 68, 11, 0, TAU); c.fill(); }
+  c.fillStyle = '#f2b51b'; c.fillRect(dx - 85, dy - 10, 150, 60);
+  c.fillStyle = '#d99a0f'; c.fillRect(dx - 85, dy + 38, 150, 12);
+  c.fillStyle = '#f2b51b'; c.fillRect(dx - 75, dy - 70, 70, 62);
+  c.fillStyle = '#9fd3e6'; c.fillRect(dx - 66, dy - 62, 52, 34);
+  c.save(); c.translate(dx + 50, dy); c.rotate(-0.9 + arm);
+  c.fillStyle = '#f2b51b'; c.fillRect(0, -10, 150, 20);
+  c.translate(150, 0); c.rotate(1.6 - arm * 2);
+  c.fillRect(0, -8, 90, 16);
+  c.fillStyle = '#3a3a3a'; c.beginPath(); c.moveTo(80, -14); c.lineTo(120, -4); c.lineTo(110, 26); c.lineTo(80, 14); c.closePath(); c.fill();
+  c.restore();
+  // hazard stripes and the dark panel, like the original's menus
+  hazard(c, 0, safeTop + 100, W, 26, t);
+  hazard(c, 60, py, W - 120, 22, t);
+  c.fillStyle = 'rgba(28,28,30,0.96)'; c.fillRect(60, py + 22, W - 120, 220);
+  adText(c, 'O JOGO QUE DEU ORIGEM AO NEON BREAKER', W / 2, py + 72, 18, '#f2f2f2', 800);
+  adText(c, 'TIJOLO, CONCRETO E UMA ESCAVADEIRA', W / 2, py + 104, 15, 'rgba(242,242,242,0.6)', 600);
+  const by = py + 170 + Math.sin(t * 4) * 3;
+  c.fillStyle = '#b8860b'; roundRectPath(c, W / 2 - 170, by - 30, 340, 68, 10); c.fill();
+  c.fillStyle = '#f5c21b'; roundRectPath(c, W / 2 - 170, by - 36, 340, 66, 10); c.fill();
+  adText(c, 'JOGUE QUEBRABLOCO', W / 2, by - 3, 25, '#1b1b1b', 900);
 }
 // AURUM BANK: a made-up bank from the game's own city
 function adAurum(c, t) {
@@ -970,10 +1042,10 @@ const STORY = [
 ];
 const STORY_CPS = 42;   // typed characters per second
 let story = { w: 0, t0: 0, lines: [], skip: false };
-function startStory(w) {
+function startStory(w, back = null) {
   const body = STORY[w] || [];
   const lines = ['> abrindo diario/' + String(w + 1).padStart(2, '0') + '.txt', ''].concat(body, ['', '> salvo. o jogo continua.']);
-  story = { w, t0: performance.now() / 1000, lines, skip: false, total: lines.reduce((a, l) => a + l.length + 6, 0) };
+  story = { w, back, t0: performance.now() / 1000, lines, skip: false, total: lines.reduce((a, l) => a + l.length + 6, 0) };
   setScene('story');
 }
 const storyChars = (now) => (story.skip ? Infinity : (now - story.t0) * STORY_CPS);
@@ -1103,30 +1175,207 @@ function pixelBot(c, x, y, s) {
   c.fillStyle = '#d97757';
   rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === 'X') c.fillRect(x + i * s, y + j * s, s, s); });
 }
+// bosses beaten, in district order: their diary entries can be read again
+const bossOf = (w) => getStage(worldStart(w) + worldCount(w) - 1).boss;
+const beaten = (w) => !WORLDS[w].soon && prog > worldStart(w) + worldCount(w) - 1;
+const ARCH_W = STORY.length;
+function creditButtons() {
+  const cx = W / 2, list = [];
+  for (let w = 0; w < ARCH_W; w++) {
+    const ok = beaten(w) || devAll();
+    list.push({ x: cx + ((w % 3) - 1) * 216 - 102, y: safeTop + 232 + Math.floor(w / 3) * 70, w: 204, h: 60,
+      label: ok ? bossOf(w).name : '? ? ?', fn: ok ? () => startStory(w, 'credits') : null, small: true, fs: 12, off: !ok });
+  }
+  const ly = H - 190;
+  list.push(btn(cx - 158, ly, 300, 62, 'REPOSITÓRIO  ↗', () => { try { window.open(REPO_URL, '_blank', 'noopener'); } catch (e) { /* ignore */ } }, { small: true, fs: 14 }));
+  list.push(btn(cx + 158, ly, 300, 62, 'INSTAGRAM  ·  EM BREVE', null, { small: true, fs: 13, off: true }));
+  list.push(btn(cx, H - 90, 400, 76, 'VOLTAR', () => setScene('menu')));
+  return list;
+}
 function renderCredits(c) {
   const k = col(), cx = W / 2;
   neonTitle(c, 'CRÉDITOS', cx, safeTop + 105, 46, k, k, 12);
-  let y = safeTop + 215;
+  glowText(c, 'ARQUIVOS DOS CHEFÕES', cx, safeTop + 180, 16, k, k, 'center', 700, 5);
+  glowText(c, 'toque num chefão derrotado para reler o diário', cx, safeTop + 206, 13, rgba('#ffffff', 0.6), k, 'center', 500, 1);
+  let y = safeTop + 500;
   // "Feito por Vinícius Costardi e Claude Code"
   const parts = [['Feito por ', 400], ['Vinícius Costardi', 700], [' e ', 400], ['Claude Code', 700]];
   c.textBaseline = 'middle';
   let total = 0;
-  for (const [t, w] of parts) { c.font = `${w} 26px ${BODY_FONT}`; total += c.measureText(t).width; }
+  for (const [t, w] of parts) { c.font = `${w} 25px ${BODY_FONT}`; total += c.measureText(t).width; }
   let x = cx - (total + 46) / 2;
-  for (const [t, w] of parts) { c.font = `${w} 26px ${BODY_FONT}`; c.fillStyle = '#ffffff'; c.textAlign = 'left'; c.fillText(t, x, y); x += c.measureText(t).width; }
+  for (const [t, w] of parts) { c.font = `${w} 25px ${BODY_FONT}`; c.fillStyle = '#ffffff'; c.textAlign = 'left'; c.fillText(t, x, y); x += c.measureText(t).width; }
   pixelBot(c, x + 12, y - 8, 4);
   c.textAlign = 'center';
-  c.font = `400 24px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.9)';
-  c.fillText('Desenvolvido em vibe code', cx, y + 42);
-  c.fillText('Versão ' + VERSION, cx, y + 80);
-  y += 165;
-  glowText(c, 'ASSETS DE TERCEIROS', cx, y, 17, k, k, 'center', 700, 5);
-  y += 50;
+  c.font = `400 21px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.85)';
+  c.fillText('Desenvolvido em vibe code  ·  versão ' + VERSION, cx, y + 40);
+  y += 105;
+  glowText(c, 'ASSETS DE TERCEIROS', cx, y, 16, k, k, 'center', 700, 5);
+  y += 42;
   for (const [lead, rest] of CREDITS) {
     c.beginPath(); c.arc(58, y - 2, 4, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
-    y = richWrap(c, lead, rest, 76, y, W - 76 - 52, 21, 31) + 14;
+    y = richWrap(c, lead, rest, 76, y, W - 76 - 52, 19, 27) + 10;
   }
   c.textBaseline = 'alphabetic';
+}
+
+// ---------- leaderboard ----------
+// tab 0: this device; 1: online, all time; 2: online, this week
+const board = { tab: 0, data: [null, null, null], loading: [false, false, false], err: [false, false, false], editing: false, msg: null };
+function loadBoard(tab) {
+  if (!ONLINE || tab === 0 || board.loading[tab]) return;
+  board.loading[tab] = true; board.err[tab] = false;
+  fetchTop(tab === 1 ? 'all' : 'week')
+    .then((d) => { board.data[tab] = d || { rows: [], me: null }; })
+    .catch(() => { board.err[tab] = true; })
+    .finally(() => { board.loading[tab] = false; });
+}
+function openScores() { board.editing = false; setScene('scores'); loadBoard(board.tab); }
+function setBoardTab(i) { board.tab = i; if (!board.data[i]) loadBoard(i); }
+var nameInput = null;   // var: setScene() runs before this line at startup
+function showNameInput(on) {
+  if (!on && !nameInput) return;
+  if (!nameInput) {
+    nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.autocomplete = 'off';
+    nameInput.spellcheck = false;
+    nameInput.maxLength = 10;
+    nameInput.setAttribute('aria-label', 'Apelido');
+    nameInput.style.cssText = 'position:fixed;z-index:5;display:none;box-sizing:border-box;background:#000;color:#fff;text-align:center;text-transform:uppercase;'
+      + 'font-family:Orbitron,"Segoe UI",sans-serif;letter-spacing:0.2em;outline:none;border-radius:12px;padding:0 12px;';
+    nameInput.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') saveName(); });
+    nameInput.addEventListener('input', () => { const v = nameInput.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v !== nameInput.value) nameInput.value = v; });
+    document.body.appendChild(nameInput);
+  }
+  nameInput.style.display = on ? 'block' : 'none';
+  if (on) { nameInput.value = getName(); placeNameInput(); setTimeout(() => { try { nameInput.focus(); } catch (e) { /* ignore */ } }, 50); }
+  else nameInput.blur();
+}
+function placeNameInput() {
+  const r = canvas.getBoundingClientRect(), s = r.width / W, k = col();
+  const w = 420 * s, h = 70 * s;
+  Object.assign(nameInput.style, { left: r.left + (W / 2) * s - w / 2 + 'px', top: r.top + (safeTop + 460) * s - h / 2 + 'px', width: w + 'px', height: h + 'px',
+    fontSize: 26 * s + 'px', border: Math.max(1, 2 * s) + 'px solid ' + k, boxShadow: '0 0 ' + 14 * s + 'px ' + k });
+}
+function editName() { board.editing = true; board.msg = null; showNameInput(true); }
+function saveName() {
+  const v = (nameInput ? nameInput.value : '').toUpperCase();
+  if (!NAME_RE.test(v)) { board.msg = { text: 'DE 3 A 10 LETRAS OU NÚMEROS', t: performance.now() / 1000, bad: true }; sfx.power(false); return; }
+  setName(v);
+  board.editing = false; showNameInput(false);
+  board.msg = { text: 'APELIDO SALVO', t: performance.now() / 1000 };
+  board.data = [null, null, null]; loadBoard(board.tab);
+}
+function scoreButtons() {
+  const cx = W / 2, list = [];
+  if (board.editing) {
+    list.push(btn(cx, safeTop + 600, 400, 72, 'SALVAR', saveName, { big: true }));
+    list.push(btn(cx, H - 90, 400, 76, 'CANCELAR', () => { board.editing = false; showNameInput(false); }));
+    return list;
+  }
+  ['AQUI', 'GERAL', 'SEMANA'].forEach((t, i) => list.push({ x: cx - 315 + i * 212, y: safeTop + 165, w: 206, h: 54, label: t, fn: () => setBoardTab(i), small: true, fs: 15, sel: board.tab === i }));
+  list.push(btn(cx, H - 190, 400, 62, 'APELIDO:  ' + (getName() || '—') + '   ✎', editName, { small: true, fs: 15 }));
+  list.push(btn(cx, H - 90, 400, 76, 'VOLTAR', () => setScene('menu')));
+  return list;
+}
+function renderScores(c, now) {
+  const k = col(), cx = W / 2;
+  neonTitle(c, 'PLACAR', cx, safeTop + 100, 50, k, k, 12);
+  if (board.editing) {
+    glowText(c, 'ESCOLHA SEU APELIDO', cx, safeTop + 330, 20, '#ffffff', k, 'center', 700, 4);
+    glowText(c, 'de 3 a 10 letras ou números, aparece no placar online', cx, safeTop + 370, 14, rgba('#ffffff', 0.65), k, 'center', 500, 1);
+  } else {
+    const top = safeTop + 260, step = 50, maxRows = Math.max(3, Math.floor((H - 250 - top) / step) - 1);
+    const row = (i, a, b, cc, hl) => {
+      const y = top + i * step;
+      if (hl) { roundRectPath(c, 40, y - 21, W - 80, 42, 10); c.fillStyle = rgba(k, 0.16); c.fill(); }
+      glowText(c, a, 64, y, 17, rgba(k, 0.95), k, 'left', 700, 1);
+      glowText(c, b, 150, y, 17, '#ffffff', k, 'left', 600, 2);
+      glowText(c, cc, W - 64, y, 19, '#ffffff', k, 'right', 700, 1);
+    };
+    const center = (t, y, size = 17, a = 0.8) => glowText(c, t, cx, y, size, rgba('#ffffff', a), k, 'center', 600, 2);
+    if (board.tab === 0) {
+      glowText(c, 'RECORDE  ' + best, cx, top - 12, 18, k, k, 'center', 700, 4);
+      if (!runs.length) center('NENHUMA PARTIDA AINDA', top + 80);
+      runs.slice(0, maxRows - 1).forEach((r, i) => {
+        const d = new Date(r.date), dd = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+        row(i + 1, '#' + (i + 1), stageLabel(Math.min(r.stage, TOTAL_STAGES - 1)) + '   ' + dd, String(r.score), false);
+      });
+      center('O placar soma as fases até o fim de jogo.', H - 250, 14, 0.55);
+    } else if (!ONLINE) {
+      center('PLACAR ONLINE EM BREVE', top + 80, 20, 0.9);
+      center('O servidor ainda não foi ligado.', top + 120, 15, 0.6);
+    } else {
+      const d = board.data[board.tab];
+      if (board.loading[board.tab] && !d) center('CARREGANDO' + '.'.repeat(1 + Math.floor(now * 3) % 3), top + 80);
+      else if (board.err[board.tab] && !d) center('SEM CONEXÃO COM O PLACAR', top + 80);
+      else if (d) {
+        const me = d.me, mine = getName();
+        if (!d.rows.length) center('NINGUÉM NO PLACAR AINDA', top + 80);
+        d.rows.slice(0, maxRows - 1).forEach((r, i) => row(i, '#' + r.pos, r.name, String(r.score), !!me && me.pos === r.pos && r.name === mine));
+        const y = top + (maxRows - 1) * step + 14;
+        if (!mine) center('Escolha um apelido para aparecer aqui.', y, 15, 0.7);
+        else if (me) center('VOCÊ:  #' + me.pos + '   ·   ' + me.score, y, 17, 0.95);
+        else center('Termine uma partida para entrar no placar.', y, 15, 0.7);
+      }
+    }
+  }
+  if (board.msg && now - board.msg.t < 2) {
+    c.globalAlpha = Math.min(1, (2 - (now - board.msg.t)) * 2);
+    glowText(c, board.msg.text, cx, board.editing ? safeTop + 690 : H - 250, 16, board.msg.bad ? '#ff4060' : '#ffffff', board.msg.bad ? '#ff4060' : k, 'center', 700, 3);
+    c.globalAlpha = 1;
+  }
+}
+
+// ---------- main menu icons ----------
+function drawMenuIcon(c, kind, x, y, k) {
+  c.beginPath();
+  if (kind === 'pal') {
+    c.moveTo(x + 22, y - 2);
+    c.bezierCurveTo(x + 22, y - 18, x + 8, y - 24, x - 4, y - 22);
+    c.bezierCurveTo(x - 20, y - 20, x - 26, y - 4, x - 22, y + 8);
+    c.bezierCurveTo(x - 18, y + 20, x - 2, y + 24, x + 4, y + 18);
+    c.bezierCurveTo(x + 8, y + 13, x + 2, y + 8, x + 8, y + 5);
+    c.bezierCurveTo(x + 14, y + 2, x + 22, y + 8, x + 22, y - 2);
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+    [['#ff3864', -12, -4], ['#ffd21f', -5, -13], ['#2bff88', 7, -13], ['#00e5ff', -10, 9]].forEach(([cc, dx, dy]) => {
+      c.beginPath(); c.arc(x + dx, y + dy, 4.2, 0, TAU); c.fillStyle = cc; c.fill();
+    });
+  } else if (kind === 'gear') {
+    const n = 8;
+    for (let i = 0; i < n * 4; i++) {
+      const a = (i / (n * 4)) * TAU, r = i % 4 < 2 ? 23 : 16;
+      c[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    c.closePath();
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+    c.beginPath(); c.arc(x, y, 7, 0, TAU);
+    neonStroke(c, k, k, 3, x - 7, y, x + 7, y, 0.8);
+  } else if (kind === 'trophy') {
+    c.moveTo(x - 15, y - 20); c.lineTo(x + 15, y - 20); c.lineTo(x + 14, y - 6);
+    c.quadraticCurveTo(x + 12, y + 6, x, y + 7); c.quadraticCurveTo(x - 12, y + 6, x - 14, y - 6); c.closePath();
+    c.moveTo(x - 15, y - 15); c.quadraticCurveTo(x - 26, y - 15, x - 23, y - 5); c.quadraticCurveTo(x - 20, y + 1, x - 12, y);
+    c.moveTo(x + 15, y - 15); c.quadraticCurveTo(x + 26, y - 15, x + 23, y - 5); c.quadraticCurveTo(x + 20, y + 1, x + 12, y);
+    c.moveTo(x, y + 7); c.lineTo(x, y + 15);
+    c.moveTo(x - 11, y + 21); c.lineTo(x + 11, y + 21); c.lineTo(x + 8, y + 15); c.lineTo(x - 8, y + 15); c.closePath();
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'star') {
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 10 : 24;
+      c[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + 2 + Math.sin(a) * r);
+    }
+    c.closePath();
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  }
+}
+function drawIconButton(c, b) {
+  const k = col(), down = pressed === b, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  roundRectPath(c, b.x, b.y, b.w, b.h, 18);
+  c.fillStyle = rgba(k, down ? 0.2 : 0.05); c.fill();
+  neonStroke(c, k, k, 2.2, b.x, b.y, b.x + b.w, b.y + b.h, 0.6);
+  drawMenuIcon(c, b.icon, cx, cy - 1, k);
+  glowText(c, b.label, cx, b.y + b.h + 22, 12, rgba('#ffffff', 0.8), k, 'center', 700, 2);
 }
 
 // ---------- dev mode gate (5 taps on the version, then the password) ----------
@@ -1183,7 +1432,6 @@ function renderDevGate(c, now) {
 }
 
 // ---------- in-game dev panel ----------
-const DEV_TABS = ['CÁPSULAS', 'DEBUFFS', 'DISCO', 'FASE', 'JOGO', 'VISUAL'];
 const devToggleRect = () => ({ x: W - 112, y: game.top - 42, w: 84, h: 30 });
 
 function cycle(key, d, n) {
@@ -1195,94 +1443,35 @@ function cyclePerk(keys, cur, set) {
   const i = keys.indexOf(cur), next = i + 1 >= keys.length ? null : keys[i + 1];
   set(next);
 }
-function devItems() {
-  const pw = (k) => ({ label: POWERS[k].label, fn: () => game.applyPower(k) });
-  const set = (fn) => () => { fn(); applyOpts(); };
-  switch (devTab) {
-    case 0: return Object.keys(POWERS).filter((k) => POWERS[k].good).map(pw)
-      .concat([{ label: 'PLAT. + x2', fn: () => game.applyPower('wide', 2) }]);
-    case 1: return Object.keys(POWERS).filter((k) => !POWERS[k].good).map(pw)
-      .concat([{ label: 'PLAT. - x2', fn: () => game.applyPower('shrink', 2) }]);
-    case 2: return [
-      { label: 'VELOCIDADE', slider: SL.speed },
-      { label: '+1 DISCO', fn: () => game.devAddBall() },
-      { label: 'LANÇAR', fn: () => game.launch() },
-      { label: 'RESETAR DISCO', fn: () => game.resetBall() },
-      { label: 'LIMPAR EFEITOS', fn: () => { game.effects = {}; } },
-    ];
-    case 3: return [
-      { label: 'PULAR FASE', fn: () => game.devSkip() },
-      { label: 'REINICIAR', fn: () => game.devRestart() },
-      { label: game.boss ? 'MATAR CHEFÃO' : 'LIMPAR BLOCOS', fn: () => game.devClear() },
-      { label: 'IR P/ CHEFÃO', fn: () => game.devBoss() },
-      { label: 'CHEFÃO -3', fn: () => game.devBossHit(3) },
-      { label: 'MODO FÚRIA', fn: () => game.devFury() },
-      { label: freeze ? 'DESCONGELAR' : 'CONGELAR', fn: () => { freeze = !freeze; } },
-      { label: 'IR AO MAPA', fn: () => setScene('map') },
-    ];
-    case 4: return [
-      { label: 'VIDAS ∞: ' + (opts.inf ? 'SIM' : 'NÃO'), fn: set(() => { opts.inf = !opts.inf; }) },
-      { label: '+1 VIDA', fn: () => { game.lives = Math.min(6, game.lives + 1); } },
-      { label: 'ENERGIA CHEIA', fn: () => { game.energy = 1; } },
-      { label: '+500 CHIPS', fn: () => { chips += 500; saveChips(); } },
-      { label: '+100 MOEDAS', fn: () => { coins += 100; saveChips(); } },
-      { label: 'TESTAR FINAL', fn: () => startCrash() },
-      { label: 'TESTAR HISTÓRIA', fn: () => startStory(Math.max(0, Math.min(STORY.length - 1, bossesBeaten() - 1))) },
-      { label: '» ' + SHAPES[plat.shape].name, fn: () => cycle('shape', 1, SHAPES.length) },
-      { label: '» ' + PALETTES[plat.pal].name, fn: () => cycle('pal', 1, PALETTES.length) },
-      { label: '» ' + EMBLEMS[plat.emb], fn: () => cycle('emb', 1, EMBLEMS.length) },
-      { label: '» ' + (game.ability ? ABILITIES[game.ability.type].name : 'SEM ATIVO'), fn: () => cyclePerk(ACTIVE_KEYS, game.ability && game.ability.type, (k) => { game.ability = k ? { type: k, lvl: 3 } : null; game.energy = 1; }) },
-      { label: '» ' + (game.passive ? PASSIVES[game.passive.type].name : 'SEM PASSIVO'), fn: () => cyclePerk(PASSIVE_KEYS, game.passive && game.passive.type, (k) => { game.passive = k ? { type: k, lvl: 3 } : null; }) },
-      { label: 'FPS: ' + (opts.fps ? 'SIM' : 'NÃO'), fn: set(() => { opts.fps = !opts.fps; }) },
-      { label: 'DROPS', slider: SL.drop },
-      { label: 'SENSIBILIDADE', slider: SL.sens },
-    ];
-    default: return [
-      { label: 'BRILHO DO NEON', slider: gfxSl('glow', 0, 1.5) },
-      { label: 'RESOLUÇÃO', slider: gfxSl('res', 0.4, 1) },
-      { label: 'PARTÍCULAS', slider: gfxSl('fx', 0, 1.5) },
-      { label: 'RASTRO DO DISCO', slider: gfxSl('trail', 0, 1) },
-      { label: 'TEXTURA (GRADE DO CAMPO)', slider: gfxSl('grid', 0, 2) },
-      { label: 'PADRÃO CELULAR', fn: () => presetGfx(GFX_MOBILE) },
-      { label: 'PADRÃO PC', fn: () => presetGfx(GFX_PC) },
-      { label: 'FPS: ' + (opts.fps ? 'SIM' : 'NÃO'), fn: set(() => { opts.fps = !opts.fps; }) },
-    ];
-  }
-}
-
-function devPanel() {
-  const x = 24, y = game.top + 48, w = W - 48;
-  const list = [];
-  const tw = w / DEV_TABS.length;
-  DEV_TABS.forEach((t, i) => list.push({ x: x + i * tw + 3, y: y + 8, w: tw - 6, h: 40, label: t, fn: () => { devTab = i; }, tab: i }));
-  // buttons go 3 per row; a slider takes a whole row
-  let ry = y + 60, cn = 0;
-  const cw = (w - 24) / 3;
-  for (const it of devItems()) {
-    if (it.slider) {
-      if (cn) { ry += 58; cn = 0; }
-      list.push({ x: x + 12, y: ry, w: w - 32, h: 52, label: it.label, slider: it.slider, fn: () => {} });
-      ry += 58;
-    } else {
-      list.push({ x: x + 12 + cn * cw, y: ry, w: cw - 8, h: 50, label: it.label, fn: it.fn, small: true });
-      if (++cn === 3) { cn = 0; ry += 58; }
-    }
-  }
-  if (cn) ry += 58;
-  return { rect: { x, y, w, h: ry - y + 6 }, list };
-}
+devUI = createDevPanel({
+  game, opts, plat, W, applyOpts, col, dropSprite, POWERS, ABILITIES, PASSIVES, SHAPES, PALETTES, EMBLEMS, DISCS, TRAILS,
+  WORLDS, worldStart, worldCount, stageLabel, sl: SL, gfx: gfxSl,
+  click: () => sfx.click(),
+  gfxMobile: () => presetGfx(GFX_MOBILE), gfxPC: () => presetGfx(GFX_PC),
+  getFreeze: () => freeze, setFreeze: (v) => { freeze = v; },
+  addChips: (n) => { chips += n; saveChips(); }, addCoins: (n) => { coins += n; saveChips(); },
+  goStage: (i) => { game.index = i; game.loadLevel(); },
+  testStory: () => startStory(Math.max(0, Math.min(STORY.length - 1, bossesBeaten() - 1))),
+  testCrash: () => startCrash(), toMap: () => setScene('map'),
+  cycle: (key, n) => cycle(key, 1, n),
+  cycleActive: () => cyclePerk(ACTIVE_KEYS, game.ability && game.ability.type, (k) => { game.ability = k ? { type: k, lvl: 3 } : null; game.energy = 1; }),
+  cyclePassive: () => cyclePerk(PASSIVE_KEYS, game.passive && game.passive.type, (k) => { game.passive = k ? { type: k, lvl: 3 } : null; }),
+  canvasRect: () => canvas.getBoundingClientRect(),
+});
 
 function layout() {
   const cx = W / 2, bw = 400, bh = 76;
   switch (scene) {
     case 'menu': {
-      const y = H * 0.46;
+      // JOGAR and BREAKERS, then a row of square icon buttons as wide as them
+      const y = H * 0.47, s = 88, gap = (bw - 4 * s) / 3, iy = y + 196;
+      const icons = [['pal', 'COR', () => setScene('colors')], ['gear', 'OPÇÕES', () => setScene('options')],
+        ['trophy', 'PLACAR', openScores], ['star', 'CRÉDITOS', () => setScene('credits')]];
       return [
-        btn(cx, y, bw, bh, 'JOGAR', () => setScene('map'), { big: true }),
-        btn(cx, y + 100, bw, bh, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert() }),
+        btn(cx, y, bw, 88, 'JOGAR', () => setScene('map'), { big: true, fs: 30 }),
+        btn(cx, y + 104, bw, bh, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert() }),
         Object.assign(bellRect(), { label: '', fn: () => setScene('notif'), bell: true }),
-        btn(cx, y + 200, bw, bh, 'COR', () => setScene('colors')),
-        btn(cx, y + 300, bw, bh, 'OPÇÕES', () => setScene('options')),
+        ...icons.map(([icon, label, fn], i) => ({ x: cx - bw / 2 + i * (s + gap), y: iy, w: s, h: s, label, fn, icon })),
       ];
     }
     case 'map': {
@@ -1303,7 +1492,8 @@ function layout() {
     case 'plat': return platButtons();
     case 'notif': return notifButtons();
     case 'perktut': return perkTutButtons();
-    case 'credits': return [btn(cx, H - 90, bw, bh, 'VOLTAR', () => setScene('options'))];
+    case 'credits': return creditButtons();
+    case 'scores': return scoreButtons();
     case 'devgate': {
       const y = safeTop + 640;
       if (opts.dev) return [btn(cx, y, 400, 72, 'DESATIVAR', () => { opts.dev = false; applyOpts(); gateMsg = { text: 'MODO DEV DESATIVADO', ok: true, t: performance.now() / 1000 }; }), btn(cx, H - 90, bw, bh, 'VOLTAR', () => setScene('menu'))];
@@ -1330,7 +1520,7 @@ function layout() {
       ];
     case 'story':
       return [storyDone(performance.now() / 1000)
-        ? btn(cx, H - 150, bw, bh, 'CONTINUAR', () => { if (!seen.perkTut) startPerkTut(); else setScene('world'); }, { big: true })
+        ? btn(cx, H - 150, bw, bh, story.back ? 'VOLTAR' : 'CONTINUAR', () => { if (story.back) setScene(story.back); else if (!seen.perkTut) startPerkTut(); else setScene('world'); }, { big: true })
         : btn(cx, H - 150, bw, bh, 'PULAR', () => { story.skip = true; })];
     case 'world': {
       const next = game.index + 1;
@@ -1381,8 +1571,9 @@ function startGame(index = 0) {
   game.tutorial = firstTime;
   card = null;
   freeze = false;
+  if (opts.dev) run.dev = true;
   setScene('play');
-  game.newGame(index);
+  game.newGame(index, run.score);
 }
 
 // ---------- input ----------
@@ -1400,15 +1591,6 @@ canvas.addEventListener('pointerdown', (e) => {
   if (scene === 'play') {
     if (hitPause(p)) { setScene('pause'); sfx.click(); return; }
     if (opts.dev && inside(devToggleRect(), p)) { devOpen = !devOpen; sfx.click(); return; }
-    if (devOpen) {
-      const dp = devPanel();
-      if (inside(dp.rect, p)) {
-        const b = dp.list.find((q) => inside(q, p));
-        if (b && b.slider) { slide = { b, id: e.pointerId }; setSlider(b, p); }
-        else if (b) { sfx.click(); b.fn(); }
-        return;
-      }
-    }
     if (game.ability && inside(game.abilityRect(), p)) { game.useAbility(); return; }
     // double tap anywhere fires the active perk
     const tn = performance.now();
@@ -1444,7 +1626,7 @@ canvas.addEventListener('pointermove', (e) => {
   }
   if (scene !== 'play') return;
   const p = toLogical(e);
-  if (e.pointerType === 'mouse') { if (!(devOpen && inside(devPanel().rect, p))) game.paddle.tx = game.mirror ? W - p.x : p.x; return; }
+  if (e.pointerType === 'mouse') { game.paddle.tx = game.mirror ? W - p.x : p.x; return; }
   if (drag && drag.id === e.pointerId) {
     game.paddle.tx += (p.x - drag.lastX) * opts.sens * (game.mirror ? -1 : 1);
     drag.lastX = p.x;
@@ -1581,12 +1763,15 @@ function drawButton(c, b) {
     return;
   }
   if (b.small || b.tab !== undefined || b.ptab !== undefined) {
-    const sel = b.sel || (b.tab !== undefined && b.tab === devTab) || (b.ptab !== undefined && b.ptab === platTab);
+    const sel = b.sel || (b.ptab !== undefined && b.ptab === platTab);
+    if (b.off) c.globalAlpha = 0.35;
+    else if (pressed === b) { roundRectPath(c, b.x, b.y, b.w, b.h, 10); c.fillStyle = rgba(k, 0.2); c.fill(); }
     roundRectPath(c, b.x, b.y, b.w, b.h, 10);
     c.fillStyle = rgba(k, sel ? 0.3 : 0.06); c.fill();
     if (sel) neonStroke(c, k, k, 2, b.x, b.y, b.x + b.w, b.y + b.h, 0.6);
     else { c.strokeStyle = rgba(k, 0.55); c.lineWidth = 1.5; c.stroke(); }
     glowText(c, b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, b.fs || (b.ptab !== undefined ? 14 : 12), '#ffffff', k, 'center', 700, b.ptab !== undefined ? 0.5 : 1);
+    c.globalAlpha = 1;
     return;
   }
   roundRectPath(c, b.x, b.y, b.w, b.h, 16);
@@ -2064,12 +2249,6 @@ function renderDev(c) {
   c.strokeStyle = rgba(k, 0.9); c.lineWidth = 1.5; c.stroke();
   glowText(c, opts.inf ? 'DEV ∞' : 'DEV', t.x + t.w / 2, t.y + t.h / 2 + 1, 12, '#ffffff', k, 'center', 700, 2);
   if (freeze) glowText(c, 'CONGELADO', t.x - 12, t.y + t.h / 2, 11, rgba(k, 0.9), k, 'right', 700, 2);
-  if (!devOpen) return;
-  const dp = devPanel();
-  roundRectPath(c, dp.rect.x, dp.rect.y, dp.rect.w, dp.rect.h, 16);
-  c.fillStyle = 'rgba(0,0,0,0.82)'; c.fill();
-  neonStroke(c, k, k, 2, dp.rect.x, dp.rect.y, dp.rect.x + dp.rect.w, dp.rect.y, 0.6);
-  for (const b of dp.list) drawButton(c, b);
 }
 
 function dim(c, a) {
@@ -2086,12 +2265,15 @@ function render() {
   buttons = layout();
   const k = col();
   const now = performance.now() / 1000;
+  devUI.show(scene === 'play' && opts.dev && devOpen);
+  devUI.place();   // follows the canvas (rotation, resize, browser bars)
 
   if (scene === 'menu') {
     renderDemo(ctx);
     neonTitle(ctx, 'NEON', W / 2, H * 0.17, 130, k, k, 18);
     neonTitle(ctx, 'BREAKER', W / 2, H * 0.17 + 110, 58, mix(k, '#ffffff', 0.4), k, 18);
     if (best > 0) glowText(ctx, 'RECORDE  ' + best, W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
+    if (run.score > 0) glowText(ctx, 'PLACAR DA PARTIDA  ' + run.score, W / 2, H * 0.17 + 212, 14, rgba('#ffffff', 0.7), k, 'center', 500, 4);
     drawPlatform(ctx, plat, W / 2, H - 150, BASE_HW, now, k);
     const vt = performance.now() - verTaps.t < 1500 ? verTaps.n : 0;
     glowText(ctx, 'v' + VERSION, W - 24, H - 22, 12 + vt, rgba(k, 0.6 + vt * 0.08), k, 'right', 500, 2);
@@ -2114,6 +2296,8 @@ function render() {
     neonTitle(ctx, 'COR', W / 2, safeTop + 120, 64, k, k, 18);
   } else if (scene === 'credits') {
     renderCredits(ctx);
+  } else if (scene === 'scores') {
+    renderScores(ctx, now);
   } else if (scene === 'devgate') {
     renderDevGate(ctx, now);
   } else if (scene === 'options' || scene === 'dev') {
@@ -2156,6 +2340,7 @@ function render() {
     if (b.node !== undefined) drawNode(ctx, b, now);
     else if (b.theme !== undefined) drawColorTile(ctx, b);
     else if (b.bell) drawBell(ctx, b);
+    else if (b.icon) drawIconButton(ctx, b);
     else if (b.note) drawNote(ctx, b);
     else drawButton(ctx, b);
     if (b.bang) drawBang(ctx, b.x + b.w - 6, b.y + 6, b.h < 56 ? 9 : 12);

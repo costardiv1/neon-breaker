@@ -58,12 +58,13 @@ export const POWERS = {
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const SHOCK_DEFLECT = 220;  // and how close the disc must be to be pushed
 
 // Active perks (bought/evolved in BREAKERS > PERKS). One is equipped; it
 // charges by breaking bricks and fires with a double tap or the HUD button.
 export const ABILITIES = {
   shield:    { name: 'ESCUDO', desc: 'Uma barreira de energia embaixo da plataforma rebate o disco.', lv: ['7 s', '9 s', '11 s'], cost: [55, 125, 240] },
-  shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai da plataforma, danifica os blocos mais próximos e desvia o disco.', lv: ['6 blocos', '8 blocos', '10 blocos, dano 2'], cost: [70, 155, 280] },
+  shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai de onde a plataforma está, danifica os blocos mais próximos e desvia o disco que estiver perto dela.', lv: ['4 blocos', '6 blocos', '8 blocos, dano 2'], cost: [70, 155, 280] },
   slow:      { name: 'CÂMERA LENTA', desc: 'O tempo desacelera e o disco anda na metade da velocidade.', lv: ['5,5 s', '7 s', '8,5 s'], cost: [155, 310, 530] },
   magnet:    { name: 'ÍMÃ', desc: 'Puxa o disco para a plataforma e o segura a cada toque. Solte para mirar e lançar.', lv: ['9 s', '12 s', '15 s'], cost: [55, 125, 240] },
   megalaser: { name: 'MEGA LASER', desc: 'Carrega 0,5 s no centro da plataforma e dispara um feixe que destrói tudo em linha reta. A plataforma fica travada enquanto dispara.', lv: ['feixe fino', 'feixe médio', 'feixe largo'], cost: [85, 170, 310] },
@@ -231,7 +232,7 @@ export function coinSprite() {
 }
 
 const DW = 52, DH = 26;
-function dropSprite(type, col) {
+export function dropSprite(type, col) {
   return cached('drop' + type + col, (res) => makeSprite(DW, DH, 24, res, (c) => {
     const good = POWERS[type].good;
     if (good) roundRectPath(c, 1.5, 1.5, DW - 3, DH - 3, (DH - 3) / 2);
@@ -590,9 +591,9 @@ export class Game {
 
   setColor(col) { this.col = col; this.grid = null; }
 
-  newGame(index = 0) {
+  newGame(index = 0, score = 0) {
     this.index = index;
-    this.score = 0;
+    this.score = score;   // the run's score carries over until a game over
     this.lives = 3;
     this.shake = 0;
     this.particles = [];
@@ -847,7 +848,7 @@ export class Game {
 
     if (!this.boss && this.alive <= 0 && !this.blasts.length) {
       this.clearT = 1.6;
-      this.score += 100 * (this.index + 1);
+      this.score += 10 * (this.index + 1);
       for (const b of this.balls) this.burst(b.x, b.y, 16);
       this.balls = [];
       this.drops = [];
@@ -1406,7 +1407,7 @@ export class Game {
     if (br.hp > 0 && br.hp < 1e-6) br.hp = 0;
     br.flash = 1;
     this.combo++;
-    this.score += 10 * Math.min(this.combo, 20);
+    this.score += Math.min(this.combo, 20);
     const cx = br.x + br.w / 2, cy = br.y + br.h / 2;
     const tone = tierTone(this.col, tier);
     this.emit('brick');
@@ -1416,7 +1417,7 @@ export class Game {
       this.breaks++;
       if (!perk) this.gainEnergy(0.075);
       this.emit('chip', 1);
-      this.score += 50 * tier;
+      this.score += 5 * tier;
       this.derez(br, tone);
       sfx.brk(this.combo);
       vibrate(8);
@@ -1488,7 +1489,7 @@ export class Game {
     const p = this.paddle;
     sfx.power(def.good);
     vibrate(def.good ? 15 : 30);
-    if (def.good) this.score += 100 * n;
+    if (def.good) this.score += 10 * n;
     if (type === 'wide' || type === 'shrink') {
       const lvl = this.addSize(type === 'wide' ? n : -n);
       this.float((n > 1 ? 'x2  ' : '') + 'PLATAFORMA ' + (lvl > 0 ? '+' + lvl : lvl < 0 ? '−' + -lvl : 'NORMAL'), p.x, p.y - 70, 24);
@@ -1554,7 +1555,7 @@ export class Game {
   }
 
   onBossDeath(boss) {
-    this.score += 5000;
+    this.score += 500;
     this.shake = 1.2;
     for (const b of this.balls) this.burst(b.x, b.y, 12);
     this.balls = [];
@@ -1626,13 +1627,14 @@ export class Game {
       this.abil = { type: 'megalaser', charge: 0.5, t: 0.45 + 0.15 * L, max: 0.45 + 0.15 * L, w: 30 + 10 * L, hitBoss: 0 };
       sfx.charge();
     } else if (a.type === 'shock') {
-      // the wave reaches the K bricks nearest to the platform, wherever they are
-      const p = this.paddle, K = 4 + 2 * L;
+      // the wave starts where the platform is (it does not follow it) and
+      // reaches the K nearest bricks; it only pushes the disc near the platform
+      const p = this.paddle, K = 2 + 2 * L;
       const near = this.bricks.filter((q) => !q.dead && !q.out && q.kind !== 'wall')
         .map((q) => ({ q, d: Math.hypot(q.x + q.w / 2 - p.x, q.y + q.h / 2 - p.y) }))
         .sort((u, v) => u.d - v.d).slice(0, K);
-      const R = Math.max(300, near.length ? near[near.length - 1].d + 30 : 300);
-      this.abil = { type: 'shock', r: 0, R, t: 0.6, max: 0.6, targets: new Set(near.map((n) => n.q)), hit: new Set(), hitB: new Set(), dmg: L >= 3 ? 2 : 1 };
+      const R = Math.max(SHOCK_DEFLECT + 40, near.length ? near[near.length - 1].d + 30 : 0);
+      this.abil = { type: 'shock', r: 0, R, cx: p.x, cy: p.y, t: 0.6, max: 0.6, targets: new Set(near.map((n) => n.q)), hit: new Set(), hitB: new Set(), dmg: L >= 3 ? 2 : 1 };
       sfx.pulse(); sfx.blast();
       this.shake = Math.max(this.shake, 0.5);
     } else if (a.type === 'shield') {
@@ -1695,7 +1697,7 @@ export class Game {
     } else if (A.type === 'shock') {
       A.t -= dt;
       A.r = A.R * (1 - A.t / A.max);
-      const cx = p.x, cy = p.y;
+      const cx = A.cx, cy = A.cy;
       for (const br of this.bricks) {
         if (br.dead || A.hit.has(br) || !A.targets.has(br)) continue;
         const qx = clamp(cx, br.x, br.x + br.w), qy = clamp(cy, br.y, br.y + br.h);
@@ -1704,7 +1706,7 @@ export class Game {
       for (const b of this.balls) {
         if (b.held || b.cap || A.hitB.has(b)) continue;
         const dx = b.x - cx, dy = b.y - cy, d = Math.hypot(dx, dy) || 1;
-        if (d < A.r) {
+        if (d < A.r && d < SHOCK_DEFLECT) {
           A.hitB.add(b);
           // push the disc away from the platform, always upward
           b.vx = (dx / d) * b.s; b.vy = -Math.abs(dy / d) * b.s - b.s * 0.3;
@@ -1825,6 +1827,10 @@ export class Game {
   devBoss() { this.index = worldStart(this.stage.w) + worldCount(this.stage.w) - 1; this.loadLevel(); }
   devBossHit(n) { if (this.boss) this.boss.damage(n, true); }
   devFury() { if (this.boss && !this.boss.fury) { this.boss.hp = 0.01; this.boss.damage(1, true); } }
+  devDrop(type, n = 1) {
+    const p = this.paddle;
+    this.drops.push({ x: clamp(p.x, LEFT + 40, RIGHT - 40), y: Math.max(this.top + 30, p.y - 380), type, n, t: 0, got: false });
+  }
   devAddBall() {
     const p = this.paddle;
     const a = (Math.random() - 0.5) * 1.2;

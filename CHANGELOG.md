@@ -2,6 +2,24 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.5] · 10/11/2026 · Menu com ícones, placar e modo dev novo
+
+### Adicionado
+
+- Botão PLACAR (troféu) no menu, com as abas AQUI (melhores partidas no aparelho), GERAL e SEMANA (placar online) e a escolha de um apelido.
+- Placar online pronto no código (Supabase), ainda desligado: partidas com modo dev não entram e o servidor recusa pontuações impossíveis.
+- Tela de créditos com os arquivos dos chefões: toque num chefão derrotado para reler o diário. Links para o repositório e, em breve, o Instagram.
+- Modo dev: tocar numa cápsula faz ela cair em cima da plataforma, para ver qual é.
+
+### Alterado
+
+- Menu inicial: COR e OPÇÕES viraram botões quadrados com ícones (paleta e engrenagem), ao lado dos novos PLACAR (troféu) e CRÉDITOS (estrela).
+- Os pontos acumulam de fase em fase e de distrito em distrito até o fim de jogo, quando zeram.
+- Pontos divididos por 10 (o recorde salvo foi convertido).
+- Modo dev refeito no estilo do Quebrabloco: painel flutuante com seções, controles deslizantes e ícones.
+- ONDA DE CHOQUE mais fraca: sai de onde a plataforma estava e não acompanha o dedo, acerta 4, 6 ou 8 blocos (eram 6, 8 e 10) e só desvia o disco perto da plataforma.
+- Anúncio de teste do QUEBRABLOCO com cara de obra: faixas zebradas, muro de tijolos e escavadeira.
+
 ## [1.4] · 10/11/2026 · Distritos 8 e 9, anúncios e preços novos
 
 ### Adicionado

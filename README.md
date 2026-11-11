@@ -7,7 +7,7 @@
 **Um quebra-blocos minimalista em neon, feito para o celular.**
 Rebata o disco, atravesse os distritos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.4-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.5-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -47,12 +47,14 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 - **Plataforma personalizável**: 7 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.
 - **Perks em cartas**, evoluídos com chips: equipe 1 ativo (ESCUDO, ONDA DE CHOQUE, CÂMERA LENTA, ÍMÃ, MEGA LASER ou RELÂMPAGO) e 1 passivo (PLATAFORMA LARGA, GRANA, RECARGA, SORTE, VIDA EXTRA ou DISCO PESADO).
 - **Anúncio opcional para dobrar as moedas** da fase vencida ou do chefão (por enquanto, anúncios de teste, um deles do QUEBRABLOCO, o projeto que deu origem ao Neon Breaker).
+- **Placar que acumula** de fase em fase até o fim de jogo, com as melhores partidas do aparelho e um placar online (Supabase) pronto para ser ligado.
+- **Arquivos dos chefões** nos créditos: releia o diário de cada chefão derrotado.
 - **Avisos de novidade**: um ! no menu BREAKERS quando há algo para comprar ou um formato novo, e um sino com todas as novidades.
 - **18 cápsulas** de poderes e desvantagens que entram aos poucos: cada distrito traz uma boa e uma ruim, do míssil teleguiado ao APAGÃO, que deixa o campo no escuro.
 - **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança, a ASA bate as asas, a ONDA ondula e o FUNIL afunda.
 - **Trilha sonora sintetizada** por distrito, cada vez mais rápida e frenética, com a borda do campo pulsando na batida.
 - **Feito para celular**: toque para levar a plataforma até o dedo, qualidade gráfica ajustável e padrões diferentes para PC e celular.
-- **Modo dev secreto** (5 toques na versão + senha), com painel dentro da partida, controles deslizantes e uma aba VISUAL.
+- **Modo dev secreto** (5 toques na versão + senha), com um painel flutuante dentro da partida no estilo do Quebrabloco: seções com ícones, controles deslizantes e cápsulas que caem na plataforma com um toque.
 
 ## Distritos
 
@@ -158,7 +160,9 @@ Abra **http://localhost:5173**. Para jogar no celular, conecte-o à mesma rede W
 www/
   index.html        página única com o canvas
   icon.svg, icon-*.png, manifest.webmanifest   ícone do jogo e instalação como app
-  js/main.js        app: cenas, menus, mapa isométrico, entrada, persistência, modo dev
+  js/main.js        app: cenas, menus, placar, créditos, mapa isométrico, entrada, persistência
+  js/devpanel.js    painel do modo dev (HTML por cima do canvas)
+  js/online.js      placar online (Supabase)
   js/game.js        classe Game: física, blocos, cápsulas, moedas, poderes, HUD
   js/boss.js        classe Boss e os chefões
   js/levels.js      dados dos 10 distritos, fases e mecânicas
@@ -166,6 +170,7 @@ www/
   js/audio.js       efeitos e músicas sintetizados (Web Audio)
   js/render.js      utilitários de desenho neon
 server.js           servidor estático para testes
+supabase/schema.sql tabela e funções do placar online
 docs/               documentação, changelog, diagramas e capturas
 ```
 
@@ -174,7 +179,7 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 ## Documentação
 
 - 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, distritos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.4.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.5.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>
@@ -195,6 +200,7 @@ Inspirado nos quebra-blocos clássicos e na estética neon de Tron.
 
 - [ ] Distrito 10 e a luta final contra O SISTEMA
 - [ ] Anúncios de verdade (hoje são de teste)
+- [ ] Ligar o placar online (criar o projeto no Supabase)
 - [ ] APK com Capacitor e publicação na Play Store
 - [ ] Fonte Orbitron embutida no projeto
 - [ ] Idiomas (PT / EN)

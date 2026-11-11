@@ -72,12 +72,12 @@ class Boss {
     if (this.dead || (this.inv > 0 && !force)) return false;
     this.hp -= n;
     this.flash = minor ? Math.max(this.flash, 0.5) : 1;
-    if (minor) { sfx.brick(6); this.g.score += 60; }
+    if (minor) { sfx.brick(6); this.g.score += 6; }
     else {
       sfx.bossHit();
       vibrate(25);
       this.g.shake = Math.max(this.g.shake, 0.45);
-      this.g.score += 250;
+      this.g.score += 25;
       this.g.gainEnergy(0.2);
       this.g.emit('chip', 5);
       this.g.ring(this.cx, this.cy, 120);
