@@ -1101,7 +1101,7 @@ function roundRectPath2(c, x, y, w, h, r) {
   c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
 }
 
-// Deflect waves shared by the bosses of districts 6 and 7: an expanding ring
+// Deflect waves shared by the bosses of districts 6 to 9: an expanding ring
 // that bends the course of every disc it crosses.
 function updateWaves(boss, dt) {
   for (const wv of boss.waves) {
@@ -1355,7 +1355,245 @@ class Censor extends Boss {
   }
 }
 
+// ---------- DISTRICT 8: O BLINDADO (blindagem) ----------
+// A core behind a curved shield that turns to face the nearest disc:
+// the opening is always on the far side, so the hit has to come around.
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+class Armored extends Boss {
+  constructor(g) {
+    super(g, 'O BLINDADO');
+    this.coreR = 30;
+    this.shR = 66;      // shield radius
+    this.shW = 16;      // shield thickness
+    this.face = Math.PI / 2;
+    this.ph = 0;
+    this.cx = W / 2;
+    this.cy = g.top + 300;
+    this.waves = [];
+  }
+
+  get bandY() { return this.g.top + 50; }
+  get half() { return this.fury ? 1.45 : 1.2; }   // half the angle the shield covers
+
+  move(dt) {
+    this.ph += dt;
+    this.cx = W / 2 + 160 * Math.sin(this.ph * 0.4);
+    this.cy = this.g.top + 300 + 30 * Math.sin(this.ph * 0.7);
+    let target = Math.PI / 2, bd = Infinity;
+    for (const b of this.freeBalls()) {
+      const d = Math.hypot(b.x - this.cx, b.y - this.cy);
+      if (d < bd) { bd = d; target = Math.atan2(b.y - this.cy, b.x - this.cx); }
+    }
+    const turn = (this.fury ? 2.3 : 1.5) * dt;
+    this.face += clamp(angDiff(target, this.face), -turn, turn);
+  }
+
+  updateExtra(dt) { updateWaves(this, dt); }
+
+  inShield(x, y, rad) {
+    const d = Math.hypot(x - this.cx, y - this.cy);
+    if (Math.abs(d - this.shR) > this.shW / 2 + rad) return false;
+    return Math.abs(angDiff(Math.atan2(y - this.cy, x - this.cx), this.face)) < this.half;
+  }
+
+  pickAbility() {
+    const opts = ['pulse', 'armor'];
+    if (this.fury) opts.push('shots', 'shots');
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  exec(a) {
+    if (a === 'pulse') { this.waves.push({ r: 30, hit: new Set() }); sfx.pulse(); }
+    else if (a === 'armor') { this.g.armorBand(this.fury ? 4 : 3); sfx.capture(); }
+    else if (a === 'shots') this.shootAtPlayer(3);
+  }
+
+  holdBall(b) { this.throwBall(b); }
+
+  collide(b) {
+    if (this.dead) return false;
+    if (!this.g.effects.ghost && this.inShield(b.x, b.y, b.r)) {
+      const dx = b.x - this.cx, dy = b.y - this.cy, d = Math.hypot(dx, dy) || 1;
+      const nx = dx / d, ny = dy / d, dot = b.vx * nx + b.vy * ny;
+      if (d >= this.shR) {   // outside: bounce outward
+        if (dot < 0) { b.vx -= 2 * dot * nx; b.vy -= 2 * dot * ny; }
+        const R = this.shR + this.shW / 2 + b.r + 0.5;
+        b.x = this.cx + nx * R; b.y = this.cy + ny * R;
+      } else {               // inside: bounce back toward the core
+        if (dot > 0) { b.vx -= 2 * dot * nx; b.vy -= 2 * dot * ny; }
+        const R = this.shR - this.shW / 2 - b.r - 0.5;
+        b.x = this.cx + nx * R; b.y = this.cy + ny * R;
+      }
+      sfx.clang(); this.g.ring(b.x, b.y, 40);
+      return true;
+    }
+    if (collideCircle(b, this.cx, this.cy, this.coreR)) {
+      if (this.coreCool <= 0) { this.coreCool = 0.35; this.damage(this.g.ballDamage()); }
+      else sfx.clang();
+      return true;
+    }
+    return false;
+  }
+
+  hitShot(x, y, rad) {
+    if (this.dead) return null;
+    if (this.inShield(x, y, rad)) return 'armor';
+    if (Math.hypot(x - this.cx, y - this.cy) < this.coreR + rad) return 'core';
+    return null;
+  }
+
+  render(c) {
+    const col = this.g.col, t = this.t, x = this.cx, y = this.cy, R = this.coreR;
+    const glow = 0.8 + this.flash * 1.2 + (this.charge ? 0.6 * Math.sin(t * 30) : 0);
+    renderWaves(c, this, col);
+    // faint track of the shield
+    c.save();
+    c.setLineDash([3, 10]); c.lineDashOffset = t * 20;
+    c.beginPath(); c.arc(x, y, this.shR, 0, TAU);
+    c.strokeStyle = rgba(col, 0.25); c.lineWidth = 1.5; c.stroke();
+    c.restore();
+    // core
+    c.beginPath(); c.arc(x, y, R, 0, TAU);
+    c.fillStyle = rgba(col, 0.2 + this.flash * 0.3); c.fill();
+    neonStroke(c, col, col, 3.5, x - R, y, x + R, y, glow);
+    c.beginPath(); c.arc(x, y, R * 0.42 + 2 * Math.sin(t * 6), 0, TAU);
+    c.fillStyle = '#ffffff';
+    c.shadowColor = col; c.shadowBlur = 22 * view.blur;
+    c.fill(); c.shadowBlur = 0;
+    // shield: a thick arc with rivets
+    const a0 = this.face - this.half, a1 = this.face + this.half;
+    c.beginPath(); c.arc(x, y, this.shR + this.shW / 2, a0, a1); c.arc(x, y, this.shR - this.shW / 2, a1, a0, true); c.closePath();
+    c.fillStyle = rgba(col, 0.22 + this.flash * 0.2); c.fill();
+    neonStroke(c, col, col, 3, x - this.shR, y, x + this.shR, y, glow);
+    c.fillStyle = rgba('#ffffff', this.fury ? 0.95 : 0.7);
+    for (let k = 0; k <= 6; k++) {
+      const a = a0 + ((a1 - a0) * k) / 6;
+      c.beginPath(); c.arc(x + Math.cos(a) * this.shR, y + Math.sin(a) * this.shR, 2.4, 0, TAU); c.fill();
+    }
+  }
+}
+
+// ---------- DISTRICT 9: O CONSELHO (segurança) ----------
+// Three seats at a long table; only the one with the crown takes damage,
+// and the crown changes hands now and then.
+class Council extends Boss {
+  constructor(g) {
+    super(g, 'O CONSELHO');
+    this.seatR = 30;
+    this.real = 1;
+    this.swapT = 3.2;
+    this.swapBlink = 0;
+    this.ph = 0;
+    this.mx = W / 2;
+    this.my = g.top + 230;
+    this.cx = this.mx; this.cy = this.my;
+    this.waves = [];
+  }
+
+  get bandY() { return this.g.top + 50; }
+
+  seats() {
+    const list = [];
+    for (let i = 0; i < 3; i++) list.push({ x: this.mx + (i - 1) * 190, y: this.my + 22 * Math.sin(this.ph * 0.9 + i * 2.1) });
+    return list;
+  }
+
+  move(dt) {
+    this.ph += dt;
+    this.mx = W / 2 + 90 * Math.sin(this.ph * 0.5);
+    this.swapBlink = Math.max(0, this.swapBlink - dt);
+    this.swapT -= dt;
+    if (this.swapT <= 0) this.swap();
+    const s = this.seats()[this.real];
+    this.cx = s.x; this.cy = s.y;   // the crown is the boss: rings, drops and missiles go there
+  }
+
+  swap() {
+    this.real = (this.real + 1 + Math.floor(Math.random() * 2)) % 3;
+    this.swapT = this.fury ? 2.2 : 3.2;
+    this.swapBlink = 0.5;
+    sfx.charge();
+  }
+
+  updateExtra(dt) { updateWaves(this, dt); }
+
+  pickAbility() {
+    const opts = ['pulse', 'alarm', 'shuffle'];
+    if (this.fury) opts.push('shots', 'shots');
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  exec(a) {
+    if (a === 'pulse') { this.waves.push({ r: 30, hit: new Set() }); sfx.pulse(); }
+    else if (a === 'alarm') { this.g.addBeam(this.my + 130 + Math.random() * 120, this.fury ? 7 : 6); sfx.capture(); }
+    else if (a === 'shuffle') this.swap();
+    else if (a === 'shots') this.shootAtPlayer(3);
+  }
+
+  holdBall(b) { this.throwBall(b); }
+
+  collide(b) {
+    if (this.dead) return false;
+    const seats = this.seats();
+    for (let i = 0; i < 3; i++) {
+      if (i !== this.real && this.g.effects.ghost) continue;
+      if (!collideCircle(b, seats[i].x, seats[i].y, this.seatR)) continue;
+      if (i === this.real && this.swapBlink <= 0 && this.coreCool <= 0) { this.coreCool = 0.35; this.damage(this.g.ballDamage()); }
+      else { sfx.clang(); this.g.ring(b.x, b.y, 40); }
+      return true;
+    }
+    return false;
+  }
+
+  hitShot(x, y, rad) {
+    if (this.dead) return null;
+    const seats = this.seats();
+    for (let i = 0; i < 3; i++) {
+      if (Math.hypot(x - seats[i].x, y - seats[i].y) < this.seatR + rad) return i === this.real && this.swapBlink <= 0 ? 'core' : 'armor';
+    }
+    return null;
+  }
+
+  render(c) {
+    const col = this.g.col, t = this.t, R = this.seatR;
+    const glow = 0.8 + this.flash * 1.2 + (this.charge ? 0.6 * Math.sin(t * 30) : 0);
+    renderWaves(c, this, col);
+    const seats = this.seats();
+    // the long table
+    const ty = this.my + 70;
+    c.beginPath(); c.moveTo(this.mx - 300, ty); c.lineTo(this.mx + 300, ty);
+    neonStroke(c, col, col, 3, this.mx - 300, ty, this.mx + 300, ty, 0.7);
+    for (let i = 0; i < 3; i++) {
+      const s = seats[i], real = i === this.real, blink = real && this.swapBlink > 0 && Math.sin(t * 40) > 0;
+      const on = real && !blink;
+      // high-backed chair
+      roundRectPath2(c, s.x - 34, s.y - 62, 68, 108, 14);
+      c.fillStyle = rgba(col, on ? 0.14 : 0.05); c.fill();
+      c.strokeStyle = rgba(col, on ? 0.7 : 0.3); c.lineWidth = 2; c.stroke();
+      c.beginPath(); c.moveTo(s.x, s.y + R); c.lineTo(s.x, ty);
+      c.strokeStyle = rgba(col, 0.35); c.lineWidth = 2; c.stroke();
+      // head
+      c.beginPath(); c.arc(s.x, s.y, R, 0, TAU);
+      c.fillStyle = rgba(col, on ? 0.22 + this.flash * 0.3 : 0.08); c.fill();
+      neonStroke(c, col, col, on ? 3.5 : 2, s.x - R, s.y, s.x + R, s.y, on ? glow : 0.4);
+      if (on) {
+        c.beginPath(); c.arc(s.x, s.y, R * 0.4 + 2 * Math.sin(t * 6), 0, TAU);
+        c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = 22 * view.blur; c.fill(); c.shadowBlur = 0;
+        // crown
+        const cy = s.y - R - 10;
+        poly(c, [[s.x - 20, cy + 8], [s.x - 20, cy - 8], [s.x - 10, cy], [s.x, cy - 14], [s.x + 10, cy], [s.x + 20, cy - 8], [s.x + 20, cy + 8]]);
+        c.fillStyle = rgba('#ffffff', 0.85); c.fill();
+      } else {
+        c.beginPath(); c.moveTo(s.x - 10, s.y); c.lineTo(s.x + 10, s.y);
+        c.strokeStyle = rgba('#ffffff', 0.45); c.lineWidth = 2; c.stroke();
+      }
+    }
+  }
+}
+
 export function createBoss(type, g) {
+  if (type === 'armored') return new Armored(g);
+  if (type === 'council') return new Council(g);
   if (type === 'algorithm') return new Algorithm(g);
   if (type === 'censor') return new Censor(g);
   if (type === 'clock') return new Clock(g);

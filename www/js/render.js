@@ -108,3 +108,22 @@ export function glowText(c, text, x, y, size, fill, glow, align = 'center', weig
   c.fillText(text, x, y);
   c.restore();
 }
+
+// CONTÁGIO: a virus, a round body with knobbed spikes (s = outer radius).
+// Uses the current strokeStyle / fillStyle / lineWidth.
+export function drawVirus(c, x, y, s, rot = 0) {
+  c.beginPath(); c.arc(x, y, s * 0.46, 0, TAU); c.stroke();
+  c.beginPath(); c.arc(x, y, s * 0.17, 0, TAU); c.fill();
+  c.beginPath();
+  for (let q = 0; q < 8; q++) {
+    const a = rot + (q * TAU) / 8, cs = Math.cos(a), sn = Math.sin(a);
+    c.moveTo(x + cs * s * 0.46, y + sn * s * 0.46); c.lineTo(x + cs * s * 0.8, y + sn * s * 0.8);
+  }
+  c.stroke();
+  c.beginPath();
+  for (let q = 0; q < 8; q++) {
+    const a = rot + (q * TAU) / 8, kx = x + Math.cos(a) * s * 0.88, ky = y + Math.sin(a) * s * 0.88;
+    c.moveTo(kx + s * 0.13, ky); c.arc(kx, ky, s * 0.13, 0, TAU);
+  }
+  c.fill();
+}

@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.3.1** (10/11/2026)
+Versão atual publicada: **1.4** (10/11/2026)
 
 ## Objetivos
 
@@ -17,6 +17,17 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 _Nenhuma sugestão pendente._
 
 ## Histórico
+
+### 1.4 (10/11/2026)
+
+- [x] Bug: disco preso entre portais alinhados (fase 5-2 GOTO).
+- [x] Ícone novo do vírus (CONTÁGIO).
+- [x] Ícone da cápsula LENTO (relógio) diferente do LASER.
+- [x] Preços: moedas cerca de 40% mais baratos, chips cerca de 40% mais caros.
+- [x] Anúncio opcional para dobrar as moedas, com anúncios de teste (QUEBRABLOCO, AURUM BANK, CAFÉ DA MADRUGADA).
+- [x] Chefões dão moedas: 20 + 5 por distrito.
+- [x] Diário com a fonte 1 pt maior.
+- [x] Distritos 8 (RESISTÊNCIA, BLINDAGEM, O BLINDADO) e 9 (TORRE AURUM, SEGURANÇA, O CONSELHO), com músicas e as cápsulas REPULSÃO e DISCO SUMIDO.
 
 ### 1.3.1 (10/11/2026)
 
@@ -74,6 +85,7 @@ _Nenhuma sugestão pendente._
 
 ### Pendências conhecidas
 
-- Faltam as cápsulas ruins dos distritos 8 a 10 (a boa do 8 é LENTO e a do 9 é FANTASMA).
-- O chefão do distrito 7 ainda não libera nenhum formato novo: só existem 7 formatos.
+- Falta a cápsula ruim (e a boa) do distrito 10.
+- Os chefões dos distritos 7, 8 e 9 ainda não liberam formato novo: só existem 7 formatos.
 - As capturas 03 a 17 da documentação são anteriores à 1.3 (numeração antiga das fases no topo da tela).
+- Os anúncios são de teste; os de verdade dependem de uma conta de anúncios na Play Store.

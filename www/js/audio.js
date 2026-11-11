@@ -401,6 +401,39 @@ function censorTrack(s, step, t, d, fury, boss) {
   if (fury && i % 2 === 1) I.arp(s, t, root + 48, 0.03, 'square', 5200);
 }
 
+// District 8 "RESISTÊNCIA": a marching snare, a major-key anthem and a bass that
+// walks up like a crowd gathering. Boss doubles the drums.
+const PROG8 = [[38, [0, 4, 7]], [43, [0, 4, 7]], [45, [0, 3, 7]], [42, [0, 4, 7]]]; // D G Am F#
+function resistTrack(s, step, t, d, fury, boss) {
+  const bar = Math.floor(step / 16) % 4, i = step % 16;
+  const [root, iv] = PROG8[bar];
+  if (i % 4 === 0) I.kick(s, t, 0.55);
+  if (i === 4 || i === 12 || (i === 14 && bar % 2)) I.snare(s, t);
+  if ((boss || fury) && (i === 2 || i === 10 || i === 15)) I.snare(s, t);
+  if (i % 2 === 1) I.hat(s, t, false, 0.03);
+  if (i % 4 === 0) I.bass(s, t, root + [0, 4, 7, 12][(i >> 2) % 4], d * 3.5, 0.15, 800);
+  const anthem = [0, 1, 2, 1, 2, 2, 1, 0];
+  if (i % 2 === 0) I.arp(s, t, root + 24 + iv[anthem[(i >> 1) % 8]] + (bar === 3 ? 12 : 0), 0.04, 'triangle', 3000);
+  if (i === 0) I.pad(s, t, iv.map((x) => root + 12 + x), d * 16, 0.02);
+  if ((boss || fury) && i % 4 === 0) I.lead(s, t, root + 36 + iv[(step >> 2) % 3], d * 3.5);
+}
+
+// District 9 "TORRE AURUM": glassy and expensive. A slow, heavy groove, bell-like
+// arpeggios high up and an alarm that sweeps in during the boss.
+const PROG9 = [[40, [0, 3, 7]], [43, [0, 4, 7]], [36, [0, 4, 7]], [38, [0, 4, 7]]]; // Em G C D
+function towerTrack(s, step, t, d, fury, boss) {
+  const bar = Math.floor(step / 16) % 4, i = step % 16;
+  const [root, iv] = PROG9[bar];
+  if (i === 0 || i === 7 || i === 10) I.kick(s, t, 0.55);
+  if (i === 4 || i === 12) I.snare(s, t);
+  if (i % 4 === 2) I.hat(s, t, true, 0.04); else if (boss) I.hat(s, t, false, 0.025);
+  if (i === 0 || i === 10) I.bass(s, t, root, d * 6, 0.17, 450);
+  if (i % 2 === 0) s.voice({ f: mtof(root + 36 + iv[(step >> 1) % 3] + (i % 8 === 4 ? 12 : 0)), dur: 0.4, type: 'sine', vol: 0.05, ff: 6000, fto: 2000, q: 1, send: 0.7, at: t, out: s.musicBus });
+  if (i === 0) I.pad(s, t, iv.map((x) => root + 12 + x).concat([root + 24]), d * 16, 0.018);
+  if ((boss || fury) && i % 8 === 0) s.voice({ f: mtof(root + 48), to: mtof(root + 55), dur: d * 4, type: 'square', vol: 0.025, ff: 3000, q: 2, send: 0.5, at: t, out: s.musicBus });
+  if (fury && i % 2 === 1) I.arp(s, t, root + 48 + iv[(step >> 1) % 3], 0.03, 'sawtooth', 4800);
+}
+
 function mapTrack(s, step, t, d) {
   const bar = Math.floor(step / 16) % 4, i = step % 16;
   const [root, iv] = PROG1[bar];
@@ -431,6 +464,10 @@ const TRACKS = {
   boss6: { bpm: 164, fn: (s, st, t, d, f) => viralTrack(s, st, t, d, f, true) },
   w7:    { bpm: 158, fn: (s, st, t, d, f) => censorTrack(s, st, t, d, f, false) },
   boss7: { bpm: 166, fn: (s, st, t, d, f) => censorTrack(s, st, t, d, f, true) },
+  w8:    { bpm: 128, fn: (s, st, t, d, f) => resistTrack(s, st, t, d, f, false) },
+  boss8: { bpm: 136, fn: (s, st, t, d, f) => resistTrack(s, st, t, d, f, true) },
+  w9:    { bpm: 112, fn: (s, st, t, d, f) => towerTrack(s, st, t, d, f, false) },
+  boss9: { bpm: 120, fn: (s, st, t, d, f) => towerTrack(s, st, t, d, f, true) },
 };
 
 class Music {

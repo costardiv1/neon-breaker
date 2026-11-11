@@ -1,4 +1,4 @@
-import { view, rgba, mix, roundRectPath, neonStroke, neonTitle, glowText, drawSprite, TAU } from './render.js';
+import { view, rgba, mix, roundRectPath, neonStroke, neonTitle, glowText, drawSprite, TAU, drawVirus } from './render.js';
 import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone } from './game.js';
 import { SHAPES, PALETTES, EMBLEMS, drawPlatform, outAngle, paletteColors } from './platform.js';
 import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, worldMechs, worldStart, worldCount } from './levels.js';
@@ -16,7 +16,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.3.1';
+export const VERSION = '1.4';
 
 let H = 1280;
 let safeTop = 0;
@@ -197,8 +197,10 @@ const game = new Game({
       saveChips();
       return;
     }
+    if (e === 'reward') { reward = { n: data, back: 'play', done: false }; setScene('reward'); return; }
     if (e === 'worldClear') {
       saveChips();
+      reward = game.stageCoins > 0 ? { n: game.stageCoins, back: 'world', done: false } : null;
       if (game.world.final) { startCrash(); return; }
       lastScore = game.score;
       if (game.score > best) { best = game.score; store.set('best', best); }
@@ -229,7 +231,7 @@ let devTab = 0;
 let freeze = false;
 let drag = null;
 
-const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story'];
+const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story', 'reward', 'ad'];
 function setScene(s) {
   if (s !== 'play') saveChips();
   if (s === 'map' && scene !== 'map') focusMap();
@@ -239,7 +241,7 @@ function setScene(s) {
   sfx.setPlaying(s === 'play');
   if (s === 'crash') music.play(null);
   else if (!IN_GAME.includes(s)) music.play('map');
-  music.duck(s === 'pause' || s === 'card' || s === 'over' || s === 'story');
+  music.duck(s === 'pause' || s === 'card' || s === 'over' || s === 'story' || s === 'reward' || s === 'ad');
   if (s !== 'play') devOpen = false;
 }
 setScene('menu');
@@ -671,14 +673,14 @@ function platMsg(c, now, y) {
 // Shapes unlock as bosses fall; colors and emblems are bought with coins.
 const PLAT_TABS = ['FORMATO', 'CORES', 'EMBLEMA', 'DISCO', 'RASTRO', 'PERKS'];
 const PERK_TAB = 5;
-const PAL_COST = [20, 25, 30, 40, 50, 90, 60, 0];
-const EMB_COST = [0, 0, 150, 180, 220, 260, 450, 320];
+const PAL_COST = [10, 15, 20, 25, 30, 55, 35, 0];
+const EMB_COST = [0, 0, 90, 110, 130, 160, 270, 190];
 let platTab = 0;
 const browse = { shape: 0, pal: 0, emb: 0, disc: 0, trail: 0 };
 const CATS = {
   shape: { n: () => SHAPES.length, name: (i) => SHAPES[i].name },
-  pal: { n: () => PALETTES.length, name: (i) => PALETTES[i].name, cost: (i) => PAL_COST[i] ?? 60 },
-  emb: { n: () => EMBLEMS.length, name: (i) => EMBLEMS[i], cost: (i) => EMB_COST[i] ?? 250 },
+  pal: { n: () => PALETTES.length, name: (i) => PALETTES[i].name, cost: (i) => PAL_COST[i] ?? 35 },
+  emb: { n: () => EMBLEMS.length, name: (i) => EMBLEMS[i], cost: (i) => EMB_COST[i] ?? 150 },
   disc: { n: () => DISCS.length, name: (i) => DISCS[i].name, cost: (i) => DISCS[i].cost },
   trail: { n: () => TRAILS.length, name: (i) => TRAILS[i].name, cost: (i) => TRAILS[i].cost },
 };
@@ -805,6 +807,115 @@ function renderPlatScreen(c, now) {
   }
 }
 
+// ---------- optional ads: watch one to double the coins won in a stage ----------
+// Until the game reaches the Play Store there is no ad account, so the ads are
+// made-up ones drawn here (one of them for Quebrabloco, where Neon Breaker began).
+const AD_T = 5;   // seconds before the ad can be closed
+const ADS = ['quebrabloco', 'aurum', 'cafe'];
+let reward = null;   // { n: coins won, back: scene to return to, done }
+let ad = null, adN = 0;
+function startAd() { ad = { kind: ADS[adN++ % ADS.length], t0: performance.now() / 1000 }; setScene('ad'); }
+const adDone = (now) => !!ad && now - ad.t0 >= AD_T;
+function finishAd() {
+  if (reward && !reward.done) { coins += reward.n; reward.done = true; saveChips(); sfx.coin(); }
+  ad = null;
+  setScene(reward && reward.back === 'world' ? 'world' : 'reward');
+}
+function renderCoinsWon(c, y, k) {
+  const text = '+' + (reward.done ? reward.n * 2 : reward.n) + ' MOEDAS' + (reward.done ? '  ·  DOBRADAS!' : '');
+  c.font = '700 22px "Orbitron", "Segoe UI", Roboto, Arial, sans-serif';
+  const w = c.measureText(text).width + text.length * 2, x0 = W / 2 - (w + 36) / 2;
+  drawSprite(c, coinSprite(), x0, y - 13);
+  glowText(c, text, x0 + 36, y, 22, '#ffffff', '#ffd84a', 'left', 700, 2);
+}
+
+function renderAd(c, now) {
+  const t = now - ad.t0, left = Math.ceil(AD_T - t);
+  c.save();
+  if (ad.kind === 'quebrabloco') adQuebrabloco(c, t);
+  else if (ad.kind === 'aurum') adAurum(c, t);
+  else adCafe(c, t);
+  c.restore();
+  // top bar: test-ad tag and countdown
+  c.fillStyle = 'rgba(0,0,0,0.55)'; c.fillRect(0, 0, W, safeTop + 100);
+  c.font = `700 14px ${BODY_FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle';
+  c.fillStyle = '#ffd84a'; c.fillText('ANÚNCIO DE TESTE', 28, safeTop + 60);
+  if (left > 0) {
+    c.textAlign = 'right'; c.fillStyle = '#ffffff';
+    c.fillText('RECOMPENSA EM ' + left, W - 28, safeTop + 60);
+  }
+  c.fillStyle = '#ffd84a'; c.fillRect(0, safeTop + 99, W * Math.min(1, t / AD_T), 3);
+}
+function adText(c, text, x, y, size, color, weight = 800, font = BODY_FONT) {
+  c.font = `${weight} ${size}px ${font}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = color; c.fillText(text, x, y);
+}
+// Quebrabloco: the original, flat and colorful, a ball breaking a wall
+function adQuebrabloco(c, t) {
+  c.fillStyle = '#14204a'; c.fillRect(0, 0, W, H);
+  const cols = ['#e8423f', '#f39a2b', '#f5d23a', '#4cc35a', '#3c8de0'];
+  const bx = 60, by = safeTop + 380, bw = 66, bh = 26, gone = Math.floor(t * 3);
+  for (let r = 0; r < 5; r++) for (let q = 0; q < 9; q++) {
+    if (((r * 9 + q) * 7) % 45 < gone) continue;
+    c.fillStyle = cols[r]; c.fillRect(bx + q * 67, by + r * 30, bw - 4, bh);
+    c.fillStyle = 'rgba(255,255,255,0.25)'; c.fillRect(bx + q * 67, by + r * 30, bw - 4, 5);
+  }
+  const px = W / 2 + Math.sin(t * 2.1) * 200, ox = Math.abs(((t * 340) % 1200) - 600);
+  const ballX = 70 + ox * ((W - 140) / 600), ballY = by + 170 + Math.abs(Math.sin(t * 3.2)) * 330;
+  c.fillStyle = '#ffffff'; c.fillRect(ballX - 9, ballY - 9, 18, 18);
+  c.fillStyle = '#c8cbd6'; c.fillRect(px - 70, by + 540, 140, 18);
+  adText(c, 'QUEBRABLOCO', W / 2, safeTop + 200, 70, '#ffffff', 900, '"Courier New", monospace');
+  adText(c, 'O JOGO QUE DEU ORIGEM AO NEON BREAKER', W / 2, safeTop + 270, 19, '#f5d23a', 700);
+  const cy = H - 190 + Math.sin(t * 4) * 4;
+  c.fillStyle = '#e8423f'; c.fillRect(W / 2 - 200, cy - 40, 400, 80);
+  adText(c, 'JOGUE O CLÁSSICO', W / 2, cy, 26, '#ffffff', 900);
+}
+// AURUM BANK: a made-up bank from the game's own city
+function adAurum(c, t) {
+  const g = c.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#000000'); g.addColorStop(1, '#3a2a06');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  const gold = '#f2c14e', tx = W / 2, base = H - 330, top = safeTop + 360;
+  c.fillStyle = 'rgba(242,193,78,0.16)';
+  c.beginPath(); c.moveTo(tx - 110, base); c.lineTo(tx - 80, top + 60); c.lineTo(tx, top); c.lineTo(tx + 80, top + 60); c.lineTo(tx + 110, base); c.closePath(); c.fill();
+  c.strokeStyle = gold; c.lineWidth = 3; c.stroke();
+  for (let y = top + 90; y < base - 20; y += 34) for (let x = -2; x <= 2; x++) {
+    const lit = Math.sin(x * 3.1 + y * 0.7 + t * 2) > 0.2;
+    c.fillStyle = lit ? gold : 'rgba(242,193,78,0.25)';
+    c.fillRect(tx + x * 30 - 8, y, 16, 18);
+  }
+  const shine = (t * 260) % (W + 400) - 200;
+  c.fillStyle = 'rgba(255,255,255,0.08)';
+  c.beginPath(); c.moveTo(shine, 0); c.lineTo(shine + 90, 0); c.lineTo(shine - 210, H); c.lineTo(shine - 300, H); c.closePath(); c.fill();
+  adText(c, 'AURUM BANK', W / 2, safeTop + 200, 64, gold, 900);
+  adText(c, 'SEU DINHEIRO TRABALHA. VOCÊ TAMBÉM.', W / 2, safeTop + 268, 21, '#ffffff', 600);
+  adText(c, 'ABRA SUA CONTA NA TORRE AURUM', W / 2, H - 230, 24, gold, 800);
+  adText(c, '*taxas sujeitas à aprovação de O SISTEMA', W / 2, H - 170, 14, 'rgba(255,255,255,0.55)', 500);
+}
+// CAFÉ DA MADRUGADA: fuel for whoever codes at 3 a.m.
+function adCafe(c, t) {
+  c.fillStyle = '#2b1810'; c.fillRect(0, 0, W, H);
+  const cx = W / 2, cy = H * 0.52;
+  c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 5; c.lineCap = 'round';
+  for (let q = -1; q <= 1; q++) {
+    c.beginPath();
+    for (let k = 0; k <= 20; k++) {
+      const y = cy - 120 - k * 9, x = cx + q * 50 + Math.sin(k * 0.5 - t * 4 + q) * 12;
+      if (k === 0) c.moveTo(x, y); else c.lineTo(x, y);
+    }
+    c.stroke();
+  }
+  c.fillStyle = '#f4e9dc';
+  c.beginPath(); c.moveTo(cx - 130, cy - 100); c.lineTo(cx + 130, cy - 100); c.lineTo(cx + 105, cy + 120); c.lineTo(cx - 105, cy + 120); c.closePath(); c.fill();
+  c.strokeStyle = '#f4e9dc'; c.lineWidth = 22;
+  c.beginPath(); c.arc(cx + 140, cy - 5, 48, -1.2, 1.2); c.stroke();
+  c.fillStyle = '#6b3b1f'; c.fillRect(cx - 124, cy - 100, 248, 22);
+  adText(c, '3:00', cx, cy + 20, 54, '#6b3b1f', 900, '"Courier New", monospace');
+  adText(c, 'CAFÉ DA MADRUGADA', W / 2, safeTop + 200, 54, '#f39a2b', 900);
+  adText(c, 'PARA QUEM PROGRAMA ÀS 3 DA MANHÃ', W / 2, safeTop + 264, 20, '#f4e9dc', 600);
+  adText(c, 'ESFRIA ENQUANTO VOCÊ DEBUGA', W / 2, H - 220, 24, '#f39a2b', 800);
+}
+
 // ---------- story: a terminal after each boss (like the ending, without the crash) ----------
 const STORY = [
   ['registro 01',
@@ -871,7 +982,7 @@ function renderStory(c, now) {
   const k = col();
   c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
   glowText(c, 'DISTRITO ' + (story.w + 1) + ' · ' + (WORLDS[story.w] ? WORLDS[story.w].name : ''), 40, safeTop + 92, 13, rgba(k, 0.8), k, 'left', 700, 4);
-  c.font = '19px Consolas, "Courier New", monospace';
+  c.font = '21px Consolas, "Courier New", monospace';
   c.textAlign = 'left';
   c.fillStyle = '#c8c8c8';
   let left = storyChars(now), y = safeTop + 160, cx = 40, cy = y;
@@ -882,9 +993,9 @@ function renderStory(c, now) {
     c.fillText(shown, 40, y);
     cx = 40 + c.measureText(shown).width + 4; cy = y;
     left -= ln.length + 6;   // a short pause at the end of each line
-    y += 34;
+    y += 37;
   }
-  if (Math.floor(now * 2.5) % 2 === 0) { c.fillStyle = '#c8c8c8'; c.fillRect(cx, cy - 17, 11, 21); }
+  if (Math.floor(now * 2.5) % 2 === 0) { c.fillStyle = '#c8c8c8'; c.fillRect(cx, cy - 18, 12, 23); }
 }
 
 // ---------- ending: the game pretends to crash ----------
@@ -1224,11 +1335,21 @@ function layout() {
     case 'world': {
       const next = game.index + 1;
       const list = [];
-      if (next < TOTAL_STAGES) list.push(btn(cx, H * 0.62, bw, bh, 'PRÓXIMO DISTRITO', () => startGame(next), { big: true, fs: 20 }));
-      list.push(btn(cx, H * 0.62 + 100, bw, bh, 'BREAKERS', () => openBreakers(null, 'world'), { bang: breakersAlert() }));
-      list.push(btn(cx, H * 0.62 + 200, bw, bh, 'MAPA', () => setScene('map')));
+      let y = H * 0.62;
+      if (next < TOTAL_STAGES) { list.push(btn(cx, y, bw, bh, 'PRÓXIMO DISTRITO', () => startGame(next), { big: true, fs: 20 })); y += 100; }
+      if (reward && !reward.done) { list.push(btn(cx, y, bw, bh, 'DOBRAR MOEDAS  ·  ANÚNCIO', startAd, { fs: 17, ad: true })); y += 100; }
+      list.push(btn(cx, y, bw, bh, 'BREAKERS', () => openBreakers(null, 'world'), { bang: breakersAlert() }));
+      list.push(btn(cx, y + 100, bw, bh, 'MAPA', () => setScene('map')));
       return list;
     }
+    case 'reward':
+      if (!reward || reward.done) return [btn(cx, H * 0.6, bw, bh, 'CONTINUAR', () => setScene('play'), { big: true })];
+      return [
+        btn(cx, H * 0.6, bw, bh, 'DOBRAR MOEDAS  ·  ANÚNCIO', startAd, { big: true, fs: 17, ad: true }),
+        btn(cx, H * 0.6 + 100, bw, bh, 'CONTINUAR', () => setScene('play')),
+      ];
+    case 'ad':
+      return adDone(performance.now() / 1000) ? [btn(W - 110, safeTop + 60, 170, 56, 'FECHAR  ✕', finishAd, { fs: 15 })] : [];
     case 'card': {
       const box = cardBox();
       const y = box.y + box.h - 62;
@@ -1254,6 +1375,7 @@ function startGame(index = 0) {
   game.ability = equip && perkLvl(equip) ? { type: equip, lvl: perkLvl(equip) } : null;
   game.passive = equipP && perkLvl(equipP) ? { type: equipP, lvl: perkLvl(equipP) } : null;
   newShape = null;
+  reward = null;
   const firstTime = index === 0 && !store.get('tutDone', false);
   tut = firstTime ? { fired: new Set(), shown: new Set() } : null;
   game.tutorial = firstTime;
@@ -1674,9 +1796,19 @@ function drawMechIcon(c, m, x, y, s, color) {
       arrow(x, y - s * 0.3, x, y + s * 0.45);
       c.stroke(); c.beginPath(); c.setLineDash([3, 3]); c.moveTo(x - s, y + s * 0.85); c.lineTo(x + s, y + s * 0.85);
       break;
-    case 'viral': // a virus: a core with spikes
-      c.arc(x, y, s * 0.45, 0, TAU);
-      for (let q = 0; q < 6; q++) { const a = (q * TAU) / 6; c.moveTo(x + Math.cos(a) * s * 0.6, y + Math.sin(a) * s * 0.6); c.lineTo(x + Math.cos(a) * s, y + Math.sin(a) * s); }
+    case 'viral': // a virus: a round body with knobbed spikes
+      drawVirus(c, x, y, s * 1.05, 0.2);
+      c.beginPath();
+      break;
+    case 'armor': // a block with a thick plate underneath
+      c.strokeRect(x - s, y - s * 0.7, s * 2, s * 1.1);
+      c.stroke(); c.beginPath(); c.fillRect(x - s * 1.1, y + s * 0.5, s * 2.2, s * 0.35);
+      break;
+    case 'alarm': // a security beam between two emitters
+      c.arc(x - s * 0.9, y, s * 0.22, 0, TAU); c.fill();
+      c.beginPath(); c.arc(x + s * 0.9, y, s * 0.22, 0, TAU); c.fill();
+      c.beginPath(); c.moveTo(x - s * 0.9, y); c.lineTo(x + s * 0.9, y);
+      c.moveTo(x - s * 0.4, y - s * 0.7); c.lineTo(x - s * 0.4, y - s * 0.35); c.moveTo(x + s * 0.4, y - s * 0.7); c.lineTo(x + s * 0.4, y - s * 0.35);
       break;
     case 'censor': // a block with a black bar across it
       c.strokeRect(x - s * 0.8, y - s * 0.75, s * 1.6, s * 1.5);
@@ -1788,23 +1920,28 @@ function renderMap(c, now) {
     if (!vis(s0.y)) continue;
     const right = s0.x < W / 2, x = right ? W - 26 : 26, y = s0.y + 18;
     const wd = WORLDS[d.w], open = districtOpen(d.w);
-    const ms = wd.soon ? [] : worldMechs(d.w), SLOT = ms.length > 5 ? 50 : ms.length > 3 ? 62 : 86;
+    const ms = wd.soon ? [] : worldMechs(d.w), SLOT = ms.length > 7 ? 40 : ms.length > 5 ? 50 : ms.length > 3 ? 62 : 86;
+    // 8+ mechanics: two rows of up to 5 icons, so the panel stays clear of the stage nodes
+    const PER = ms.length > 7 ? 5 : ms.length, ROWS = Math.ceil(ms.length / Math.max(1, PER));
     c.font = `700 22px "Orbitron", sans-serif`;
-    const tw = Math.max(c.measureText(wd.name).width, 150, ms.length * SLOT) + 28;
+    const tw = Math.max(c.measureText(wd.name).width, 150, PER * SLOT) + 28;
     c.fillStyle = 'rgba(0,0,0,0.72)';
-    c.fillRect(right ? x - tw + 12 : x - 12, y - 46, tw, wd.soon ? 78 : ms.length ? 122 : 66);
+    c.fillRect(right ? x - tw + 12 : x - 12, y - 46, tw, wd.soon ? 78 : ms.length ? 122 + (ROWS - 1) * 42 : 66);
     glowText(c, 'DISTRITO ' + (d.w + 1), x, y - 26, 12, rgba(k, 0.9), k, right ? 'right' : 'left', 700, 4);
     glowText(c, wd.name, x, y + 2, 22, open ? '#ffffff' : rgba('#ffffff', 0.55), k, right ? 'right' : 'left', 700, 3);
     if (wd.soon) glowText(c, 'EM BREVE', x, y + 24, 11, rgba(k, 0.75), k, right ? 'right' : 'left', 500, 4);
     ms.forEach((m, q) => {
-      const mm = right ? ms[q] : ms[ms.length - 1 - q];   // always newest to oldest, left to right
-      const ix = right ? x - SLOT / 2 + 4 - q * SLOT : x + SLOT / 2 - 4 + q * SLOT, iy = y + 42;
+      const mm = ms[ms.length - 1 - q];   // always newest to oldest, left to right (then the next row)
+      const row = Math.floor(q / PER), col = q % PER, cnt = Math.min(PER, ms.length - row * PER);
+      const ix = right ? x - SLOT / 2 + 4 - (cnt - 1 - col) * SLOT : x + SLOT / 2 - 4 + col * SLOT, iy = y + 42 + row * 42;
       const isNew = mm === wd.mech;
       c.beginPath(); c.arc(ix, iy, ms.length > 3 ? 15 : 17, 0, TAU);
       c.fillStyle = rgba(k, isNew ? 0.2 : 0.06); c.fill();
       c.strokeStyle = rgba(k, isNew ? 0.95 : 0.5); c.lineWidth = isNew ? 2 : 1.4; c.stroke();
       drawMechIcon(c, mm, ix, iy, 9, open ? '#ffffff' : rgba('#ffffff', 0.6));
-      glowText(c, MECHS[mm].name, ix, iy + 29, ms.length > 3 ? 7.5 : 9, rgba('#ffffff', isNew ? 0.9 : 0.6), k, 'center', 600, ms.length > 3 ? 0 : 0.5);
+      // with 8+ icons the names would overlap: only the new mechanic keeps its name
+      if (ms.length > 7) { if (isNew) glowText(c, MECHS[mm].name, right ? x + 4 : x - 4, y + 42 + (ROWS - 1) * 42 + 29, 9, rgba('#ffffff', 0.9), k, right ? 'right' : 'left', 600, 1); }
+      else glowText(c, MECHS[mm].name, ix, iy + 29, ms.length > 3 ? 7.5 : 9, rgba('#ffffff', isNew ? 0.9 : 0.6), k, 'center', 600, ms.length > 3 ? 0 : 0.5);
     });
   }
   // the eye on top of the tower
@@ -1964,6 +2101,8 @@ function render() {
     renderCrash(ctx, now);
   } else if (scene === 'story') {
     renderStory(ctx, now);
+  } else if (scene === 'ad') {
+    renderAd(ctx, now);
   } else if (scene === 'plat') {
     renderPlatScreen(ctx, now);
   } else if (scene === 'notif') {
@@ -2002,6 +2141,12 @@ function render() {
       glowText(ctx, String(lastScore), W / 2, H * 0.45, 52, '#ffffff', k, 'center', 700, 3);
       if (game.index + 1 >= TOTAL_STAGES) glowText(ctx, 'NOVOS DISTRITOS EM BREVE', W / 2, H * 0.52, 16, rgba(k, 0.9), k, 'center', 500, 5);
       if (newShape) glowText(ctx, 'NOVO FORMATO DE PLATAFORMA: ' + newShape, W / 2, H * 0.555, 15, '#ffffff', k, 'center', 700, 3);
+      if (reward) renderCoinsWon(ctx, H * 0.49, k);
+    } else if (scene === 'reward') {
+      dim(ctx, 0.72);
+      neonTitle(ctx, 'LIMPO', W / 2, H * 0.32, 66, k, k, 10);
+      if (reward) renderCoinsWon(ctx, H * 0.43, k);
+      if (reward && !reward.done) glowText(ctx, 'ASSISTA A UM ANÚNCIO PARA DOBRAR', W / 2, H * 0.49, 15, rgba(k, 0.9), k, 'center', 500, 4);
     } else if (scene === 'card' && card) {
       renderCard(ctx, now);
     }

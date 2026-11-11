@@ -2,6 +2,29 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.4] · 10/11/2026 · Distritos 8 e 9, anúncios e preços novos
+
+### Adicionado
+
+- Distrito 8, RESISTÊNCIA: mecânica BLINDAGEM (blocos blindados por baixo), 4 fases e o chefão O BLINDADO, cujo escudo gira para encarar o disco.
+- Distrito 9, TORRE AURUM: mecânica SEGURANÇA (feixes que ligam e desligam e rebatem o disco), 4 fases e o chefão O CONSELHO, em que só a cadeira com a coroa leva dano.
+- Cápsulas ruins novas: REPULSÃO (distrito 8) e DISCO SUMIDO (distrito 9).
+- Anúncio opcional para dobrar as moedas da fase vencida ou do chefão. Até a Play Store, os anúncios são de teste: QUEBRABLOCO, AURUM BANK e CAFÉ DA MADRUGADA.
+- Chefões dão moedas ao serem derrotados: 20, mais 5 por distrito.
+- Músicas dos distritos 8 e 9.
+
+### Alterado
+
+- Itens comprados com moedas cerca de 40% mais baratos; perks comprados com chips cerca de 40% mais caros.
+- Ícone novo do vírus (CONTÁGIO) nos blocos e no mapa.
+- A cápsula LENTO agora tem um relógio, para não se confundir com o LASER.
+- Texto do diário 1 pt maior.
+- No mapa, distritos com 8 mecânicas ou mais mostram os ícones em duas linhas.
+
+### Corrigido
+
+- O disco podia ficar preso pulando entre portais alinhados (por exemplo, na fase 5-2 GOTO). Agora, no 3º pulo seguido sem bater em nada, ele sai um pouco de lado.
+
 ## [1.3.1] · 10/11/2026 · MEGA LASER com a plataforma travada
 
 ### Alterado

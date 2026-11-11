@@ -2,7 +2,8 @@
 // the previous districts (cumulative). Each has its own music and border-light
 // style, a list of stages and a boss that guards the frontier to the next.
 // Rows: 9 columns. '.' empty, '1'..'4' hits needed, 'X' wall, 'E' explosive,
-// 'V' infected (CONTÁGIO). Every district has 4 stages and a boss.
+// 'V' infected (CONTÁGIO), 'B' shielded underneath (BLINDAGEM).
+// Every district has 4 stages and a boss.
 
 export const MECHS = {
   slide:    { name: 'DESLIZE',   text: 'As fileiras de blocos deslizam de um lado para o outro.' },
@@ -14,6 +15,8 @@ export const MECHS = {
   descent:  { name: 'PRESSÃO',   text: 'Os blocos descem. Se tocarem a linha de alerta, você perde uma vida.' },
   viral:    { name: 'CONTÁGIO',  text: 'Blocos com o símbolo de vírus criam blocos novos ao redor. Destrua-os primeiro.' },
   censor:   { name: 'TARJA',     text: 'Tarjas pretas escondem parte do campo. O que está atrás continua lá.' },
+  armor:    { name: 'BLINDAGEM', text: 'Blocos com placa embaixo são blindados por baixo: acerte por cima ou pelos lados.' },
+  alarm:    { name: 'SEGURANÇA', text: 'Feixes de segurança ligam e desligam. Ligados, rebatem o disco.' },
 };
 
 export const WORLDS = [
@@ -256,8 +259,77 @@ export const WORLDS = [
       ] },
     ],
   },
-  { name: 'RESISTÊNCIA', soon: true },
-  { name: 'TORRE AURUM', soon: true },
+  {
+    // Not alone anymore: code arrives from everywhere, and the system armors up.
+    name: 'RESISTÊNCIA', mech: 'armor', music: 'w8', bossMusic: 'boss8', border: 'flow',
+    boss: { type: 'armored', name: 'O BLINDADO',
+      text: 'O escudo gira para encarar o disco. Acerte o núcleo pelo lado aberto.' },
+    stages: [
+      { name: 'MUTIRÃO', rows: [
+        '..22222..',
+        '.BBBBBBB.',
+        '.1111111.',
+        '..1...1..',
+      ] },
+      { name: 'RÁDIO PIRATA', rows: [
+        '2.2.2.2.2',
+        'BB.BBB.BB',
+        '.2222222.',
+        'B.11111.B',
+        '..1.1.1..',
+      ] },
+      { name: 'GARAGEM', wells: [[0.5, 0.5]], rows: [
+        '333...333',
+        '.BBB.BBB.',
+        '.2222222.',
+        '..V...V..',
+        '.BB...BB.',
+      ] },
+      { name: 'PONTO DE ENCONTRO', bars: 1, rows: [
+        '3B3B3B3B3',
+        '.2222222.',
+        'B.2E2E2.B',
+        '.1111111.',
+        'BB..1..BB',
+      ] },
+    ],
+  },
+  {
+    // The golden tower at the end of the street, where O SISTEMA lives.
+    name: 'TORRE AURUM', mech: 'alarm', music: 'w9', bossMusic: 'boss9', border: 'scan',
+    boss: { type: 'council', name: 'O CONSELHO',
+      text: 'Três cadeiras e um só dono. Acerte a que tem a coroa.' },
+    stages: [
+      { name: 'SAGUÃO', beams: [[0.1, 0.9, 0.12, 0]], rows: [
+        '.3333333.',
+        '222222222',
+        '.1111111.',
+        '..11111..',
+      ] },
+      { name: 'ELEVADOR', beams: [[0.05, 0.52, 0.14, 0], [0.48, 0.95, 0.14, 2.2]], rows: [
+        '33.333.33',
+        '.BBBBBBB.',
+        '222222222',
+        '.1.1.1.1.',
+        '..2...2..',
+      ] },
+      { name: 'ANDAR 99', beams: [[0.1, 0.9, 0.1, 0], [0.22, 0.78, 0.4, 1.5]], portals: [[0.12, 0.7, 0.88, 0.7]], rows: [
+        'X3333333X',
+        '.2V222V2.',
+        'B.11111.B',
+        '.2222222.',
+        '...E.E...',
+      ] },
+      { name: 'COBERTURA', bars: 1, beams: [[0.1, 0.9, 0.1, 0], [0.05, 0.47, 0.36, 1], [0.53, 0.95, 0.36, 3]], rows: [
+        '4.33333.4',
+        '.BBBBBBB.',
+        '3.22222.3',
+        '.1111111.',
+        'X.2E2E2.X',
+        '..1...1..',
+      ] },
+    ],
+  },
   { name: 'O SISTEMA', soon: true, final: true, music: 'w3', bossMusic: 'boss3', border: 'scan',
     boss: { type: 'system', name: 'O SISTEMA',
       text: 'Acerte o olho que tudo vê. Dizem que ele é grande demais para cair.' } },
@@ -296,5 +368,5 @@ export function getStage(i) {
   if (s === worldCount(w) - 1) return { w, s, world, mech: world.mech, mechs: all, boss: world.boss, rows: [] };
   const st = world.stages[s];
   const mech = st.mech === undefined ? world.mech : st.mech;
-  return { w, s, world, mech, mechs: mech ? all : [], rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, name: st.name };
+  return { w, s, world, mech, mechs: mech ? all : [], rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, beams: st.beams, name: st.name };
 }

@@ -1,4 +1,4 @@
-import { view, TAU, rgba, mix, roundRectPath, neonStroke, makeSprite, drawSprite, glowText, neonTitle } from './render.js';
+import { view, TAU, rgba, mix, roundRectPath, neonStroke, makeSprite, drawSprite, glowText, neonTitle, drawVirus } from './render.js';
 import { getStage, stageLabel, MECHS, TOTAL_STAGES, worldStart, worldCount } from './levels.js';
 import { SHAPES, drawPlatform, hitTransform, paletteColors, samplePal, shapePoints } from './platform.js';
 import { createBoss, collideRect } from './boss.js';
@@ -28,6 +28,7 @@ const PORTAL_R = 24;
 const PORTAL_ALT = ['#ff45c0', '#ffd21f', '#2bff88'];   // colors of the 2nd, 3rd... pair of portals
 const AUTO_LAUNCH = 10;   // seconds a disc may sit on the platform before it launches by itself
 const BAR_H = 74;         // TARJA: height of a censor bar
+const BEAM_ON = 2.4, BEAM_OFF = 2;   // SEGURANÇA: seconds a security beam stays on / off
 export const HIT_T = 0.6;   // length of the platform's hit animation (s)
 // graphics quality (set from the dev panel): particle amount and trail detail
 export const gfx = { fx: 1, trail: 1, grid: 1 };
@@ -52,6 +53,8 @@ export const POWERS = {
   invert:  { good: false, d: 5, w: 1.5, label: 'INVERTIDO' },
   wobble:  { good: false, d: 6, w: 1.6, label: 'INSTÁVEL' },
   drag:    { good: false, d: 7, w: 1.6, label: 'PLATAFORMA LENTA' },
+  repel:   { good: false, d: 8, w: 1.5, label: 'REPULSÃO' },
+  blind:   { good: false, d: 9, w: 1.4, label: 'DISCO SUMIDO' },
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -59,21 +62,21 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // Active perks (bought/evolved in BREAKERS > PERKS). One is equipped; it
 // charges by breaking bricks and fires with a double tap or the HUD button.
 export const ABILITIES = {
-  shield:    { name: 'ESCUDO', desc: 'Uma barreira de energia embaixo da plataforma rebate o disco.', lv: ['7 s', '9 s', '11 s'], cost: [40, 90, 170] },
-  shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai da plataforma, danifica os blocos mais próximos e desvia o disco.', lv: ['6 blocos', '8 blocos', '10 blocos, dano 2'], cost: [50, 110, 200] },
-  slow:      { name: 'CÂMERA LENTA', desc: 'O tempo desacelera e o disco anda na metade da velocidade.', lv: ['5,5 s', '7 s', '8,5 s'], cost: [110, 220, 380] },
-  magnet:    { name: 'ÍMÃ', desc: 'Puxa o disco para a plataforma e o segura a cada toque. Solte para mirar e lançar.', lv: ['9 s', '12 s', '15 s'], cost: [40, 90, 170] },
-  megalaser: { name: 'MEGA LASER', desc: 'Carrega 0,5 s no centro da plataforma e dispara um feixe que destrói tudo em linha reta. A plataforma fica travada enquanto dispara.', lv: ['feixe fino', 'feixe médio', 'feixe largo'], cost: [60, 120, 220] },
-  bolt:      { name: 'RELÂMPAGO', desc: 'Um raio sai do disco e salta de bloco em bloco, danificando cada um. Também acerta o chefão.', lv: ['5 blocos', '7 blocos', '9 blocos, dano 2'], cost: [130, 260, 450] },
+  shield:    { name: 'ESCUDO', desc: 'Uma barreira de energia embaixo da plataforma rebate o disco.', lv: ['7 s', '9 s', '11 s'], cost: [55, 125, 240] },
+  shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai da plataforma, danifica os blocos mais próximos e desvia o disco.', lv: ['6 blocos', '8 blocos', '10 blocos, dano 2'], cost: [70, 155, 280] },
+  slow:      { name: 'CÂMERA LENTA', desc: 'O tempo desacelera e o disco anda na metade da velocidade.', lv: ['5,5 s', '7 s', '8,5 s'], cost: [155, 310, 530] },
+  magnet:    { name: 'ÍMÃ', desc: 'Puxa o disco para a plataforma e o segura a cada toque. Solte para mirar e lançar.', lv: ['9 s', '12 s', '15 s'], cost: [55, 125, 240] },
+  megalaser: { name: 'MEGA LASER', desc: 'Carrega 0,5 s no centro da plataforma e dispara um feixe que destrói tudo em linha reta. A plataforma fica travada enquanto dispara.', lv: ['feixe fino', 'feixe médio', 'feixe largo'], cost: [85, 170, 310] },
+  bolt:      { name: 'RELÂMPAGO', desc: 'Um raio sai do disco e salta de bloco em bloco, danificando cada um. Também acerta o chefão.', lv: ['5 blocos', '7 blocos', '9 blocos, dano 2'], cost: [180, 365, 630] },
 };
 // Passive perks: always on while equipped (one at a time, besides the active one).
 export const PASSIVES = {
-  width:   { name: 'PLATAFORMA LARGA', desc: 'A plataforma fica mais larga.', lv: ['+8%', '+16%', '+24%'], cost: [140, 280, 480] },
-  grana:   { name: 'GRANA', desc: 'Mais moedas caem dos blocos.', lv: ['+30%', '+60%', 'o dobro'], cost: [80, 160, 300] },
-  recarga: { name: 'RECARGA', desc: 'O perk ativo carrega mais rápido.', lv: ['+25%', '+50%', '+80%'], cost: [100, 200, 360] },
-  sorte:   { name: 'SORTE', desc: 'Caem menos cápsulas de desvantagem.', lv: ['-30%', '-55%', '-75%'], cost: [90, 180, 320] },
-  vida:    { name: 'VIDA EXTRA', desc: 'Ganha 1 vida no começo de cada fase, até um limite.', lv: ['até 4 vidas', 'até 5 vidas', 'até 6 vidas'], cost: [150, 300, 520] },
-  pesado:  { name: 'DISCO PESADO', desc: 'Depois de cada lançamento, os primeiros acertos dão dano dobrado.', lv: ['1º acerto', '2 acertos', '3 acertos'], cost: [120, 240, 420] },
+  width:   { name: 'PLATAFORMA LARGA', desc: 'A plataforma fica mais larga.', lv: ['+8%', '+16%', '+24%'], cost: [195, 390, 670] },
+  grana:   { name: 'GRANA', desc: 'Mais moedas caem dos blocos.', lv: ['+30%', '+60%', 'o dobro'], cost: [110, 225, 420] },
+  recarga: { name: 'RECARGA', desc: 'O perk ativo carrega mais rápido.', lv: ['+25%', '+50%', '+80%'], cost: [140, 280, 505] },
+  sorte:   { name: 'SORTE', desc: 'Caem menos cápsulas de desvantagem.', lv: ['-30%', '-55%', '-75%'], cost: [125, 250, 450] },
+  vida:    { name: 'VIDA EXTRA', desc: 'Ganha 1 vida no começo de cada fase, até um limite.', lv: ['até 4 vidas', 'até 5 vidas', 'até 6 vidas'], cost: [210, 420, 730] },
+  pesado:  { name: 'DISCO PESADO', desc: 'Depois de cada lançamento, os primeiros acertos dão dano dobrado.', lv: ['1º acerto', '2 acertos', '3 acertos'], cost: [170, 335, 590] },
 };
 const GRANA_MUL = [1, 1.3, 1.6, 2];
 const RECARGA_MUL = [1, 1.25, 1.5, 1.8];
@@ -96,12 +99,12 @@ export function clearSprites() { cache.clear(); }
 // Disc looks (bought with coins in BREAKERS). Purely cosmetic.
 export const DISCS = [
   { name: 'NÚCLEO', cost: 0 },
-  { name: 'ANEL', cost: 40 },
-  { name: 'ESTRELA', cost: 60 },
-  { name: 'HÉLICE', cost: 80 },
-  { name: 'HEXA', cost: 100 },
-  { name: 'ÁTOMO', cost: 150 },
-  { name: 'PLASMA', cost: 200 },
+  { name: 'ANEL', cost: 25 },
+  { name: 'ESTRELA', cost: 35 },
+  { name: 'HÉLICE', cost: 50 },
+  { name: 'HEXA', cost: 60 },
+  { name: 'ÁTOMO', cost: 90 },
+  { name: 'PLASMA', cost: 120 },
 ];
 
 export function discSprite(col, r = BALL_R, style = 0) {
@@ -257,7 +260,10 @@ function dropSprite(type, col) {
         line([cx + 14, m - 5, cx + 8, m, cx + 14, m + 5]);
         line([cx - 3, m, cx + 3, m]);
         break;
-      case 'slow': line([cx - 4, m - 6, cx - 4, m + 6]); line([cx + 4, m - 6, cx + 4, m + 6]); break;
+      case 'slow':   // a clock
+        c.beginPath(); c.arc(cx, m, 8, 0, TAU); c.stroke();
+        line([cx, m - 5, cx, m, cx + 4, m + 2]);
+        break;
       case 'fast':
         line([cx - 9, m - 6, cx - 3, m, cx - 9, m + 6]);
         line([cx + 1, m - 6, cx + 7, m, cx + 1, m + 6]);
@@ -298,6 +304,15 @@ function dropSprite(type, col) {
         line([cx - 13, m - 5, cx + 13, m - 5]);
         line([cx, m - 5, cx, m + 2]);
         c.beginPath(); c.rect(cx - 5, m + 2, 10, 6); c.fill();
+        break;
+      case 'repel':   // two arrows pushed away from a platform
+        line([cx - 13, m + 7, cx + 13, m + 7]);
+        line([cx - 3, m + 2, cx - 11, m - 6]); line([cx - 11, m - 1, cx - 11, m - 6, cx - 6, m - 6]);
+        line([cx + 3, m + 2, cx + 11, m - 6]); line([cx + 11, m - 1, cx + 11, m - 6, cx + 6, m - 6]);
+        break;
+      case 'blind':   // a closed eye
+        c.beginPath(); c.arc(cx, m - 7, 12, 0.45, Math.PI - 0.45); c.stroke();
+        line([cx - 6, m + 3, cx - 8, m + 7]); line([cx, m + 5, cx, m + 9]); line([cx + 6, m + 3, cx + 8, m + 7]);
         break;
       case 'ghost':
         c.lineWidth = 1.6;
@@ -368,11 +383,11 @@ export function drawAbilityIcon(c, type, x, y, s, color) {
 // Trail looks (bought with coins in BREAKERS).
 export const TRAILS = [
   { name: 'PADRÃO', cost: 0 },
-  { name: 'FAÍSCAS', cost: 50 },
-  { name: 'PRISMA', cost: 80 },
-  { name: 'PALETA', cost: 100 },
-  { name: 'HÉLICE DUPLA', cost: 120 },
-  { name: 'ECO', cost: 160 },
+  { name: 'FAÍSCAS', cost: 30 },
+  { name: 'PRISMA', cost: 50 },
+  { name: 'PALETA', cost: 60 },
+  { name: 'HÉLICE DUPLA', cost: 70 },
+  { name: 'ECO', cost: 95 },
   { name: 'DESLIGADO', cost: 0 },
 ];
 
@@ -539,6 +554,8 @@ export class Game {
     this.padPulses = [];
     this.wells = [];
     this.portals = [];
+    this.beams = [];
+    this.bars = [];
     this.coins = [];
     this.borderGlow = 0;
     this.grid = null;
@@ -602,11 +619,13 @@ export class Game {
         const ch = row[c];
         let kind = 'n', hp = +ch || 0, inf = false;
         if (ch === 'V') { hp = 2; inf = true; }   // CONTÁGIO: an infected brick
+        const armor = ch === 'B';                  // BLINDAGEM: shield on the underside
+        if (armor) hp = 2;
         if (ch === 'X') { kind = 'wall'; hp = 1; }
         if (ch === 'E') { kind = 'exp'; hp = 1; }
         if (!hp) continue;
         const x = MARGIN + c * (BW + GAP);
-        this.bricks.push({ x, baseX: x, y: y0 + r * (BH + GAP), w: BW, h: BH, hp, kind, inf, row: r, col: c, flash: 0, dead: false });
+        this.bricks.push({ x, baseX: x, y: y0 + r * (BH + GAP), w: BW, h: BH, hp, kind, inf, armor, row: r, col: c, flash: 0, dead: false });
       }
     });
     this.alive = this.bricks.filter((b) => b.kind !== 'wall').length;
@@ -617,6 +636,8 @@ export class Game {
     this.wells = (st.wells || []).map(([xf, yf]) => ({ bx: W * xf, by: lowY + span * yf, x: W * xf, y: lowY + span * yf, s: 9e6, core: true, orbit: !!st.orbit }));
     // PORTAIS: pairs of gates in the open field
     this.portals = (st.portals || []).map(([x1, y1, x2, y2]) => ({ a: { x: W * x1, y: lowY + span * y1 }, b: { x: W * x2, y: lowY + span * y2 } }));
+    // SEGURANÇA: security beams across part of the field; on, they bounce the disc
+    this.beams = (st.beams || []).map(([x0, x1, yf, ph]) => ({ x0: Math.max(LEFT + 4, W * x0), x1: Math.min(RIGHT - 4, W * x1), y: lowY + span * yf, ph: ph || 0, on: false, warn: false }));
     // FASE: on every other row, alternating bricks drift in and out of phase
     if (this.mechs.includes('phase') && !st.boss) {
       for (const br of this.bricks) if (br.kind === 'n' && br.row % 2 === 1) br.phase = br.col % 2;
@@ -647,6 +668,9 @@ export class Game {
     this.combo = 0;
     this.breaks = 0;
     this.clearT = 0;
+    this.stageCoins = 0;     // coins caught in this stage (the ad doubles them)
+    this.offered = false;
+    this.rewardHold = false;
     // +1% disc speed per district on top of the per-stage ramp
     this.baseSpeed = Math.min(620 + this.index * 14, 880) * (1 + 0.01 * st.w);
     this.resetBall();
@@ -713,7 +737,7 @@ export class Game {
     if (any) sfx.launch();
   }
 
-  mark(b) { b.path.push({ x: b.x, y: b.y }); }
+  mark(b) { b.pn = 0; b.path.push({ x: b.x, y: b.y }); }   // pn: portal jumps since the last bounce
   solid(br) { return !br.dead; }
 
   // ---------- update ----------
@@ -754,9 +778,15 @@ export class Game {
       return;
     }
 
-    if (this.clearT > 0) {
+    if (this.clearT > 0 || this.rewardHold) {
       this.clearT -= dt;
       if (this.clearT <= 0) {
+        if (!this.offered && this.stageCoins > 0 && !this.tutorial) {
+          this.offered = true; this.rewardHold = true;
+          this.emit('reward', this.stageCoins);
+          return;
+        }
+        this.rewardHold = false;
         if (this.isLast) { this.worldDone = true; this.emit('worldClear'); return; }
         this.index++;
         this.loadLevel();
@@ -848,6 +878,7 @@ export class Game {
       q.t += dt;
       if (!q.got && q.y + COIN_R >= p.y - 30 && q.y - COIN_R <= p.y + 34 && Math.abs(q.x - p.x) <= p.hw + COIN_R) {
         q.got = true;
+        this.stageCoins++;
         this.emit('coin', 1);
         sfx.coin();
         vibrate(10);
@@ -864,6 +895,7 @@ export class Game {
     this.coins = [];
     if (!left.length) return;
     for (const q of left) this.burst(q.x, q.y, 6, 0.5, [COIN_COL, WHITE]);
+    this.stageCoins += left.length;
     this.emit('coin', left.length);
     sfx.coin();
     this.float('+' + left.length + (left.length > 1 ? ' MOEDAS' : ' MOEDA'), this.paddle.x, this.paddle.y - 60, 18);
@@ -885,10 +917,12 @@ export class Game {
         br.y += v * dt;
         low = Math.max(low, br.y + br.h); high = Math.min(high, br.y);
       }
+      for (const q of this.beams) if (q.t === undefined) q.y += v * dt;
       this.press = clamp((low - (this.top + 200)) / (this.dangerY - (this.top + 200)), 0, 1);
       if (low >= this.dangerY && !this.holding) {
         const shift = Math.min(240, high - (this.top + 60));
         for (const br of this.bricks) br.y -= shift;
+        for (const q of this.beams) if (q.t === undefined) q.y -= shift;
         this.float('PRESSÃO', W / 2, this.dangerY - 30, 30);
         this.ring(W / 2, this.dangerY, 400);
         this.balls = [];
@@ -902,6 +936,15 @@ export class Game {
     if (this.bricks.some((b) => b.inf && !b.dead)) {
       this.viralT -= dt;
       if (this.viralT <= 0) { this.viralT = this.boss ? 5 : 4.2; this.replicate(); }
+    }
+    // SEGURANÇA: fixed beams blink on and off; the boss's beams warn, stay on, then vanish
+    if (this.beams.length) {
+      for (const q of this.beams) {
+        if (q.t !== undefined) { q.t -= dt; q.on = q.t < q.max - 0.8; q.warn = !q.on; continue; }
+        const k = (this.mt + q.ph) % (BEAM_ON + BEAM_OFF);
+        q.on = k < BEAM_ON; q.warn = !q.on && k > BEAM_ON + BEAM_OFF - 0.6;
+      }
+      this.beams = this.beams.filter((q) => q.t === undefined || q.t > 0);
     }
     // TARJA: temporary bars (called by the boss) run out
     if (this.bars.length) {
@@ -944,6 +987,23 @@ export class Game {
     this.ring(br.x + br.w / 2, br.y + br.h / 2, 90);
   }
 
+  // Boss ability: some common bricks of the boss stage get a shield underneath.
+  armorBand(n) {
+    const list = this.bricks.filter((b) => b.row >= 100 && !b.dead && !b.armor && !b.inf);
+    for (let i = 0; i < n && list.length; i++) {
+      const br = list.splice(Math.floor(Math.random() * list.length), 1)[0];
+      br.armor = true; br.hp = Math.max(br.hp, 2); br.flash = 1;
+      this.ring(br.x + br.w / 2, br.y + br.h / 2, 70);
+    }
+  }
+
+  // Boss ability: a security beam crosses part of the field for t seconds.
+  addBeam(y, t) {
+    if (this.beams.length >= 2) return;
+    const w = (RIGHT - LEFT) * 0.55, x0 = LEFT + 4 + Math.random() * (RIGHT - LEFT - 8 - w);
+    this.beams.push({ x0, x1: x0 + w, y, ph: 0, t, max: t, on: false, warn: true });
+  }
+
   // Boss ability: a censor bar covers part of the field for t seconds.
   addBar(t) { if (this.bars.length < 2) this.bars.push({ ph: Math.random() * 6, t }); }
   barY(q) { return this.barY0 + this.barRange * (0.5 + 0.5 * Math.sin(this.mt * 0.55 + q.ph)); }
@@ -966,7 +1026,16 @@ export class Game {
       for (const [from, to] of [[P.a, P.b], [P.b, P.a]]) {
         if (Math.hypot(b.x - from.x, b.y - from.y) > PORTAL_R) continue;
         if (P.flip) { b.vx = -b.vx; b.vy = -b.vy; }
-        const s = Math.hypot(b.vx, b.vy) || 1;
+        let s = Math.hypot(b.vx, b.vy) || 1;
+        b.pn = (b.pn || 0) + 1;
+        if (b.pn >= 3) {
+          b.pn = 0;
+          b.vx += (to.x < W / 2 ? 1 : -1) * s * 0.6;
+          const s2 = Math.hypot(b.vx, b.vy) || 1;
+          b.vx = (b.vx / s2) * s; b.vy = (b.vy / s2) * s;
+          this.fixAngle(b);
+          s = Math.hypot(b.vx, b.vy) || 1;
+        }
         b.x = to.x + (b.vx / s) * (PORTAL_R + 6);
         b.y = to.y + (b.vy / s) * (PORTAL_R + 6);
         b.path = [{ x: b.x, y: b.y }];
@@ -1028,7 +1097,7 @@ export class Game {
         b.y -= 1300 * dt / 3;
         if (b.y < this.top + 4) { b.dead = true; this.burst(b.x, this.top + 4, 3, 0.4); break; }
         const br = this.bricks.find((q) => !q.dead && !q.out && b.x > q.x - 2 && b.x < q.x + q.w + 2 && b.y > q.y && b.y < q.y + q.h);
-        if (br) { b.dead = true; if (br.kind === 'wall') br.flash = 0.6; else this.damage(br, false); break; }
+        if (br) { b.dead = true; if (br.kind === 'wall' || br.armor) br.flash = 0.6; else this.damage(br, false); break; }
         if (this.boss) {
           const h = this.boss.hitShot(b.x, b.y, 4);
           if (h) { b.dead = true; if (h === 'core') this.boss.damage(0.34, false, true); else sfx.clang(); this.burst(b.x, b.y, 4, 0.5); break; }
@@ -1163,12 +1232,24 @@ export class Game {
     }
     const wells = this.allWells();
     const mag = this.abil && this.abil.type === 'magnet' && this.abil.t > 0;
+    const rep = !!this.effects.repel;
+    const beams = this.beams;
     for (let i = 0; i < n; i++) {
       if (wells.length) this.applyGravity(b, h, wells);
       if (mag && b.vy > 0) this.magnetPull(b, h);
+      else if (rep && b.vy > 0) this.repelPush(b, h);
+      const py = b.y;
       b.x += b.vx * h;
       b.y += b.vy * h;
       let hit = null;
+      for (const q of beams) {
+        if (!q.on || b.x < q.x0 - r || b.x > q.x1 + r) continue;
+        if (b.vy > 0 && py + r <= q.y + 1 && b.y + r > q.y) { b.y = q.y - r; b.vy = -Math.abs(b.vy); }
+        else if (b.vy < 0 && py - r >= q.y - 1 && b.y - r < q.y) { b.y = q.y + r; b.vy = Math.abs(b.vy); }
+        else continue;
+        this.fixAngle(b); this.mark(b); sfx.wall(); this.ring(b.x, q.y, 50);
+        break;
+      }
       if (b.y < top + CR && (b.x < LEFT + CR || b.x > RIGHT - CR)) {
         const cx = b.x < LEFT + CR ? LEFT + CR : RIGHT - CR, cy = top + CR;
         const dx = b.x - cx, dy = b.y - cy, d = Math.hypot(dx, dy);
@@ -1203,6 +1284,18 @@ export class Game {
     b.vx += clamp(p.x - b.x, -220, 220) * 3.2 * (1 - dy / 520) * h;
     const s = Math.hypot(b.vx, b.vy) || 1;
     b.vx = (b.vx / s) * b.s; b.vy = (b.vy / s) * b.s;
+    if (++b.gk % 4 === 0) this.mark(b);
+  }
+
+  // REPULSÃO: the platform pushes a falling disc away from it
+  repelPush(b, h) {
+    const p = this.paddle, dy = p.y - b.y;
+    if (dy <= 0 || dy > 420) return;
+    const dx = b.x - p.x, dir = dx === 0 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(dx);
+    b.vx += dir * 620 * (1 - dy / 420) * h;
+    const s = Math.hypot(b.vx, b.vy) || 1;
+    b.vx = (b.vx / s) * b.s; b.vy = (b.vy / s) * b.s;
+    this.fixAngle(b);
     if (++b.gk % 4 === 0) this.mark(b);
   }
 
@@ -1281,11 +1374,12 @@ export class Game {
     const ghost = !!this.effects.ghost;
     for (const br of this.bricks) {
       if (br.dead || br.out || (ghost && br.kind === 'wall')) continue;
-      const bounce = !pierce || br.kind === 'wall';
+      const bounce = !pierce || br.kind === 'wall' || (br.armor && b.vy < 0);
       if (bounce) {
         if (!collideRect(b, br.x, br.y, br.w, br.h)) continue;
         this.fixAngle(b);
         this.mark(b);
+        if (br.armor && b.y > br.y + br.h) { br.flash = 0.6; sfx.wall(); this.ring(b.x, br.y + br.h, 40); return; }
       } else {
         const qx = clamp(b.x, br.x, br.x + br.w), qy = clamp(b.y, br.y, br.y + br.h);
         if ((b.x - qx) ** 2 + (b.y - qy) ** 2 > b.r * b.r) continue;
@@ -1432,7 +1526,7 @@ export class Game {
       }
       case 'ghost':
         this.effects.ghost = { type, t: 10, max: 10, good: true }; break;
-      case 'dark': case 'invert': case 'wobble': case 'drag':
+      case 'dark': case 'invert': case 'wobble': case 'drag': case 'repel': case 'blind':
         this.effects[type] = { type, t: 8, max: 8, good: false }; break;
       case 'missile':
         this.missiles.push({ x: p.x, y: p.y - 20, vx: 0, vy: -320, t: 0 }); sfx.missile(); break;
@@ -1466,6 +1560,10 @@ export class Game {
     this.balls = [];
     this.drops = []; this.bolts = []; this.missiles = []; this.shots = [];
     this.collectCoins();
+    const bonus = 20 + 5 * this.stage.w;   // bosses pay in coins too
+    this.stageCoins += bonus;
+    this.emit('coin', bonus);
+    this.float('+' + bonus + ' MOEDAS', boss.cx, boss.cy + 110, 26);
     for (const br of this.bricks) br.dead = true;
     sfx.bossDie();
     vibrate(200);
@@ -2039,12 +2137,17 @@ export class Game {
       drawSprite(c, s, br.x, br.y);
       c.globalAlpha = 1;
       if (br.inf) {   // CONTÁGIO: a pulsing virus mark
-        const vx = br.x + br.w / 2, vy = br.y + br.h / 2, pr = 4 + Math.sin(this.t * 6 + br.col) * 1.2;
         c.strokeStyle = c.fillStyle = WHITE; c.lineWidth = 1.6;
-        c.beginPath(); c.arc(vx, vy, pr, 0, TAU); c.fill();
-        c.beginPath();
-        for (let q = 0; q < 6; q++) { const a = (q * TAU) / 6 + this.t; c.moveTo(vx + Math.cos(a) * (pr + 2), vy + Math.sin(a) * (pr + 2)); c.lineTo(vx + Math.cos(a) * (pr + 6), vy + Math.sin(a) * (pr + 6)); }
-        c.stroke();
+        drawVirus(c, br.x + br.w / 2, br.y + br.h / 2, 11.5 + Math.sin(this.t * 6 + br.col) * 1.2, this.t * 0.8);
+      }
+      if (br.armor) {   // BLINDAGEM: a bright plate on the underside
+        const yb = br.y + br.h - 4;
+        c.fillStyle = rgba(WHITE, 0.85);
+        roundRectPath(c, br.x + 4, yb - 4, br.w - 8, 8, 3); c.fill();
+        c.beginPath(); c.moveTo(br.x + 6, yb); c.lineTo(br.x + br.w - 6, yb);
+        neonStroke(c, WHITE, col, 3, br.x, yb, br.x + br.w, yb, 1);
+        c.fillStyle = rgba(col, 0.9);
+        for (const fx of [0.22, 0.5, 0.78]) { c.beginPath(); c.arc(br.x + br.w * fx, yb, 1.8, 0, TAU); c.fill(); }
       }
       if (br.kind === 'exp') {
         c.globalCompositeOperation = 'lighter';
@@ -2110,8 +2213,9 @@ export class Game {
     const pierce = !!this.effects.pierce;
     const bc = pierce ? mix(col, WHITE, 0.7) : col;
     const ts = this.plat.trail || 0, tp = ts === 3 ? this.palette() : null;
+    const hidden = (b) => this.effects.blind && b.y < p.y - 280 && this.t % 1.1 > 0.16;
     for (const b of this.balls) {
-      if (b.held || b.fade < 0.02) continue;
+      if (b.held || b.fade < 0.02 || hidden(b)) continue;
       c.globalAlpha = b.fade ?? 1;
       drawTrail(c, b.path, b.x, b.y, bc, TRAIL_LEN, b.r, ts, tp, this.t);
     }
@@ -2121,6 +2225,7 @@ export class Game {
     const ds = discSprite(bc, BALL_R, this.plat.disc || 0);
     const ghost = this.effects.ghost;
     for (const b of this.balls) {
+      if (hidden(b)) continue;
       c.save();
       c.translate(b.x, b.y);
       c.rotate(b.spin);
@@ -2149,6 +2254,22 @@ export class Game {
         c.beginPath(); c.rect(gx - 4, gy - 18, 8, 14);
         c.fillStyle = rgba(col, 0.4); c.fill();
         neonStroke(c, col, col, 2, gx, gy - 18, gx, gy, 1);
+      }
+    }
+
+    for (const q of this.beams) {
+      const blink = q.warn ? 0.5 + 0.5 * Math.sin(this.t * 30) : 0;
+      c.save();
+      c.beginPath(); c.moveTo(q.x0, q.y); c.lineTo(q.x1, q.y);
+      if (q.on) neonStroke(c, WHITE, col, 3.5, q.x0, q.y, q.x1, q.y, 1.2);
+      else {
+        c.setLineDash([6, 10]); c.lineDashOffset = -this.t * 30;
+        c.strokeStyle = rgba(col, 0.22 + 0.5 * blink); c.lineWidth = 1.5; c.stroke();
+      }
+      c.restore();
+      for (const x of [q.x0, q.x1]) {   // the emitters at both ends
+        c.beginPath(); c.arc(x, q.y, 5, 0, TAU);
+        c.fillStyle = q.on ? WHITE : rgba(col, 0.5 + 0.4 * blink); c.fill();
       }
     }
 
