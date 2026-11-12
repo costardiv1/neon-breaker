@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.6** (11/11/2026)
+Versão atual publicada: **1.6.1** (12/11/2026)
 
 ## Objetivos
 
@@ -14,9 +14,16 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
-_Nenhuma sugestão pendente._
+- [ ] Reduzir o texto de TODOS os tutoriais (principalmente os dos perks) e explicar com uma imagem ou animação (12/11/2026)
+- [ ] A cada atualização, criar uma checklist do que testar nas novidades, para otimizar o tempo de teste (12/11/2026)
 
 ## Histórico
+
+### 1.6.1 (12/11/2026)
+
+- [x] Risquinhos soltos dos botões removidos.
+- [x] Anúncio do QUEBRABLOCO com bola de demolição.
+- [x] Pontos x10 de novo (recordes das fases convertidos).
 
 ### 1.6 (11/11/2026)
 

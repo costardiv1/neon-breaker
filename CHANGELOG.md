@@ -2,6 +2,14 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.6.1] · 12/11/2026 · Pontos x10, botões limpos e bola de demolição
+
+### Alterado
+
+- Os pontos voltaram à escala antiga (x10); os recordes das fases salvos na 1.6 foram convertidos.
+- Os risquinhos soltos em volta dos botões saíram.
+- Anúncio de teste do QUEBRABLOCO: uma bola de demolição presa num guindaste balança e abre um buraco no muro de tijolos.
+
 ## [1.6] · 11/11/2026 · Modo INFINITO, VAZAMENTO e cápsulas revistas
 
 ### Adicionado

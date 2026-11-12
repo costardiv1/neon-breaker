@@ -18,7 +18,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.6';
+export const VERSION = '1.6.1';
 
 let H = 1280;
 let safeTop = 0;
@@ -36,6 +36,7 @@ const plat = {
 };
 // Campaign: each stage keeps its own best score (shown under it on the map).
 let sbest = store.get('sbest', {});
+if (store.get('scoreV', 1) < 3) { for (const k in sbest) sbest[k] *= 10; store.set('sbest', sbest); store.set('scoreV', 3); }
 // INFINITO: the leaderboard measures the time survived.
 let bestT = store.get('bestT', 0);
 let eruns = store.get('eruns', []);        // best endless runs on this device: { t, bosses, date }
@@ -891,7 +892,7 @@ function adText(c, text, x, y, size, color, weight = 800, font = BODY_FONT) {
   c.font = `${weight} ${size}px ${font}`; c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillStyle = color; c.fillText(text, x, y);
 }
-// Quebrabloco: the original, a construction site where a digger breaks a brick wall
+// Quebrabloco: the original, a construction site where a wrecking ball breaks a brick wall
 function hazard(c, x, y, w, h, t) {
   c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
   c.fillStyle = '#1b1b1b'; c.fillRect(x, y, w, h);
@@ -903,49 +904,74 @@ function hazard(c, x, y, w, h, t) {
   c.restore();
 }
 function adQuebrabloco(c, t) {
-  // dirt and tracks
+  // dirt
   c.fillStyle = '#6e5233'; c.fillRect(0, 0, W, H);
   const rng0 = rng(7);
   for (let i = 0; i < 160; i++) { c.fillStyle = rng0() < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,230,190,0.08)'; c.fillRect(rng0() * W, rng0() * H, 3 + rng0() * 5, 3 + rng0() * 4); }
   const py = H - 330;   // top of the dark panel
-  c.fillStyle = 'rgba(0,0,0,0.18)';
-  const ty = py - 70;
-  for (let x = 0; x < W; x += 26) { c.fillRect(x, ty, 14, 8); c.fillRect(x, ty + 46, 14, 8); }
+  const wy = safeTop + 300, rows = 7, bh = 34, bw = 72;
+  // the wrecking ball swings on a crane and hits the wall once per swing
+  const SW = 2.2, A0 = -0.185, A1 = 0.435, L = 330;
+  const P = { x: W * 0.58, y: wy - 110 };
+  const ang = A0 + A1 * Math.cos(t * SW);
+  const ball = { x: P.x + Math.sin(ang) * L, y: P.y + Math.cos(ang) * L };
+  const hit = { x: P.x + Math.sin(A0 - A1) * L, y: P.y + Math.cos(A0 - A1) * L };
+  const hits = Math.floor((t * SW + Math.PI) / TAU);          // impacts so far
+  const since = (((t * SW + Math.PI) % TAU) + TAU) % TAU / SW;  // seconds since the last one
+  const hole = hits ? 40 + 24 * Math.min(hits, 6) : 0;
   // brick wall with the logo painted on it
-  const wy = safeTop + 300, rows = 7, bh = 34, bw = 72, gone = Math.floor(t * 4);
   c.fillStyle = '#8a8178'; c.fillRect(0, wy, W, rows * bh);
   for (let r = 0; r < rows; r++) for (let q = -1; q < 11; q++) {
     const x = q * bw + (r % 2 ? bw / 2 : 0), idx = r * 12 + q + 1;
-    if (r >= 4 && ((idx * 7) % 36) < gone) continue;   // the digger knocks out the bottom rows
+    const cx = x + bw / 2, cy = wy + r * bh + bh / 2;
+    if (Math.hypot(cx - hit.x, (cy - hit.y) * 1.4) < hole) continue;   // knocked out
     c.fillStyle = (idx * 13) % 5 === 0 ? '#9c3b2a' : (idx * 7) % 3 === 0 ? '#b5482f' : '#a8432c';
     c.fillRect(x + 2, wy + r * bh + 2, bw - 4, bh - 4);
     c.fillStyle = 'rgba(255,255,255,0.10)'; c.fillRect(x + 2, wy + r * bh + 2, bw - 4, 4);
   }
+  if (hole) {   // dark behind the hole
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    c.beginPath(); c.ellipse(hit.x, hit.y, hole * 0.8, hole * 0.55, 0, 0, TAU); c.fill();
+  }
   c.font = `900 70px ${BODY_FONT}`; c.textBaseline = 'middle'; c.textAlign = 'left';
-  const w1 = c.measureText('QUEBRA').width, w2 = c.measureText('BLOCO').width, lx = W / 2 - (w1 + w2) / 2, ly = wy + 2 * bh;
+  const w1 = c.measureText('QUEBRA').width, w2 = c.measureText('BLOCO').width, lx = W / 2 - (w1 + w2) / 2, ly = wy + 1.4 * bh;
   c.fillStyle = 'rgba(0,0,0,0.35)'; c.fillText('QUEBRA', lx + 4, ly + 4); c.fillText('BLOCO', lx + w1 + 4, ly + 4);
   c.fillStyle = '#f2f2f2'; c.fillText('QUEBRA', lx, ly);
   c.fillStyle = '#f5c21b'; c.fillText('BLOCO', lx + w1, ly);
-  // the digger, going back and forth
-  const dx = W / 2 + Math.sin(t * 1.4) * 170, dy = py - 130, arm = Math.sin(t * 5) * 0.25;
-  c.fillStyle = '#2a2a2a'; roundRectPath(c, dx - 95, dy + 50, 190, 36, 18); c.fill();
-  c.fillStyle = '#555'; for (let k = 0; k < 5; k++) { c.beginPath(); c.arc(dx - 72 + k * 36, dy + 68, 11, 0, TAU); c.fill(); }
-  c.fillStyle = '#f2b51b'; c.fillRect(dx - 85, dy - 10, 150, 60);
-  c.fillStyle = '#d99a0f'; c.fillRect(dx - 85, dy + 38, 150, 12);
-  c.fillStyle = '#f2b51b'; c.fillRect(dx - 75, dy - 70, 70, 62);
-  c.fillStyle = '#9fd3e6'; c.fillRect(dx - 66, dy - 62, 52, 34);
-  c.save(); c.translate(dx + 50, dy); c.rotate(-0.9 + arm);
-  c.fillStyle = '#f2b51b'; c.fillRect(0, -10, 150, 20);
-  c.translate(150, 0); c.rotate(1.6 - arm * 2);
-  c.fillRect(0, -8, 90, 16);
-  c.fillStyle = '#3a3a3a'; c.beginPath(); c.moveTo(80, -14); c.lineTo(120, -4); c.lineTo(110, 26); c.lineTo(80, 14); c.closePath(); c.fill();
-  c.restore();
+  // flying bricks and dust right after each hit
+  if (hits && since < 0.9) {
+    const rb = rng(hits * 31);
+    for (let i = 0; i < 12; i++) {
+      const vx = -120 - rb() * 260, vy = -220 + rb() * 200, s = 8 + rb() * 10;
+      c.fillStyle = i % 3 ? '#a8432c' : '#8a8178';
+      c.fillRect(hit.x + vx * since, hit.y + vy * since + 520 * since * since, s, s * 0.6);
+    }
+    c.fillStyle = `rgba(220,200,170,${0.5 * (1 - since / 0.9)})`;
+    c.beginPath(); c.arc(hit.x, hit.y, 40 + since * 90, 0, TAU); c.fill();
+  }
+  // the crane: a lattice mast and a jib
+  const mx = W - 70, mt = P.y - 20, yel = '#f2b51b';
+  c.strokeStyle = yel; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(mx - 16, py); c.lineTo(mx - 16, mt); c.moveTo(mx + 16, py); c.lineTo(mx + 16, mt); c.stroke();
+  c.lineWidth = 2; c.beginPath();
+  for (let y = py; y > mt; y -= 32) { c.moveTo(mx - 16, y); c.lineTo(mx + 16, y - 16); c.lineTo(mx - 16, y - 32); }
+  c.stroke();
+  c.lineWidth = 4; c.beginPath(); c.moveTo(mx + 40, mt); c.lineTo(P.x - 30, mt); c.moveTo(mx + 40, mt + 22); c.lineTo(P.x - 30, mt + 22); c.stroke();
+  c.lineWidth = 2; c.beginPath();
+  for (let x = mx + 40; x > P.x - 30; x -= 28) { c.moveTo(x, mt + 22); c.lineTo(x - 14, mt); c.lineTo(x - 28, mt + 22); }
+  c.stroke();
+  c.fillStyle = '#555'; c.fillRect(mx + 20, mt - 6, 40, 40);   // counterweight
+  // cable and ball
+  c.strokeStyle = '#2a2a2a'; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(P.x, mt + 22); c.lineTo(ball.x, ball.y); c.stroke();
+  c.beginPath(); c.arc(ball.x, ball.y, 44, 0, TAU); c.fillStyle = '#2b2b2e'; c.fill();
+  c.beginPath(); c.arc(ball.x - 14, ball.y - 14, 12, 0, TAU); c.fillStyle = 'rgba(255,255,255,0.18)'; c.fill();
   // hazard stripes and the dark panel, like the original's menus
   hazard(c, 0, safeTop + 100, W, 26, t);
   hazard(c, 60, py, W - 120, 22, t);
   c.fillStyle = 'rgba(28,28,30,0.96)'; c.fillRect(60, py + 22, W - 120, 220);
   adText(c, 'O JOGO QUE DEU ORIGEM AO NEON BREAKER', W / 2, py + 72, 18, '#f2f2f2', 800);
-  adText(c, 'TIJOLO, CONCRETO E UMA ESCAVADEIRA', W / 2, py + 104, 15, 'rgba(242,242,242,0.6)', 600);
+  adText(c, 'TIJOLO, CONCRETO E BOLA DE DEMOLIÇÃO', W / 2, py + 104, 15, 'rgba(242,242,242,0.6)', 600);
   const by = py + 170 + Math.sin(t * 4) * 3;
   c.fillStyle = '#b8860b'; roundRectPath(c, W / 2 - 170, by - 30, 340, 68, 10); c.fill();
   c.fillStyle = '#f5c21b'; roundRectPath(c, W / 2 - 170, by - 36, 340, 66, 10); c.fill();
@@ -1805,13 +1831,6 @@ function drawButton(c, b) {
   c.fillStyle = rgba(k, down ? 0.18 : 0.04);
   c.fill();
   neonStroke(c, k, k, b.big ? 3.2 : 2.2, b.x, b.y, b.x + b.w, b.y + b.h, b.big ? 1 : 0.6);
-  if (b.w >= 300) {   // the small accent lines (only on the wide buttons)
-    c.strokeStyle = rgba(k, 0.9); c.lineWidth = 2;
-    c.beginPath();
-    c.moveTo(b.x + 26, b.y + b.h + 9); c.lineTo(b.x + 70, b.y + b.h + 9);
-    c.moveTo(b.x + b.w - 70, b.y - 9); c.lineTo(b.x + b.w - 26, b.y - 9);
-    c.stroke();
-  }
   glowText(c, b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, b.fs || (b.big ? 26 : 21), '#ffffff', k, 'center', 700, b.fs ? 2 : 5);
   c.globalAlpha = 1;
 }

@@ -950,7 +950,7 @@ export class Game {
 
     if (!this.boss && !this.endless && this.alive <= 0 && !this.blasts.length) {
       this.clearT = 1.6;
-      this.score += 10 * (this.index + 1);
+      this.score += 100 * (this.index + 1);
       for (const b of this.balls) this.burst(b.x, b.y, 16);
       this.balls = [];
       this.drops = [];
@@ -1531,7 +1531,7 @@ export class Game {
     if (br.hp > 0 && br.hp < 1e-6) br.hp = 0;
     br.flash = 1;
     this.combo++;
-    this.score += Math.min(this.combo, 20);
+    this.score += 10 * Math.min(this.combo, 20);
     const cx = br.x + br.w / 2, cy = br.y + br.h / 2;
     const tone = tierTone(this.col, tier);
     this.emit('brick');
@@ -1542,7 +1542,7 @@ export class Game {
       if (this.endless) this.endless.breaks++;
       if (!perk) this.gainEnergy(0.075);
       this.emit('chip', 1);
-      this.score += 5 * tier;
+      this.score += 50 * tier;
       this.derez(br, tone);
       sfx.brk(this.combo);
       vibrate(8);
@@ -1614,7 +1614,7 @@ export class Game {
     const p = this.paddle;
     sfx.power(def.good);
     vibrate(def.good ? 15 : 30);
-    if (def.good && !this.endless) this.score += 10 * n;
+    if (def.good && !this.endless) this.score += 100 * n;
     if (type === 'wide' || type === 'shrink') {
       const lvl = this.addSize(type === 'wide' ? n : -n);
       this.float((n > 1 ? 'x2  ' : '') + 'PLATAFORMA ' + (lvl > 0 ? '+' + lvl : lvl < 0 ? '−' + -lvl : 'NORMAL'), p.x, p.y - 70, 24);
@@ -1680,7 +1680,7 @@ export class Game {
   }
 
   onBossDeath(boss) {
-    this.score += 500;
+    this.score += 5000;
     this.shake = 1.2;
     for (const b of this.balls) this.burst(b.x, b.y, 12);
     this.balls = [];
