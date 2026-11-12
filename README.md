@@ -7,7 +7,7 @@
 **Um quebra-blocos minimalista em neon, feito para o celular.**
 Rebata o disco, atravesse os distritos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.5-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.6-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -42,15 +42,16 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 
 - **9 distritos jogáveis, 45 fases e 9 chefões**, cada um com dois estágios de vida e MODO FÚRIA.
 - **A história em capítulos**: a cada chefão derrotado, um terminal digita um trecho do diário de quem está derrubando o sistema.
-- **Mecânicas que se acumulam**: cada distrito traz uma nova e mantém as anteriores.
+- **Uma mecânica nova por distrito**, misturada em cada fase com uma ou duas das antigas.
+- **Modo INFINITO**: uma fase só, com blocos descendo sem parar, mecânicas que entram e se revezam e um chefão aleatório a cada 3 min 30 s.
 - **Mapa em cidade 3D isométrica**: o caminho das fases é uma rua, com cercas de neon nos portões, carros de luz que passam atrás dos prédios e a torre AURUM no fim.
 - **Plataforma personalizável**: 7 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.
 - **Perks em cartas**, evoluídos com chips: equipe 1 ativo (ESCUDO, ONDA DE CHOQUE, CÂMERA LENTA, ÍMÃ, MEGA LASER ou RELÂMPAGO) e 1 passivo (PLATAFORMA LARGA, GRANA, RECARGA, SORTE, VIDA EXTRA ou DISCO PESADO).
 - **Anúncio opcional para dobrar as moedas** da fase vencida ou do chefão (por enquanto, anúncios de teste, um deles do QUEBRABLOCO, o projeto que deu origem ao Neon Breaker).
-- **Placar que acumula** de fase em fase até o fim de jogo, com as melhores partidas do aparelho e um placar online (Supabase) pronto para ser ligado.
+- **Placar do INFINITO** pelo tempo sobrevivido, com as melhores partidas do aparelho e um placar online (Supabase) pronto para ser ligado. Na campanha, cada fase guarda o seu recorde no mapa.
 - **Arquivos dos chefões** nos créditos: releia o diário de cada chefão derrotado.
 - **Avisos de novidade**: um ! no menu BREAKERS quando há algo para comprar ou um formato novo, e um sino com todas as novidades.
-- **18 cápsulas** de poderes e desvantagens que entram aos poucos: cada distrito traz uma boa e uma ruim, do míssil teleguiado ao APAGÃO, que deixa o campo no escuro.
+- **13 cápsulas** de poderes e desvantagens que entram até o distrito 6, do míssil teleguiado e da BOMBA ao APAGÃO, que deixa o campo no escuro.
 - **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança, a ASA bate as asas, a ONDA ondula e o FUNIL afunda.
 - **Trilha sonora sintetizada** por distrito, cada vez mais rápida e frenética, com a borda do campo pulsando na batida.
 - **Feito para celular**: toque para levar a plataforma até o dedo, qualidade gráfica ajustável e padrões diferentes para PC e celular.
@@ -66,7 +67,7 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 | 4 | MADRUGADA | FASE: blocos tracejados que o disco atravessa | O RELÓGIO DE PONTO | ✅ |
 | 5 | CÓDIGO-FONTE | PORTAIS: entra num, sai pelo outro | A PATENTE | ✅ |
 | 6 | VIRAL | CONTÁGIO: blocos infectados criam blocos novos | O ALGORITMO | ✅ |
-| 7 | CENSURA | TARJA: barras pretas escondem parte do campo | O CENSOR | ✅ |
+| 7 | CENSURA | VAZAMENTO: tarjas rebatem o disco até você acertar o vazamento | O CENSOR | ✅ |
 | 8 | RESISTÊNCIA | BLINDAGEM: blocos blindados por baixo | O BLINDADO | ✅ |
 | 9 | TORRE AURUM | SEGURANÇA: feixes que ligam, desligam e rebatem o disco | O CONSELHO | ✅ |
 | 10 | O SISTEMA | — | O SISTEMA | em breve |
@@ -78,7 +79,7 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 <td align="center"><img src="docs/img/07_fase.png" width="180"><br><sub>FASE</sub></td>
 <td align="center"><img src="docs/img/09_portais.png" width="180"><br><sub>PORTAIS</sub></td>
 <td align="center"><img src="docs/img/20_contagio.png" width="180"><br><sub>CONTÁGIO</sub></td>
-<td align="center"><img src="docs/img/21_tarja.png" width="180"><br><sub>TARJA</sub></td>
+<td align="center"><img src="docs/img/21_tarja.png" width="180"><br><sub>VAZAMENTO</sub></td>
 </tr>
 <tr>
 <td align="center"><img src="docs/img/24_blindagem.png" width="180"><br><sub>BLINDAGEM</sub></td>
@@ -93,6 +94,7 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 <table>
 <tr>
 <td align="center"><img src="docs/img/04_sentinela.png" width="180"><br><sub><b>SENTINELA</b><br>núcleo sob o casco</sub></td>
+<td align="center"><img src="docs/img/27_singularidade.png" width="180"><br><sub><b>SINGULARIDADE</b><br>o núcleo dentro do anel</sub></td>
 <td align="center"><img src="docs/img/06_supervisor.png" width="180"><br><sub><b>O SUPERVISOR</b><br>o olho no topo da pirâmide</sub></td>
 <td align="center"><img src="docs/img/08_relogio.png" width="180"><br><sub><b>O RELÓGIO DE PONTO</b><br>ponteiros que rebatem o disco</sub></td>
 <td align="center"><img src="docs/img/10_patente.png" width="180"><br><sub><b>A PATENTE</b><br>tranca o que é de todos</sub></td>
@@ -179,7 +181,7 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 ## Documentação
 
 - 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, distritos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.5.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.6.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>

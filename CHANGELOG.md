@@ -2,6 +2,23 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.6] · 11/11/2026 · Modo INFINITO, VAZAMENTO e cápsulas revistas
+
+### Adicionado
+
+- Modo INFINITO: uma fase só, com blocos descendo sem parar, mecânicas que entram a cada 40 s e se revezam (no máximo 4 ao mesmo tempo) e um chefão aleatório a cada 3 min 30 s. O placar passa a ser deste modo, pelo tempo sobrevivido.
+- Mecânica VAZAMENTO no lugar da TARJA (distrito 7): as tarjas rebatem o disco, e acertar o bloco com a gota derruba todas por 6 s. O CENSOR também usa.
+- Cápsula BOMBA: o próximo bloco acertado explode em área.
+- Recorde de pontos de cada fase, mostrado embaixo dela no mapa.
+- Links do Instagram nos créditos e do Quebrabloco no anúncio de teste.
+
+### Alterado
+
+- As mecânicas não se acumulam mais todas: cada fase usa a do distrito e, no máximo, uma ou duas antigas.
+- Cápsulas de 18 para 13, todas até o distrito 6. Saíram LENTO, FANTASMA, INSTÁVEL, PLATAFORMA LENTA, REPULSÃO e DISCO SUMIDO; o PERFURAR agora também atravessa muralhas, blindagens e escudos de chefão.
+- A pontuação da campanha voltou a ser por fase.
+- O ! de novidade ficou menor e sem brilho.
+
 ## [1.5] · 10/11/2026 · Menu com ícones, placar e modo dev novo
 
 ### Adicionado

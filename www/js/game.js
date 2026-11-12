@@ -1,5 +1,5 @@
 import { view, TAU, rgba, mix, roundRectPath, neonStroke, makeSprite, drawSprite, glowText, neonTitle, drawVirus } from './render.js';
-import { getStage, stageLabel, MECHS, TOTAL_STAGES, worldStart, worldCount } from './levels.js';
+import { getStage, stageLabel, MECHS, TOTAL_STAGES, worldStart, worldCount, WORLDS } from './levels.js';
 import { SHAPES, drawPlatform, hitTransform, paletteColors, samplePal, shapePoints } from './platform.js';
 import { createBoss, collideRect } from './boss.js';
 import { sfx, music, vibrate } from './audio.js';
@@ -27,7 +27,7 @@ const PHASE_T = 2.8;   // FASE: seconds each group stays solid / out of phase
 const PORTAL_R = 24;
 const PORTAL_ALT = ['#ff45c0', '#ffd21f', '#2bff88'];   // colors of the 2nd, 3rd... pair of portals
 const AUTO_LAUNCH = 10;   // seconds a disc may sit on the platform before it launches by itself
-const BAR_H = 74;         // TARJA: height of a censor bar
+const BAR_H = 30;         // VAZAMENTO: height of a censor bar
 const BEAM_ON = 2.4, BEAM_OFF = 2;   // SEGURANÇA: seconds a security beam stays on / off
 export const HIT_T = 0.6;   // length of the platform's hit animation (s)
 // graphics quality (set from the dev panel): particle amount and trail detail
@@ -38,27 +38,29 @@ const BORDER_BASE = { flow: [3, 0.8], beat: [2.5, 0.5], scan: [2.5, 0.55] };
 // and one bad capsule, and keeps the ones from the districts before it.
 export const POWERS = {
   wide:    { good: true,  d: 1, w: 2.6, label: 'PLATAFORMA +' },
-  multi:   { good: true,  d: 2, w: 3,   label: 'MULTI' },
+  multi:   { good: true,  d: 1, w: 3,   label: 'MULTI' },
+  laser:   { good: true,  d: 2, w: 2.2, label: 'LASER' },
   life:    { good: true,  d: 3, w: 0.6, label: '+1 VIDA' },
-  laser:   { good: true,  d: 4, w: 2.2, label: 'LASER' },
-  missile: { good: true,  d: 5, w: 2,   label: 'MÍSSIL' },
-  pierce:  { good: true,  d: 6, w: 1.6, label: 'PERFURAR' },
-  mega:    { good: true,  d: 7, w: 1.8, label: 'MEGA DISCO' },
-  slow:    { good: true,  d: 8, w: 1.8, label: 'LENTO' },
-  ghost:   { good: true,  d: 9, w: 1.4, label: 'FANTASMA' },
+  missile: { good: true,  d: 4, w: 2,   label: 'MÍSSIL' },
+  pierce:  { good: true,  d: 5, w: 1.6, label: 'PERFURAR' },
+  mega:    { good: true,  d: 6, w: 1.8, label: 'MEGA DISCO' },
+  bomb:    { good: true,  d: 6, w: 1.6, label: 'BOMBA' },
   shrink:  { good: false, d: 1, w: 2,   label: 'PLATAFORMA -' },
   fast:    { good: false, d: 2, w: 2,   label: 'RÁPIDO' },
   mini:    { good: false, d: 3, w: 1.8, label: 'MINI DISCO' },
   dark:    { good: false, d: 4, w: 1.6, label: 'APAGÃO' },
   invert:  { good: false, d: 5, w: 1.5, label: 'INVERTIDO' },
-  wobble:  { good: false, d: 6, w: 1.6, label: 'INSTÁVEL' },
-  drag:    { good: false, d: 7, w: 1.6, label: 'PLATAFORMA LENTA' },
-  repel:   { good: false, d: 8, w: 1.5, label: 'REPULSÃO' },
-  blind:   { good: false, d: 9, w: 1.4, label: 'DISCO SUMIDO' },
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const SHOCK_DEFLECT = 220;  // and how close the disc must be to be pushed
+const SHOCK_DEFLECT = 220;  // ONDA DE CHOQUE: how close the disc must be to be pushed
+const LEAK_T = 6;           // VAZAMENTO: seconds the bars stay down after a leak
+// INFINITO: a new mechanic every ENDLESS_STEP seconds, at most ENDLESS_MAX at a
+// time (the oldest leaves), and a random boss every ENDLESS_BOSS seconds
+const ENDLESS_MECHS = ['slide', 'blast', 'walls', 'gravity', 'portals', 'viral', 'armor', 'phase', 'censor', 'alarm'];
+const ENDLESS_STEP = 40;
+const ENDLESS_MAX = 4;
+const ENDLESS_BOSS = 210;
 
 // Active perks (bought/evolved in BREAKERS > PERKS). One is equipped; it
 // charges by breaking bricks and fires with a double tap or the HUD button.
@@ -82,6 +84,23 @@ export const PASSIVES = {
 const GRANA_MUL = [1, 1.3, 1.6, 2];
 const RECARGA_MUL = [1, 1.25, 1.5, 1.8];
 const SORTE_MUL = [1, 0.7, 0.45, 0.25];
+// m:ss
+export const fmtTime = (t) => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+// bricks that have to be broken (walls and the leak block do not)
+const counts = (br) => br.kind !== 'wall' && br.kind !== 'leak';
+// '1'..'4' hits, 'X' wall, 'E' explosive, 'V' infected, 'B' armored, 'L' leak
+function makeBrick(ch, c, y, row) {
+  let kind = 'n', hp = +ch || 0, inf = false;
+  if (ch === 'V') { hp = 2; inf = true; }
+  const armor = ch === 'B';
+  if (armor) hp = 2;
+  if (ch === 'X') { kind = 'wall'; hp = 1; }
+  if (ch === 'E') { kind = 'exp'; hp = 1; }
+  if (ch === 'L') { kind = 'leak'; hp = 1; }
+  if (!hp) return null;
+  const x = MARGIN + c * (BW + GAP);
+  return { x, baseX: x, y, w: BW, h: BH, hp, kind, inf, armor, row, col: c, flash: 0, dead: false };
+}
 
 export function tierTone(col, hp) {
   return hp === 1 ? mix(col, '#000000', 0.35) : hp === 2 ? col : hp === 3 ? mix(col, WHITE, 0.3) : mix(col, WHITE, 0.55);
@@ -189,6 +208,15 @@ export function discSprite(col, r = BALL_R, style = 0) {
 
 function brickSprite(kind, hp, col) {
   return cached('brick' + kind + hp + col, (res) => makeSprite(BW, BH, 24, res, (c) => {
+    if (kind === 'leak') {   // VAZAMENTO: a dark block with a drop
+      roundRectPath(c, 1.5, 1.5, BW - 3, BH - 3, 5);
+      c.fillStyle = 'rgba(0,0,0,0.85)'; c.fill();
+      neonStroke(c, WHITE, col, 2.4, 0, 0, BW, BH, 0.8);
+      const x = BW / 2, y = BH / 2;
+      c.beginPath(); c.moveTo(x, y - 9); c.quadraticCurveTo(x + 7, y + 1, x + 6, y + 4); c.arc(x, y + 4, 6, 0, Math.PI); c.quadraticCurveTo(x - 7, y + 1, x, y - 9);
+      c.fillStyle = WHITE; c.fill();
+      return;
+    }
     if (kind === 'wall') {
       const t = mix(col, '#000000', 0.45);
       roundRectPath(c, 1.5, 1.5, BW - 3, BH - 3, 4);
@@ -261,10 +289,6 @@ export function dropSprite(type, col) {
         line([cx + 14, m - 5, cx + 8, m, cx + 14, m + 5]);
         line([cx - 3, m, cx + 3, m]);
         break;
-      case 'slow':   // a clock
-        c.beginPath(); c.arc(cx, m, 8, 0, TAU); c.stroke();
-        line([cx, m - 5, cx, m, cx + 4, m + 2]);
-        break;
       case 'fast':
         line([cx - 9, m - 6, cx - 3, m, cx - 9, m + 6]);
         line([cx + 1, m - 6, cx + 7, m, cx + 1, m + 6]);
@@ -295,34 +319,10 @@ export function dropSprite(type, col) {
         line([cx - 13, m - 4, cx + 9, m - 4]); line([cx + 4, m - 8, cx + 9, m - 4]);
         line([cx + 13, m + 4, cx - 9, m + 4]); line([cx - 4, m + 8, cx - 9, m + 4]);
         break;
-      case 'wobble':   // a wavy path
-        c.beginPath(); c.moveTo(cx - 14, m);
-        c.bezierCurveTo(cx - 9, m - 11, cx - 5, m + 11, cx, m);
-        c.bezierCurveTo(cx + 5, m - 11, cx + 9, m + 11, cx + 14, m);
-        c.stroke();
-        break;
-      case 'drag':   // a platform with a weight under it
-        line([cx - 13, m - 5, cx + 13, m - 5]);
-        line([cx, m - 5, cx, m + 2]);
-        c.beginPath(); c.rect(cx - 5, m + 2, 10, 6); c.fill();
-        break;
-      case 'repel':   // two arrows pushed away from a platform
-        line([cx - 13, m + 7, cx + 13, m + 7]);
-        line([cx - 3, m + 2, cx - 11, m - 6]); line([cx - 11, m - 1, cx - 11, m - 6, cx - 6, m - 6]);
-        line([cx + 3, m + 2, cx + 11, m - 6]); line([cx + 11, m - 1, cx + 11, m - 6, cx + 6, m - 6]);
-        break;
-      case 'blind':   // a closed eye
-        c.beginPath(); c.arc(cx, m - 7, 12, 0.45, Math.PI - 0.45); c.stroke();
-        line([cx - 6, m + 3, cx - 8, m + 7]); line([cx, m + 5, cx, m + 9]); line([cx + 6, m + 3, cx + 8, m + 7]);
-        break;
-      case 'ghost':
-        c.lineWidth = 1.6;
-        line([cx - 2, m - 8, cx - 2, m + 8]); line([cx + 3, m - 8, cx + 3, m + 8]);
-        c.lineWidth = 2.4;
-        c.setLineDash([3, 3]);
-        c.beginPath(); c.arc(cx - 9, m, 5, 0, TAU); c.stroke();
-        c.setLineDash([]);
-        c.beginPath(); c.arc(cx + 11, m, 5, 0, TAU); c.stroke();
+      case 'bomb':   // a round bomb with a lit fuse
+        c.beginPath(); c.arc(cx - 2, m + 2, 7, 0, TAU); c.fill();
+        line([cx + 3, m - 3, cx + 8, m - 8]);
+        c.beginPath(); c.arc(cx + 10, m - 9, 2, 0, TAU); c.fill();
         break;
     }
   }));
@@ -591,9 +591,20 @@ export class Game {
 
   setColor(col) { this.col = col; this.grid = null; }
 
-  newGame(index = 0, score = 0) {
+  newGame(index = 0) {
+    this.endless = null;
+    this.startRun(index);
+  }
+
+  // INFINITO: one endless stage where bricks keep coming down
+  newEndless() {
+    this.endless = { t: 0, next: 25, order: 0, mechs: [], bossT: ENDLESS_BOSS, bosses: 0, breaks: 0, boss: null, music: 0, rowTop: 0, rowY: 0 };
+    this.startRun(0);
+  }
+
+  startRun(index) {
     this.index = index;
-    this.score = score;   // the run's score carries over until a game over
+    this.score = 0;
     this.lives = 3;
     this.shake = 0;
     this.particles = [];
@@ -606,9 +617,11 @@ export class Game {
   get isLast() { return this.index >= TOTAL_STAGES - 1; }
 
   loadLevel() {
-    const st = this.stage = getStage(this.index);
+    const st = this.stage = this.endless ? this.endlessStage() : getStage(this.index);
     this.mech = st.mech;
     this.mechs = st.mechs;
+    if (!this.endless) this.score = 0;   // the campaign scores each stage on its own
+    this.leakT = 0;
     this.mt = 0;
     this.press = 0;
     this.furyMul = 1;
@@ -616,20 +629,9 @@ export class Game {
     const y0 = this.top + 60;
     this.bricks = [];
     st.rows.forEach((row, r) => {
-      for (let c = 0; c < COLS; c++) {
-        const ch = row[c];
-        let kind = 'n', hp = +ch || 0, inf = false;
-        if (ch === 'V') { hp = 2; inf = true; }   // CONTÁGIO: an infected brick
-        const armor = ch === 'B';                  // BLINDAGEM: shield on the underside
-        if (armor) hp = 2;
-        if (ch === 'X') { kind = 'wall'; hp = 1; }
-        if (ch === 'E') { kind = 'exp'; hp = 1; }
-        if (!hp) continue;
-        const x = MARGIN + c * (BW + GAP);
-        this.bricks.push({ x, baseX: x, y: y0 + r * (BH + GAP), w: BW, h: BH, hp, kind, inf, armor, row: r, col: c, flash: 0, dead: false });
-      }
+      for (let c = 0; c < COLS; c++) { const br = makeBrick(row[c], c, y0 + r * (BH + GAP), r); if (br) this.bricks.push(br); }
     });
-    this.alive = this.bricks.filter((b) => b.kind !== 'wall').length;
+    this.alive = this.bricks.filter(counts).length;
     this.rows = [];
     if (this.mechs.includes('slide')) for (let r = 0; r < st.rows.length; r++) this.rows[r] = this.rowMotion(r);
     const lowY = this.bricks.length ? Math.max(...this.bricks.map((b) => b.y + b.h)) : this.top + 200;
@@ -641,13 +643,12 @@ export class Game {
     this.beams = (st.beams || []).map(([x0, x1, yf, ph]) => ({ x0: Math.max(LEFT + 4, W * x0), x1: Math.min(RIGHT - 4, W * x1), y: lowY + span * yf, ph: ph || 0, on: false, warn: false }));
     // FASE: on every other row, alternating bricks drift in and out of phase
     if (this.mechs.includes('phase') && !st.boss) {
-      for (const br of this.bricks) if (br.kind === 'n' && br.row % 2 === 1) br.phase = br.col % 2;
+      for (const br of this.bricks) if (br.kind === 'n' && Math.abs(br.row) % 2 === 1) br.phase = br.col % 2;
     }
-    // TARJA: censor bars sweep the bricks (in boss fights only the boss calls them)
+    // VAZAMENTO: solid censor bars slide over the bricks; the leak block takes them down
     this.bars = [];
-    for (let i = 0; i < (st.bars || 0); i++) this.bars.push({ ph: i * 2.3 });
-    this.barY0 = st.boss ? this.top + 430 : this.top + 52;
-    this.barRange = st.boss ? 180 : Math.max(60, lowY - this.top - 52 - BAR_H + 30);
+    const nb = st.bars || 0;
+    for (let i = 0; i < nb; i++) this.bars.push({ ph: i * 2.3, y: y0 + (lowY - y0) * ((i + 1) / (nb + 1)) - BAR_H / 2 });
     this.viralT = 5;
     this.holdT = 0;
     this.boss = st.boss ? createBoss(st.boss.type, this) : null;
@@ -673,14 +674,120 @@ export class Game {
     this.offered = false;
     this.rewardHold = false;
     // +1% disc speed per district on top of the per-stage ramp
-    this.baseSpeed = Math.min(620 + this.index * 14, 880) * (1 + 0.01 * st.w);
+    this.baseSpeed = this.endless ? this.endlessSpeed() : Math.min(620 + this.index * 14, 880) * (1 + 0.01 * st.w);
     this.resetBall();
     const vl = this.pLvl('vida');
     if (vl && this.lives < 3 + vl) { this.lives++; this.float('+1 VIDA', W / 2, this.H - PADDLE_OFF - 120, 22); }
     const sub = st.name || (this.world.name + (this.mechs.length ? '  ·  ' + this.mechs.map((m) => MECHS[m].name).join(' + ') : ''));
     this.banner = { text: st.boss ? 'CHEFÃO' : stageLabel(this.index), sub: st.boss ? st.boss.name : sub, t: 2.4, max: 2.4 };
+    if (this.endless && !st.boss) {
+      this.endless.rowTop = 0; this.endless.rowY = y0;
+      for (const m of this.endless.mechs) this.endlessFeature(m, true);
+      this.banner = { text: 'INFINITO', sub: this.endless.t < 1 ? 'SOBREVIVA O MÁXIMO QUE PUDER' : 'DE VOLTA AOS BLOCOS', t: 2.4, max: 2.4 };
+    }
     music.play(st.boss ? this.world.bossMusic : this.world.music);
     this.emit('level');
+  }
+
+  // ---------- INFINITO ----------
+  endlessSpeed() { return Math.min(900, 620 + this.endless.t * 0.9); }
+
+  endlessStage() {
+    const E = this.endless, mechs = ['descent', ...E.mechs];
+    if (E.boss) {
+      const w = E.boss;
+      return { w, s: 0, world: WORLDS[w], mech: null, mechs, boss: WORLDS[w].boss, rows: [], endless: true };
+    }
+    const src = WORLDS[E.music % 9];
+    const world = { name: 'INFINITO', music: src.music, bossMusic: src.bossMusic, border: src.border };
+    const rows = [];
+    for (let r = 0; r < 4; r++) rows.push(this.endlessRow(r === 0 ? 2 : 1));
+    return { w: 8, s: 0, world, mech: null, mechs, rows, name: 'INFINITO', endless: true };
+  }
+
+  // a row of bricks as a string, with the specials of the active mechanics
+  endlessRow(maxHp) {
+    const E = this.endless, has = (m) => E.mechs.includes(m);
+    let row = '';
+    for (let c = 0; c < COLS; c++) {
+      if (Math.random() < 0.25) { row += '.'; continue; }
+      const q = Math.random();
+      if (has('walls') && q < 0.07) row += 'X';
+      else if (has('blast') && q < 0.15) row += 'E';
+      else if (has('viral') && q < 0.19) row += 'V';
+      else if (has('armor') && q < 0.3) row += 'B';
+      else row += String(1 + Math.floor(Math.random() * maxHp));
+    }
+    if (has('censor') && !this.bricks.some((b) => !b.dead && b.kind === 'leak') && !row.includes('L')) {
+      const c = Math.floor(Math.random() * COLS);
+      row = row.slice(0, c) + 'L' + row.slice(c + 1);
+    }
+    return row;
+  }
+
+  endlessSpawn(y) {
+    const E = this.endless, r = --E.rowTop;
+    const row = this.endlessRow(Math.min(4, 1 + Math.floor(E.t / 75)));
+    for (let c = 0; c < COLS; c++) {
+      const br = makeBrick(row[c], c, y, r);
+      if (!br) continue;
+      br.flash = 1;
+      if (E.mechs.includes('phase') && br.kind === 'n' && Math.abs(r) % 2 === 1) br.phase = c % 2;
+      this.bricks.push(br);
+      if (counts(br)) this.alive++;
+    }
+    if (E.mechs.includes('slide')) this.rows[r] = this.rowMotion(r);
+  }
+
+  // turns the field pieces of a mechanic on or off
+  endlessFeature(m, on) {
+    const fy = (k) => this.dangerY - k;
+    if (m === 'slide' && on) { for (const br of this.bricks) if (!this.rows[br.row]) this.rows[br.row] = this.rowMotion(br.row); }
+    if (m === 'gravity') this.wells = on ? [{ bx: W * 0.5, by: fy(230), x: W * 0.5, y: fy(230), s: 9e6, core: true, orbit: true }] : [];
+    if (m === 'portals') this.portals = on ? [{ a: { x: W * 0.14, y: fy(150) }, b: { x: W * 0.86, y: fy(150) } }] : [];
+    if (m === 'alarm') this.beams = on ? [{ x0: LEFT + 4 + W * 0.08, x1: RIGHT - 4 - W * 0.08, y: fy(320), ph: 0, on: false, warn: false }] : [];
+    if (m === 'censor') {
+      this.bars = on ? [{ ph: 0, y: this.top + 150 }] : [];
+      if (!on) for (const br of this.bricks) if (br.kind === 'leak') br.dead = true;
+    }
+    if (m === 'phase' && !on) for (const br of this.bricks) { delete br.phase; br.out = false; }
+  }
+
+  endlessMech() {
+    const E = this.endless;
+    let m;
+    if (E.order < ENDLESS_MECHS.length) m = ENDLESS_MECHS[E.order++];
+    else { const opts = ENDLESS_MECHS.filter((x) => !E.mechs.includes(x)); m = opts[Math.floor(Math.random() * opts.length)]; }
+    if (E.mechs.length >= ENDLESS_MAX) this.endlessFeature(E.mechs.shift(), false);
+    E.mechs.push(m);
+    this.mechs = ['descent', ...E.mechs];
+    this.endlessFeature(m, true);
+    this.banner = { text: 'NOVA MECÂNICA', sub: MECHS[m].name, t: 2.4, max: 2.4 };
+    sfx.power(true);
+    this.emit('endlessMech', m);
+  }
+
+  endlessBoss() {
+    const E = this.endless;
+    const ws = WORLDS.map((wd, i) => (wd.soon ? -1 : i)).filter((i) => i >= 0);
+    E.boss = ws[Math.floor(Math.random() * ws.length)];
+    E.bossT = ENDLESS_BOSS;
+    for (const br of this.bricks) if (!br.dead) this.burst(br.x + br.w / 2, br.y + br.h / 2, 4, 0.6);
+    this.loadLevel();
+  }
+
+  updateEndless(dt) {
+    const E = this.endless;
+    E.t += dt;
+    if (this.boss) return;
+    this.baseSpeed = this.endlessSpeed();
+    E.next -= dt;
+    if (E.next <= 0) { E.next = ENDLESS_STEP; this.endlessMech(); }
+    E.bossT -= dt;
+    if (E.bossT <= 0) { this.endlessBoss(); return; }
+    // a new row comes in at the top every time the top row has moved down a row
+    let guard = 0;
+    while (E.rowY - (BH + GAP) >= this.top + 60 && guard++ < 12) { E.rowY -= BH + GAP; this.endlessSpawn(E.rowY); }
   }
 
   rowMotion(r, rb = null) {
@@ -763,7 +870,7 @@ export class Game {
     const lo = LEFT + p.hw + 10, hi = RIGHT - p.hw - 10;
     p.tx = clamp(p.tx, lo, hi);
     if (this.abil && this.abil.type === 'megalaser') p.tx = p.x;   // MEGA LASER locks the platform in place
-    p.x += (p.tx - p.x) * Math.min(1, dt * (this.effects.drag ? 4.5 : 30));   // PLATAFORMA LENTA
+    p.x += (p.tx - p.x) * Math.min(1, dt * 30);
     if (p.hit) p.hit = Math.max(0, p.hit - dt / HIT_T);
     p.x = clamp(p.x, lo, hi);
     const inst = Math.abs(p.x - p.lastX) / dt;
@@ -775,7 +882,10 @@ export class Game {
 
     if (this.boss && this.boss.dead) {
       this.boss.update(dt);
-      if (this.boss.deathT <= 0 && !this.worldDone) { this.worldDone = true; this.emit('worldClear'); }
+      if (this.boss.deathT <= 0 && !this.worldDone) {
+        if (this.endless) { this.endless.bosses++; this.endless.boss = null; this.endless.music++; this.loadLevel(); return; }
+        this.worldDone = true; this.emit('worldClear');
+      }
       return;
     }
 
@@ -795,6 +905,7 @@ export class Game {
       return;
     }
 
+    if (this.endless) { this.updateEndless(dt); if (this.endless.boss && !this.boss) return; }
     this.updateMechanics(dt);
     if (this.boss) {
       this.boss.update(dt);
@@ -813,16 +924,7 @@ export class Game {
     const slow = this.abil && this.abil.type === 'slow' ? 0.5 : 1;   // CÂMERA LENTA
     const target = this.baseSpeed * this.speedFactor() * slow;
     const rTarget = BALL_R * this.discScale();
-    // FANTASMA: the disc fades out as it nears the bricks and comes back on its way down
-    let zoneY = -1e9;
-    if (this.effects.ghost) {
-      for (const br of this.bricks) if (!br.dead && br.y + br.h > zoneY) zoneY = br.y + br.h;
-      if (this.boss && !this.boss.dead) zoneY = Math.max(zoneY, this.boss.cy + 60);
-    }
     for (const b of this.balls) {
-      if (b.fade === undefined) b.fade = 1;
-      const hide = this.effects.ghost && !b.held && (b.y < zoneY || (b.vy < 0 && b.y < zoneY + 120));
-      b.fade += ((hide ? 0 : 1) - b.fade) * Math.min(1, dt * 7);
       b.spin += dt * 9;
       b.r += (rTarget - b.r) * Math.min(1, dt * 8);
       if (b.held) { b.x = p.x + clamp(b.hold || 0, -p.hw * 0.8, p.hw * 0.8); b.y = p.y + Math.min(0, this.shape.y(0, p.hw)) - b.r - 6; b.path = [{ x: b.x, y: b.y }]; continue; }
@@ -846,7 +948,7 @@ export class Game {
     if (this.bricks.some((b) => b.dead)) this.bricks = this.bricks.filter((b) => !b.dead);
     for (const br of this.bricks) if (br.flash > 0) br.flash = Math.max(0, br.flash - dt * 5);
 
-    if (!this.boss && this.alive <= 0 && !this.blasts.length) {
+    if (!this.boss && !this.endless && this.alive <= 0 && !this.blasts.length) {
       this.clearT = 1.6;
       this.score += 10 * (this.index + 1);
       for (const b of this.balls) this.burst(b.x, b.y, 16);
@@ -911,19 +1013,22 @@ export class Game {
     }
     // PRESSÃO: every brick creeps down; touching the alert line costs a life
     if (this.mechs.includes('descent') && !this.boss && this.bricks.length) {
-      const v = 6 + this.stage.s * 0.7;
+      const E = this.endless;
+      const v = E ? Math.min(26, 10 + E.t * 0.04) : 6 + this.stage.s * 0.7;
       let low = 0, high = Infinity;
       for (const br of this.bricks) {
         if (br.dead) continue;
         br.y += v * dt;
         low = Math.max(low, br.y + br.h); high = Math.min(high, br.y);
       }
-      for (const q of this.beams) if (q.t === undefined) q.y += v * dt;
+      if (E) E.rowY += v * dt;
+      else { for (const q of this.beams) if (q.t === undefined) q.y += v * dt; for (const q of this.bars) if (q.t === undefined) q.y += v * dt; }
       this.press = clamp((low - (this.top + 200)) / (this.dangerY - (this.top + 200)), 0, 1);
       if (low >= this.dangerY && !this.holding) {
         const shift = Math.min(240, high - (this.top + 60));
         for (const br of this.bricks) br.y -= shift;
-        for (const q of this.beams) if (q.t === undefined) q.y -= shift;
+        if (E) E.rowY -= shift;
+        else { for (const q of this.beams) if (q.t === undefined) q.y -= shift; for (const q of this.bars) if (q.t === undefined) q.y -= shift; }
         this.float('PRESSÃO', W / 2, this.dangerY - 30, 30);
         this.ring(W / 2, this.dangerY, 400);
         this.balls = [];
@@ -947,7 +1052,8 @@ export class Game {
       }
       this.beams = this.beams.filter((q) => q.t === undefined || q.t > 0);
     }
-    // TARJA: temporary bars (called by the boss) run out
+    // VAZAMENTO: temporary bars (called by the boss) run out; a leak keeps them all down
+    if (this.leakT > 0) this.leakT = Math.max(0, this.leakT - dt);
     if (this.bars.length) {
       for (const q of this.bars) if (q.t !== undefined) q.t -= dt;
       this.bars = this.bars.filter((q) => q.t === undefined || q.t > 0);
@@ -967,11 +1073,12 @@ export class Game {
     for (const [dr, dc] of dirs) {
       const r = src.row + dr, col = src.col + dc, y = src.y + dr * (BH + GAP);
       if (col < 0 || col >= COLS) continue;
-      if (this.boss ? (r < 100 || r > 101) : (r < 0 || r > 11)) continue;
+      if (this.boss ? (r < 100 || r > 101) : !this.endless && (r < 0 || r > 11)) continue;
       if (y + BH > this.dangerY - 120) continue;
       if (this.bricks.some((b) => !b.dead && b.row === r && b.col === col)) continue;
       const step = dc * (BW + GAP);
       this.bricks.push({ x: src.x + step, baseX: src.baseX + step, y, w: BW, h: BH, hp: 1, kind: 'n', inf: false, row: r, col, flash: 1, dead: false });
+      if (this.endless && r < this.endless.rowTop) { this.endless.rowTop = r; this.endless.rowY = Math.min(this.endless.rowY, y); }
       this.alive++;
       if (!this.boss && this.mechs.includes('slide')) this.rows[r] = this.rowMotion(r);
       this.ring(src.x + step + BW / 2, y + BH / 2, 60);
@@ -1005,9 +1112,34 @@ export class Game {
     this.beams.push({ x0, x1: x0 + w, y, ph: 0, t, max: t, on: false, warn: true });
   }
 
-  // Boss ability: a censor bar covers part of the field for t seconds.
-  addBar(t) { if (this.bars.length < 2) this.bars.push({ ph: Math.random() * 6, t }); }
-  barY(q) { return this.barY0 + this.barRange * (0.5 + 0.5 * Math.sin(this.mt * 0.55 + q.ph)); }
+  // Boss ability: a censor bar blocks part of the field for t seconds, and one of
+  // the band's bricks becomes the leak that takes it down.
+  addBar(t) {
+    if (this.bars.length >= 2) return;
+    this.bars.push({ ph: Math.random() * 6, t, y: this.top + 430 + this.bars.length * 90 });
+    if (!this.bricks.some((b) => !b.dead && b.kind === 'leak')) {
+      const band = this.bricks.filter((b) => b.row >= 100 && !b.dead && b.kind === 'n' && !b.inf && !b.armor);
+      if (band.length) { const br = band[Math.floor(Math.random() * band.length)]; br.kind = 'leak'; br.hp = 1; br.flash = 1; this.alive--; }
+    }
+  }
+  barsOn() { return this.leakT <= 0 && this.bars.length > 0; }
+  barRect(q) {
+    const w = (RIGHT - LEFT) * 0.46, x = LEFT + 4 + (RIGHT - LEFT - 8 - w) * (0.5 + 0.5 * Math.sin(this.mt * 0.45 + q.ph));
+    return { x, y: q.y, w, h: BAR_H };
+  }
+  // VAZAMENTO: the leak block was hit: every bar falls for LEAK_T seconds
+  leak(br) {
+    br.flash = 1;
+    if (this.leakT > 0 || !this.bars.length) { sfx.wall(); return; }
+    this.leakT = LEAK_T;
+    for (const q of this.bars) {
+      const r = this.barRect(q);
+      for (let i = 0; i < 18; i++) this.particles.push({ x: r.x + Math.random() * r.w, y: r.y + Math.random() * r.h, vx: (Math.random() - 0.5) * 120, vy: 200 + Math.random() * 260, life: 0.8, max: 0.8, col: WHITE, sq: true });
+    }
+    this.float('VAZOU!', br.x + br.w / 2, br.y + br.h + 30, 24);
+    this.ring(br.x + br.w / 2, br.y + br.h / 2, 120);
+    sfx.blast(); vibrate(30);
+  }
 
   portalColor(i) {
     if (i === 0) return this.col;
@@ -1097,8 +1229,9 @@ export class Game {
       for (let k = 0; k < 3 && !b.dead; k++) {
         b.y -= 1300 * dt / 3;
         if (b.y < this.top + 4) { b.dead = true; this.burst(b.x, this.top + 4, 3, 0.4); break; }
+        if (this.barsOn() && this.bars.some((q) => { const r = this.barRect(q); return b.x > r.x && b.x < r.x + r.w && b.y > r.y && b.y < r.y + r.h; })) { b.dead = true; this.burst(b.x, b.y, 3, 0.4); break; }
         const br = this.bricks.find((q) => !q.dead && !q.out && b.x > q.x - 2 && b.x < q.x + q.w + 2 && b.y > q.y && b.y < q.y + q.h);
-        if (br) { b.dead = true; if (br.kind === 'wall' || br.armor) br.flash = 0.6; else this.damage(br, false); break; }
+        if (br) { b.dead = true; if (br.kind === 'leak') this.leak(br); else if (br.kind === 'wall' || br.armor) br.flash = 0.6; else this.damage(br, false); break; }
         if (this.boss) {
           const h = this.boss.hitShot(b.x, b.y, 4);
           if (h) { b.dead = true; if (h === 'core') this.boss.damage(0.34, false, true); else sfx.clang(); this.burst(b.x, b.y, 4, 0.5); break; }
@@ -1115,7 +1248,7 @@ export class Game {
       if (boss && !this.blocked(m.x, m.y, boss.cx, boss.cy)) { tx = boss.cx; ty = boss.cy; }
       else {
         for (const q of this.bricks) {
-          if (q.dead || q.out || q.kind === 'wall') continue;
+          if (q.dead || q.out || !counts(q)) continue;
           const qx = q.x + q.w / 2, qy = q.y + q.h / 2, d = (qx - m.x) ** 2 + (qy - m.y) ** 2;
           if (d < bd) { bd = d; tx = qx; ty = qy; }
         }
@@ -1175,7 +1308,7 @@ export class Game {
     this.shake = Math.max(this.shake, 0.55);
     sfx.blast();
     for (const br of this.bricks) {
-      if (br.dead || br.out || br.kind === 'wall') continue;
+      if (br.dead || br.out || !counts(br)) continue;
       if (Math.hypot(br.x + br.w / 2 - x, br.y + br.h / 2 - y) < MISSILE_R + 20) this.damage(br, false, 2);
     }
     if (this.boss && !this.boss.dead && Math.hypot(this.boss.cx - x, this.boss.cy - y) < MISSILE_R + this.boss.coreR) this.boss.damage(1, false, true);
@@ -1224,21 +1357,13 @@ export class Game {
     const pierce = !!this.effects.pierce;
     const r = b.r;
     const top = this.top;
-    if (this.effects.wobble) {
-      const a = Math.sin(this.t * 7) * 1.6 * dt, cs = Math.cos(a), sn = Math.sin(a);
-      const vx = b.vx * cs - b.vy * sn;
-      b.vy = b.vx * sn + b.vy * cs; b.vx = vx;
-      this.fixAngle(b);
-      if (++b.gk % 6 === 0) this.mark(b);
-    }
     const wells = this.allWells();
     const mag = this.abil && this.abil.type === 'magnet' && this.abil.t > 0;
-    const rep = !!this.effects.repel;
     const beams = this.beams;
+    const bars = this.barsOn() ? this.bars.map((q) => this.barRect(q)) : null;
     for (let i = 0; i < n; i++) {
       if (wells.length) this.applyGravity(b, h, wells);
       if (mag && b.vy > 0) this.magnetPull(b, h);
-      else if (rep && b.vy > 0) this.repelPush(b, h);
       const py = b.y;
       b.x += b.vx * h;
       b.y += b.vy * h;
@@ -1249,6 +1374,11 @@ export class Game {
         else if (b.vy < 0 && py - r >= q.y - 1 && b.y - r < q.y) { b.y = q.y + r; b.vy = Math.abs(b.vy); }
         else continue;
         this.fixAngle(b); this.mark(b); sfx.wall(); this.ring(b.x, q.y, 50);
+        break;
+      }
+      if (bars) for (const q of bars) {
+        if (!collideRect(b, q.x, q.y, q.w, q.h)) continue;
+        this.fixAngle(b); this.mark(b); sfx.wall(); this.ring(b.x, b.y, 40);
         break;
       }
       if (b.y < top + CR && (b.x < LEFT + CR || b.x > RIGHT - CR)) {
@@ -1285,18 +1415,6 @@ export class Game {
     b.vx += clamp(p.x - b.x, -220, 220) * 3.2 * (1 - dy / 520) * h;
     const s = Math.hypot(b.vx, b.vy) || 1;
     b.vx = (b.vx / s) * b.s; b.vy = (b.vy / s) * b.s;
-    if (++b.gk % 4 === 0) this.mark(b);
-  }
-
-  // REPULSÃO: the platform pushes a falling disc away from it
-  repelPush(b, h) {
-    const p = this.paddle, dy = p.y - b.y;
-    if (dy <= 0 || dy > 420) return;
-    const dx = b.x - p.x, dir = dx === 0 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(dx);
-    b.vx += dir * 620 * (1 - dy / 420) * h;
-    const s = Math.hypot(b.vx, b.vy) || 1;
-    b.vx = (b.vx / s) * b.s; b.vy = (b.vy / s) * b.s;
-    this.fixAngle(b);
     if (++b.gk % 4 === 0) this.mark(b);
   }
 
@@ -1372,10 +1490,9 @@ export class Game {
   }
 
   brickHit(b, pierce) {
-    const ghost = !!this.effects.ghost;
     for (const br of this.bricks) {
-      if (br.dead || br.out || (ghost && br.kind === 'wall')) continue;
-      const bounce = !pierce || br.kind === 'wall' || (br.armor && b.vy < 0);
+      if (br.dead || br.out || (pierce && br.kind === 'wall')) continue;
+      const bounce = !pierce || br.kind === 'leak';
       if (bounce) {
         if (!collideRect(b, br.x, br.y, br.w, br.h)) continue;
         this.fixAngle(b);
@@ -1386,6 +1503,13 @@ export class Game {
         if ((b.x - qx) ** 2 + (b.y - qy) ** 2 > b.r * b.r) continue;
       }
       if (br.kind === 'wall') { br.flash = 0.6; sfx.wall(); return; }
+      if (br.kind === 'leak') { this.leak(br); return; }
+      if (this.effects.bomb) {   // BOMBA: this hit blows up everything around it
+        delete this.effects.bomb;
+        this.float('BOMBA!', br.x + br.w / 2, br.y - 10, 26);
+        this.missileBlast(br.x + br.w / 2, br.y + br.h / 2);
+        if (br.dead) return;
+      }
       let amt = this.ballDamage();
       if (b.heavy > 0) { b.heavy--; amt *= 2; this.ring(br.x + br.w / 2, br.y + br.h / 2, 46); this.shake = Math.max(this.shake, 0.2); }
       this.damage(br, pierce, amt);
@@ -1401,7 +1525,7 @@ export class Game {
 
   // perk = true when an active perk dealt the damage: those kills do not recharge the perk.
   damage(br, full, amt = 1, perk = false) {
-    if (br.dead || br.kind === 'wall') return;
+    if (br.dead || !counts(br)) return;
     const tier = Math.ceil(br.hp);
     br.hp = full ? 0 : br.hp - amt;
     if (br.hp > 0 && br.hp < 1e-6) br.hp = 0;
@@ -1415,6 +1539,7 @@ export class Game {
       br.dead = true;
       this.alive--;
       this.breaks++;
+      if (this.endless) this.endless.breaks++;
       if (!perk) this.gainEnergy(0.075);
       this.emit('chip', 1);
       this.score += 5 * tier;
@@ -1463,7 +1588,7 @@ export class Game {
       // in boss fights lasers and missiles are much more likely
       const luck = SORTE_MUL[this.pLvl('sorte')];
       const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 3.5 : v.w) * (v.good ? 1 : luck);
-      const pool = Object.entries(POWERS).filter(([k, v]) => v.d <= this.stage.w + 1 && !(k === 'life' && this.lives >= 6));
+      const pool = Object.entries(POWERS).filter(([k, v]) => (this.endless || v.d <= this.stage.w + 1) && !(k === 'life' && this.lives >= 6));
       const total = pool.reduce((s, [k, v]) => s + wt(k, v), 0);
       let roll = Math.random() * total;
       for (const [k, v] of pool) { roll -= wt(k, v); if (roll <= 0) { type = k; break; } }
@@ -1489,7 +1614,7 @@ export class Game {
     const p = this.paddle;
     sfx.power(def.good);
     vibrate(def.good ? 15 : 30);
-    if (def.good) this.score += 10 * n;
+    if (def.good && !this.endless) this.score += 10 * n;
     if (type === 'wide' || type === 'shrink') {
       const lvl = this.addSize(type === 'wide' ? n : -n);
       this.float((n > 1 ? 'x2  ' : '') + 'PLATAFORMA ' + (lvl > 0 ? '+' + lvl : lvl < 0 ? '−' + -lvl : 'NORMAL'), p.x, p.y - 70, 24);
@@ -1512,8 +1637,10 @@ export class Game {
         }
         break;
       }
-      case 'slow': case 'fast':
-        this.effects.speed = { type, t: 10, max: 10, good: def.good }; break;
+      case 'fast':
+        this.effects.speed = { type, t: 10, max: 10, good: false }; break;
+      case 'bomb':
+        this.effects.bomb = { type, t: 15, max: 15, good: true }; break;
       case 'mega': case 'mini':
         this.effects.disc = { type, t: 12, max: 12, good: def.good }; break;
       case 'pierce':
@@ -1525,9 +1652,7 @@ export class Game {
         if (!left) this.laserCd = 0;
         break;
       }
-      case 'ghost':
-        this.effects.ghost = { type, t: 10, max: 10, good: true }; break;
-      case 'dark': case 'invert': case 'wobble': case 'drag': case 'repel': case 'blind':
+      case 'dark': case 'invert':
         this.effects[type] = { type, t: 8, max: 8, good: false }; break;
       case 'missile':
         this.missiles.push({ x: p.x, y: p.y - 20, vx: 0, vy: -320, t: 0 }); sfx.missile(); break;
@@ -1569,7 +1694,7 @@ export class Game {
     sfx.bossDie();
     vibrate(200);
     this.banner = { text: 'DERROTADO', sub: boss.name, t: 2.6, max: 2.6 };
-    this.emit('stageClear', this.index);
+    if (!this.endless) this.emit('stageClear', this.index);
   }
 
   loseLife() {
@@ -1582,7 +1707,7 @@ export class Game {
     if (this.lives <= 0) {
       this.lives = 0;
       sfx.over();
-      this.hooks.onGameOver(this.score);
+      this.hooks.onGameOver(this.endless ? Math.floor(this.endless.t) : this.score);
       return;
     }
     sfx.lose();
@@ -1686,7 +1811,7 @@ export class Game {
       A.t -= dt;
       const x0 = p.x - A.w / 2, x1 = p.x + A.w / 2;
       for (const br of this.bricks) {
-        if (br.dead || br.out || br.kind === 'wall' || br.y > p.y) continue;
+        if (br.dead || br.out || !counts(br) || br.y > p.y) continue;
         if (br.x + br.w > x0 && br.x < x1) this.damage(br, true, 1, true);
       }
       if (this.boss && !this.boss.dead && A.hitBoss <= 0) {
@@ -1831,6 +1956,8 @@ export class Game {
     const p = this.paddle;
     this.drops.push({ x: clamp(p.x, LEFT + 40, RIGHT - 40), y: Math.max(this.top + 30, p.y - 380), type, n, t: 0, got: false });
   }
+  devEndlessSkip() { if (this.endless && !this.boss) { this.endless.t += ENDLESS_STEP; this.endless.next = 0; } }
+  devEndlessBoss() { if (this.endless && !this.boss) this.endless.bossT = 0; }
   devAddBall() {
     const p = this.paddle;
     const a = (Math.random() - 0.5) * 1.2;
@@ -2140,6 +2267,7 @@ export class Game {
         }
         if (blink) c.globalAlpha = 1 - 0.45 * blink;
       }
+      if (br.kind === 'leak') c.globalAlpha = this.leakT > 0 ? 0.35 : 0.8 + 0.2 * Math.sin(this.t * 5);
       drawSprite(c, s, br.x, br.y);
       c.globalAlpha = 1;
       if (br.inf) {   // CONTÁGIO: a pulsing virus mark
@@ -2219,32 +2347,25 @@ export class Game {
     const pierce = !!this.effects.pierce;
     const bc = pierce ? mix(col, WHITE, 0.7) : col;
     const ts = this.plat.trail || 0, tp = ts === 3 ? this.palette() : null;
-    const hidden = (b) => this.effects.blind && b.y < p.y - 280 && this.t % 1.1 > 0.16;
     for (const b of this.balls) {
-      if (b.held || b.fade < 0.02 || hidden(b)) continue;
-      c.globalAlpha = b.fade ?? 1;
+      if (b.held) continue;
       drawTrail(c, b.path, b.x, b.y, bc, TRAIL_LEN, b.r, ts, tp, this.t);
     }
-    c.globalAlpha = 1;
     this.renderPadPulses(c);
     c.globalCompositeOperation = 'source-over';
     const ds = discSprite(bc, BALL_R, this.plat.disc || 0);
-    const ghost = this.effects.ghost;
+    const bomb = !!this.effects.bomb;
     for (const b of this.balls) {
-      if (hidden(b)) continue;
       c.save();
       c.translate(b.x, b.y);
       c.rotate(b.spin);
-      if (ghost) c.globalAlpha = (0.45 + 0.25 * Math.sin(this.t * 18)) * (b.fade ?? 1);
       drawSprite(c, ds, -b.r, -b.r, b.r / BALL_R);
       c.restore();
-      if (ghost && (b.fade ?? 1) > 0.05) {
+      if (bomb) {   // BOMBA: a lit ring around the disc
         c.save();
-        c.globalAlpha = b.fade ?? 1;
-        c.setLineDash([6, 6]);
-        c.lineDashOffset = this.t * 40;
-        c.beginPath(); c.arc(b.x, b.y, b.r + 7, 0, TAU);
-        c.strokeStyle = rgba(WHITE, 0.75); c.lineWidth = 2; c.stroke();
+        c.setLineDash([4, 5]); c.lineDashOffset = this.t * 60;
+        c.beginPath(); c.arc(b.x, b.y, b.r + 7 + 2 * Math.sin(this.t * 14), 0, TAU);
+        c.strokeStyle = rgba('#ffb04a', 0.9); c.lineWidth = 2.5; c.stroke();
         c.restore();
       }
       if (b.cap) {
@@ -2280,13 +2401,16 @@ export class Game {
     }
 
     for (const q of this.bars) {
-      const by = this.barY(q), fade = q.t === undefined ? 1 : Math.min(1, q.t / 0.4);
-      c.globalAlpha = fade;
+      // down after a leak: they blink back in the last second
+      const back = this.leakT > 0 && this.leakT < 1 && Math.sin(this.t * 30) > 0;
+      if (this.leakT > 0 && !back) continue;
+      const r = this.barRect(q), fade = q.t === undefined ? 1 : Math.min(1, q.t / 0.4);
+      c.globalAlpha = fade * (back ? 0.4 : 1);
       c.fillStyle = '#000000';
-      c.fillRect(LEFT + 3, by, RIGHT - LEFT - 6, BAR_H);
-      c.strokeStyle = rgba(col, 0.7); c.lineWidth = 1.5;
-      c.beginPath(); c.moveTo(LEFT + 3, by); c.lineTo(RIGHT - 3, by); c.moveTo(LEFT + 3, by + BAR_H); c.lineTo(RIGHT - 3, by + BAR_H); c.stroke();
-      for (let x = 70; x < W; x += 200) glowText(c, 'CENSURADO', x + ((this.t * 24) % 200) - 40, by + BAR_H / 2 + 1, 12, rgba(WHITE, 0.28), col, 'center', 700, 0);
+      c.fillRect(r.x, r.y, r.w, r.h);
+      c.strokeStyle = rgba(col, 0.8); c.lineWidth = 2;
+      c.strokeRect(r.x, r.y, r.w, r.h);
+      glowText(c, 'CENSURADO', r.x + r.w / 2, r.y + r.h / 2 + 1, 12, rgba(WHITE, 0.5), col, 'center', 700, 3);
       c.globalAlpha = 1;
     }
 
@@ -2346,8 +2470,10 @@ export class Game {
   renderHud(c) {
     const col = this.col;
     const hy = this.top - 62;
-    glowText(c, String(this.score), W / 2, hy, 36, WHITE, col, 'center', 700, 3);
-    const sub = stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
+    const E = this.endless;
+    glowText(c, E ? fmtTime(E.t) : String(this.score), W / 2, hy, 36, WHITE, col, 'center', 700, 3);
+    const sub = E ? 'INFINITO  ·  ' + (this.boss ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
+      : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
     glowText(c, sub, W / 2, hy + 36, 13, rgba(col, 0.85), col, 'center', 500, 4);
     const ds = discSprite(col, BALL_R, this.plat.disc || 0);
     for (let i = 0; i < Math.min(this.lives, 6); i++) drawSprite(c, ds, 30 + i * 30, hy - 9, 0.55);

@@ -1,7 +1,7 @@
 import { view, rgba, mix, roundRectPath, neonStroke, neonTitle, glowText, drawSprite, TAU, drawVirus } from './render.js';
-import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone, dropSprite } from './game.js';
+import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone, dropSprite, fmtTime } from './game.js';
 import { SHAPES, PALETTES, EMBLEMS, drawPlatform, outAngle, paletteColors } from './platform.js';
-import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, worldMechs, worldStart, worldCount } from './levels.js';
+import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, districtMechs, worldStart, worldCount } from './levels.js';
 import { THEMES } from './themes.js';
 import { sfx, music, haptics } from './audio.js';
 import { createDevPanel } from './devpanel.js';
@@ -18,7 +18,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.5';
+export const VERSION = '1.6';
 
 let H = 1280;
 let safeTop = 0;
@@ -34,15 +34,16 @@ const plat = {
   dash: !!savedPlat.dash,                 // dashed main line
   detail: savedPlat.detail !== false,     // extra decoration of each shape
 };
-let best = store.get('best', 0);
-// 1.5: points were divided by 10
-if (store.get('scoreV', 1) < 2) { best = Math.round(best / 10); store.set('best', best); store.set('scoreV', 2); }
-// The score carries over from stage to stage (and district to district) until
-// a game over. It is banked at every stage cleared.
-let run = Object.assign({ score: 0, cleared: 0, dev: false }, store.get('run', {}));
-let runs = store.get('runs', []);          // best runs on this device: { score, stage, date }
+// Campaign: each stage keeps its own best score (shown under it on the map).
+let sbest = store.get('sbest', {});
+// INFINITO: the leaderboard measures the time survived.
+let bestT = store.get('bestT', 0);
+let eruns = store.get('eruns', []);        // best endless runs on this device: { t, bosses, date }
 let devUI = null;                          // in-game dev panel (created further down)
 const REPO_URL = 'https://github.com/costardiv1/neon-breaker';
+const INSTA_URL = 'https://www.instagram.com/v.costardi';
+const QB_URL = 'https://costardiv1.github.io/quebrabloco/';
+const openUrl = (u) => { try { window.open(u, '_blank', 'noopener'); } catch (e) { /* ignore */ } };
 let prog = store.get('prog', 0);          // number of stages cleared
 // 1.3: districts went from 3 to 4 stages (plus the boss). Progress saved in the
 // old layout is converted, keeping the district and the stages cleared in it.
@@ -172,27 +173,29 @@ function skipTutorial() {
 
 function markSeen(k) { seen[k] = true; store.set('seen', seen); }
 
-// A run ends at a game over: it goes to the local records and, when it was
-// played without the dev mode, to the online leaderboard.
-function finishRun(score, stage) {
-  if (score > 0) {
-    runs.push({ score, stage, date: Date.now() });
-    runs.sort((a, b) => b.score - a.score);
-    runs = runs.slice(0, 10);
-    store.set('runs', runs);
-    if (!run.dev && !opts.dev) submitRun({ score, cleared: run.cleared, stage, version: VERSION });
+// An endless run ends: it goes to the local records and, when it was played
+// without the dev mode, to the online leaderboard.
+let endlessDev = false;
+function finishEndless(t) {
+  const E = game.endless;
+  newBest = t > bestT;
+  if (newBest) { bestT = t; store.set('bestT', bestT); }
+  if (t > 0) {
+    eruns.push({ t, bosses: E.bosses, date: Date.now() });
+    eruns.sort((a, b) => b.t - a.t);
+    eruns = eruns.slice(0, 10);
+    store.set('eruns', eruns);
+    if (!endlessDev && !opts.dev) submitRun({ score: t, cleared: E.breaks, stage: E.bosses, version: VERSION });
     board.data = [null, null, null];
   }
-  run = { score: 0, cleared: 0, dev: false };
-  store.set('run', run);
 }
+const endlessOpen = () => bossesBeaten() >= 1 || devAll();
 
 const game = new Game({
   onGameOver(score) {
     lastScore = score;
-    newBest = score > best;
-    if (newBest) { best = score; store.set('best', best); }
-    finishRun(score, game.index);
+    if (game.endless) finishEndless(score);
+    else newBest = false;
     setScene('over');
   },
   onEvent(e, data) {
@@ -202,16 +205,19 @@ const game = new Game({
       const st = game.stage;
       if (st.boss && !seen['boss_' + st.boss.type]) {
         markSeen('boss_' + st.boss.type);
-        card = { kicker: `DISTRITO ${st.w + 1}  ·  CHEFÃO`, title: st.boss.name, text: st.boss.text, focus: 'boss' };
+        card = { kicker: (game.endless ? 'INFINITO' : `DISTRITO ${st.w + 1}`) + '  ·  CHEFÃO', title: st.boss.name, text: st.boss.text, focus: 'boss' };
         showCard();
       } else if (st.mech && !seen[st.mech]) {
         markSeen(st.mech);
-        const extra = st.w > 0 ? ' Continuam valendo: ' + worldMechs(st.w - 1).map((m) => MECHS[m].name).join(', ') + '.' : '';
         const caps = Object.values(POWERS).filter((v) => v.d === st.w + 1).map((v) => v.label);
         const news = st.w > 0 && caps.length ? ' Cápsulas novas: ' + caps.join(' e ') + '.' : '';
-        card = { kicker: `DISTRITO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text + extra + news, focus: 'mech' };
+        card = { kicker: `DISTRITO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text + news, focus: 'mech' };
         showCard();
       }
+      return;
+    }
+    if (e === 'endlessMech') {
+      if (!seen[data]) { markSeen(data); card = { kicker: 'INFINITO  ·  NOVA MECÂNICA', title: MECHS[data].name, text: MECHS[data].text, focus: 'mech' }; showCard(); }
       return;
     }
     if (e === 'chip') { chips += data; return; }
@@ -219,7 +225,11 @@ const game = new Game({
     if (e === 'stageClear') {
       const nb0 = bossesBeaten();
       prog = Math.max(prog, data + 1); store.set('prog', prog);
-      run.score = game.score; run.cleared++; if (opts.dev) run.dev = true; store.set('run', run);
+      lastScore = game.score;
+      if (game.score > (sbest[data] || 0)) {
+        if (sbest[data]) game.float('NOVO RECORDE DA FASE', W / 2, game.paddle.y - 160, 22);
+        sbest[data] = game.score; store.set('sbest', sbest);
+      }
       const nb1 = bossesBeaten();
       if (nb1 > nb0 && SHAPES[nb1]) newShape = SHAPES[nb1].name;
       saveChips();
@@ -229,9 +239,7 @@ const game = new Game({
     if (e === 'worldClear') {
       saveChips();
       reward = game.stageCoins > 0 ? { n: game.stageCoins, back: 'world', done: false } : null;
-      if (game.world.final) { finishRun(game.score, game.index); startCrash(); return; }
-      lastScore = game.score;
-      if (game.score > best) { best = game.score; store.set('best', best); }
+      if (game.world.final) { startCrash(); return; }
       if (game.stage.boss && STORY[game.stage.w]) startStory(game.stage.w);
       else setScene('world');
       return;
@@ -397,11 +405,11 @@ function optionRows() {
 
 // Wipes progress, chips, coins and everything bought with them.
 function resetProgress() {
-  best = 0; seen = {}; prog = 0; run = { score: 0, cleared: 0, dev: false }; runs = []; store.set('run', run); store.set('runs', []); chips = 0; coins = 0; equip = null; equipP = null; seenShape = 0; store.set('seenShape', 0);
+  sbest = {}; bestT = 0; eruns = []; store.set('sbest', {}); store.set('bestT', 0); store.set('eruns', []); seen = {}; prog = 0; chips = 0; coins = 0; equip = null; equipP = null; seenShape = 0; store.set('seenShape', 0);
   for (const k in upg) upg[k] = 0;
   Object.assign(owned, { pal: [PALETTES.length - 1], emb: [0, 1], disc: [0], trail: [0] });
   Object.assign(plat, { shape: 0, pal: PALETTES.length - 1, emb: 1, disc: 0, trail: 0, dash: false, detail: true });
-  store.set('best', 0); store.set('seen', {}); store.set('tutDone', false); store.set('prog', 0); store.set('plat', plat);
+  store.set('seen', {}); store.set('tutDone', false); store.set('prog', 0); store.set('plat', plat);
   saveChips();
   optMsg = { text: 'PROGRESSO RESETADO', t: performance.now() / 1000 };
 }
@@ -581,8 +589,9 @@ function renderPerks(c, now) {
 
 // ---------- alerts: "!" where there is something new or affordable ----------
 function drawBang(c, x, y, r = 11) {
+  r *= 0.62;
   c.beginPath(); c.arc(x, y, r, 0, TAU);
-  c.fillStyle = '#ffd84a'; c.shadowColor = '#ffd84a'; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
+  c.fillStyle = 'rgba(255,216,74,0.85)'; c.fill();
   c.fillStyle = '#000'; c.font = `900 ${Math.round(r * 1.5)}px ${BODY_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
   c.fillText('!', x, y + 1);
   c.textBaseline = 'alphabetic';
@@ -1187,8 +1196,8 @@ function creditButtons() {
       label: ok ? bossOf(w).name : '? ? ?', fn: ok ? () => startStory(w, 'credits') : null, small: true, fs: 12, off: !ok });
   }
   const ly = H - 190;
-  list.push(btn(cx - 158, ly, 300, 62, 'REPOSITÓRIO  ↗', () => { try { window.open(REPO_URL, '_blank', 'noopener'); } catch (e) { /* ignore */ } }, { small: true, fs: 14 }));
-  list.push(btn(cx + 158, ly, 300, 62, 'INSTAGRAM  ·  EM BREVE', null, { small: true, fs: 13, off: true }));
+  list.push(btn(cx - 158, ly, 300, 62, 'REPOSITÓRIO  ↗', () => openUrl(REPO_URL), { small: true, fs: 14 }));
+  list.push(btn(cx + 158, ly, 300, 62, 'INSTAGRAM  ↗', () => openUrl(INSTA_URL), { small: true, fs: 14 }));
   list.push(btn(cx, H - 90, 400, 76, 'VOLTAR', () => setScene('menu')));
   return list;
 }
@@ -1296,13 +1305,13 @@ function renderScores(c, now) {
     };
     const center = (t, y, size = 17, a = 0.8) => glowText(c, t, cx, y, size, rgba('#ffffff', a), k, 'center', 600, 2);
     if (board.tab === 0) {
-      glowText(c, 'RECORDE  ' + best, cx, top - 12, 18, k, k, 'center', 700, 4);
-      if (!runs.length) center('NENHUMA PARTIDA AINDA', top + 80);
-      runs.slice(0, maxRows - 1).forEach((r, i) => {
+      glowText(c, 'RECORDE  ' + fmtTime(bestT), cx, top - 12, 18, k, k, 'center', 700, 4);
+      if (!eruns.length) center('NENHUMA PARTIDA NO INFINITO AINDA', top + 80);
+      eruns.slice(0, maxRows - 1).forEach((r, i) => {
         const d = new Date(r.date), dd = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
-        row(i + 1, '#' + (i + 1), stageLabel(Math.min(r.stage, TOTAL_STAGES - 1)) + '   ' + dd, String(r.score), false);
+        row(i + 1, '#' + (i + 1), dd + '   ·   ' + r.bosses + (r.bosses === 1 ? ' chefão' : ' chefões'), fmtTime(r.t), false);
       });
-      center('O placar soma as fases até o fim de jogo.', H - 250, 14, 0.55);
+      center('Tempo sobrevivido no modo INFINITO.', H - 250, 14, 0.55);
     } else if (!ONLINE) {
       center('PLACAR ONLINE EM BREVE', top + 80, 20, 0.9);
       center('O servidor ainda não foi ligado.', top + 120, 15, 0.6);
@@ -1313,11 +1322,11 @@ function renderScores(c, now) {
       else if (d) {
         const me = d.me, mine = getName();
         if (!d.rows.length) center('NINGUÉM NO PLACAR AINDA', top + 80);
-        d.rows.slice(0, maxRows - 1).forEach((r, i) => row(i, '#' + r.pos, r.name, String(r.score), !!me && me.pos === r.pos && r.name === mine));
+        d.rows.slice(0, maxRows - 1).forEach((r, i) => row(i, '#' + r.pos, r.name, fmtTime(r.score), !!me && me.pos === r.pos && r.name === mine));
         const y = top + (maxRows - 1) * step + 14;
         if (!mine) center('Escolha um apelido para aparecer aqui.', y, 15, 0.7);
-        else if (me) center('VOCÊ:  #' + me.pos + '   ·   ' + me.score, y, 17, 0.95);
-        else center('Termine uma partida para entrar no placar.', y, 15, 0.7);
+        else if (me) center('VOCÊ:  #' + me.pos + '   ·   ' + fmtTime(me.score), y, 17, 0.95);
+        else center('Jogue o INFINITO para entrar no placar.', y, 15, 0.7);
       }
     }
   }
@@ -1450,7 +1459,8 @@ devUI = createDevPanel({
   gfxMobile: () => presetGfx(GFX_MOBILE), gfxPC: () => presetGfx(GFX_PC),
   getFreeze: () => freeze, setFreeze: (v) => { freeze = v; },
   addChips: (n) => { chips += n; saveChips(); }, addCoins: (n) => { coins += n; saveChips(); },
-  goStage: (i) => { game.index = i; game.loadLevel(); },
+  goStage: (i) => { if (game.endless) return; game.index = i; game.loadLevel(); },
+  endlessSkip: () => game.devEndlessSkip(), endlessBoss: () => game.devEndlessBoss(),
   testStory: () => startStory(Math.max(0, Math.min(STORY.length - 1, bossesBeaten() - 1))),
   testCrash: () => startCrash(), toMap: () => setScene('map'),
   cycle: (key, n) => cycle(key, 1, n),
@@ -1469,7 +1479,8 @@ function layout() {
         ['trophy', 'PLACAR', openScores], ['star', 'CRÉDITOS', () => setScene('credits')]];
       return [
         btn(cx, y, bw, 88, 'JOGAR', () => setScene('map'), { big: true, fs: 30 }),
-        btn(cx, y + 104, bw, bh, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert() }),
+        btn(cx - bw / 4 - 6, y + 104, bw / 2 - 12, bh, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert(), fs: 17 }),
+        btn(cx + bw / 4 + 6, y + 104, bw / 2 - 12, bh, endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', endlessOpen() ? startEndless : () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; }, { fs: 17, off: !endlessOpen() }),
         Object.assign(bellRect(), { label: '', fn: () => setScene('notif'), bell: true }),
         ...icons.map(([icon, label, fn], i) => ({ x: cx - bw / 2 + i * (s + gap), y: iy, w: s, h: s, label, fn, icon })),
       ];
@@ -1508,12 +1519,17 @@ function layout() {
     case 'pause':
       return [
         btn(cx, H * 0.48, bw, bh, 'CONTINUAR', () => setScene('play'), { big: true }),
-        btn(cx, H * 0.48 + 100, bw, bh, 'MAPA', () => setScene('map')),
+        btn(cx, H * 0.48 + 100, bw, bh, game.endless ? 'RECOMEÇAR' : 'MAPA', () => (game.endless ? startEndless() : setScene('map'))),
         btn(cx, H * 0.48 + 200, bw, bh, 'MENU', () => setScene('menu')),
         btn(cx - 102, H * 0.48 + 300, 196, 64, 'EFEITOS: ' + (sfx.enabled ? 'SIM' : 'NÃO'), toggleSfx, { fs: 14, on: sfx.enabled }),
         btn(cx + 102, H * 0.48 + 300, 196, 64, 'MÚSICA: ' + (sfx.musicOn ? 'SIM' : 'NÃO'), toggleMusic, { fs: 14, on: sfx.musicOn }),
       ];
     case 'over':
+      if (game.endless) return [
+        btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', startEndless, { big: true }),
+        btn(cx, H * 0.6 + 100, bw, bh, 'PLACAR', openScores),
+        btn(cx, H * 0.6 + 200, bw, bh, 'MENU', () => setScene('menu')),
+      ];
       return [
         btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', () => startGame(game.index), { big: true }),
         btn(cx, H * 0.6 + 100, bw, bh, 'MAPA', () => setScene('map')),
@@ -1538,8 +1554,11 @@ function layout() {
         btn(cx, H * 0.6, bw, bh, 'DOBRAR MOEDAS  ·  ANÚNCIO', startAd, { big: true, fs: 17, ad: true }),
         btn(cx, H * 0.6 + 100, bw, bh, 'CONTINUAR', () => setScene('play')),
       ];
-    case 'ad':
-      return adDone(performance.now() / 1000) ? [btn(W - 110, safeTop + 60, 170, 56, 'FECHAR  ✕', finishAd, { fs: 15 })] : [];
+    case 'ad': {
+      const list = adDone(performance.now() / 1000) ? [btn(W - 110, safeTop + 60, 170, 56, 'FECHAR  ✕', finishAd, { fs: 15 })] : [];
+      if (ad && ad.kind === 'quebrabloco') list.push({ x: W / 2 - 170, y: H - 330 + 170 - 36, w: 340, h: 70, label: '', fn: () => openUrl(QB_URL), hidden: true });
+      return list;
+    }
     case 'card': {
       const box = cardBox();
       const y = box.y + box.h - 62;
@@ -1558,6 +1577,14 @@ function layout() {
 
 function inside(b, p) { return p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h; }
 
+let menuMsg = null;
+function startEndless() {
+  startGame(0);
+  tut = null; game.tutorial = false;
+  endlessDev = opts.dev;
+  game.newEndless();
+}
+
 function startGame(index = 0) {
   game.plat = plat;
   game.setColor(col());
@@ -1571,9 +1598,8 @@ function startGame(index = 0) {
   game.tutorial = firstTime;
   card = null;
   freeze = false;
-  if (opts.dev) run.dev = true;
   setScene('play');
-  game.newGame(index, run.score);
+  game.newGame(index);
 }
 
 // ---------- input ----------
@@ -1774,16 +1800,20 @@ function drawButton(c, b) {
     c.globalAlpha = 1;
     return;
   }
+  if (b.off) c.globalAlpha = 0.45;
   roundRectPath(c, b.x, b.y, b.w, b.h, 16);
   c.fillStyle = rgba(k, down ? 0.18 : 0.04);
   c.fill();
   neonStroke(c, k, k, b.big ? 3.2 : 2.2, b.x, b.y, b.x + b.w, b.y + b.h, b.big ? 1 : 0.6);
-  c.strokeStyle = rgba(k, 0.9); c.lineWidth = 2;
-  c.beginPath();
-  c.moveTo(b.x + 26, b.y + b.h + 9); c.lineTo(b.x + 70, b.y + b.h + 9);
-  c.moveTo(b.x + b.w - 70, b.y - 9); c.lineTo(b.x + b.w - 26, b.y - 9);
-  c.stroke();
+  if (b.w >= 300) {   // the small accent lines (only on the wide buttons)
+    c.strokeStyle = rgba(k, 0.9); c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(b.x + 26, b.y + b.h + 9); c.lineTo(b.x + 70, b.y + b.h + 9);
+    c.moveTo(b.x + b.w - 70, b.y - 9); c.lineTo(b.x + b.w - 26, b.y - 9);
+    c.stroke();
+  }
   glowText(c, b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, b.fs || (b.big ? 26 : 21), '#ffffff', k, 'center', 700, b.fs ? 2 : 5);
+  c.globalAlpha = 1;
 }
 
 function drawColorTile(c, b) {
@@ -2105,7 +2135,7 @@ function renderMap(c, now) {
     if (!vis(s0.y)) continue;
     const right = s0.x < W / 2, x = right ? W - 26 : 26, y = s0.y + 18;
     const wd = WORLDS[d.w], open = districtOpen(d.w);
-    const ms = wd.soon ? [] : worldMechs(d.w), SLOT = ms.length > 7 ? 40 : ms.length > 5 ? 50 : ms.length > 3 ? 62 : 86;
+    const ms = districtMechs(d.w), SLOT = ms.length > 7 ? 40 : ms.length > 5 ? 50 : ms.length > 3 ? 62 : 86;
     // 8+ mechanics: two rows of up to 5 icons, so the panel stays clear of the stage nodes
     const PER = ms.length > 7 ? 5 : ms.length, ROWS = Math.ceil(ms.length / Math.max(1, PER));
     c.font = `700 22px "Orbitron", sans-serif`;
@@ -2180,6 +2210,12 @@ function drawNode(c, b, now) {
     c.strokeStyle = '#ffffff'; c.lineWidth = 2.5; c.stroke();
   }
   if (!open) { c.strokeStyle = rgba(k, 0.9); c.lineWidth = 2; c.strokeRect(p.x - 7, p.y + r * 0.35, 14, 10); }
+  if (sbest[i]) {   // the stage's best score, under it
+    c.font = `700 12px "Orbitron", sans-serif`;
+    const t = String(sbest[i]), tw = c.measureText(t).width + 14;
+    c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(p.x - tw / 2, p.y + r + 6, tw, 18);
+    glowText(c, t, p.x, p.y + r + 16, 12, rgba('#ffffff', 0.85), k, 'center', 700, 1);
+  }
   c.globalAlpha = 1;
 }
 
@@ -2272,8 +2308,12 @@ function render() {
     renderDemo(ctx);
     neonTitle(ctx, 'NEON', W / 2, H * 0.17, 130, k, k, 18);
     neonTitle(ctx, 'BREAKER', W / 2, H * 0.17 + 110, 58, mix(k, '#ffffff', 0.4), k, 18);
-    if (best > 0) glowText(ctx, 'RECORDE  ' + best, W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
-    if (run.score > 0) glowText(ctx, 'PLACAR DA PARTIDA  ' + run.score, W / 2, H * 0.17 + 212, 14, rgba('#ffffff', 0.7), k, 'center', 500, 4);
+    if (bestT > 0) glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
+    if (menuMsg && now - menuMsg.t < 2) {
+      ctx.globalAlpha = Math.min(1, (2 - (now - menuMsg.t)) * 2);
+      glowText(ctx, menuMsg.text, W / 2, H * 0.47 + 166, 14, '#ffffff', k, 'center', 700, 3);
+      ctx.globalAlpha = 1;
+    }
     drawPlatform(ctx, plat, W / 2, H - 150, BASE_HW, now, k);
     const vt = performance.now() - verTaps.t < 1500 ? verTaps.n : 0;
     glowText(ctx, 'v' + VERSION, W - 24, H - 22, 12 + vt, rgba(k, 0.6 + vt * 0.08), k, 'right', 500, 2);
@@ -2316,8 +2356,13 @@ function render() {
     } else if (scene === 'over') {
       dim(ctx, 0.7);
       neonTitle(ctx, 'FIM DE JOGO', W / 2, H * 0.3, 60, k, k, 12);
-      glowText(ctx, String(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
-      glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + best, W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
+      if (game.endless) {
+        glowText(ctx, fmtTime(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
+        glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + fmtTime(bestT), W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
+      } else {
+        glowText(ctx, String(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
+        if (sbest[game.index]) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
+      }
     } else if (scene === 'world') {
       dim(ctx, 0.7);
       glowText(ctx, `DISTRITO ${game.stage.w + 1}  ·  ${game.world.name}`, W / 2, H * 0.28, 22, rgba(k, 0.9), k, 'center', 700, 8);

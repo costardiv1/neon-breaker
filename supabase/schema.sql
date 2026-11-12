@@ -1,4 +1,4 @@
--- Neon Breaker: online leaderboard.
+-- Neon Breaker: online leaderboard of the INFINITO mode (time survived).
 -- Run this once in the Supabase project (SQL Editor > New query > Run).
 -- Then put the project URL and the anon public key in www/js/online.js.
 
@@ -6,9 +6,9 @@ create table if not exists public.scores (
   id         bigint generated always as identity primary key,
   player     uuid        not null,             -- random id of the device
   name       text        not null,             -- nickname, 3 to 10 letters/digits
-  score      integer     not null,
-  cleared    integer     not null,             -- stages cleared in the run
-  stage      integer     not null,             -- stage where the run ended
+  score      integer     not null,             -- seconds survived
+  cleared    integer     not null,             -- bricks broken in the run
+  stage      integer     not null,             -- bosses defeated in the run
   version    text        not null,
   created_at timestamptz not null default now()
 );
@@ -25,12 +25,15 @@ create or replace function public.submit_score(
 returns void language plpgsql security definer set search_path = public as $$
 begin
   if p_name !~ '^[A-Z0-9]{3,10}$' then raise exception 'invalid name' using errcode = '22023'; end if;
-  if p_score <= 0 or p_cleared < 0 or p_cleared > 5000 or p_stage < 0 or p_stage > 100
+  if p_score <= 0 or p_score > 6 * 3600 or p_cleared < 0 or p_stage < 0
      or length(p_version) > 12 then
     raise exception 'invalid data' using errcode = '22023';
   end if;
-  -- points per stage have a ceiling; a run cannot have more than that
-  if p_score > (p_cleared + 1) * 10000 then raise exception 'impossible score' using errcode = '22023'; end if;
+  -- a run cannot break bricks or beat bosses faster than the game allows
+  -- (a boss shows up every 3.5 minutes)
+  if p_cleared > (p_score + 60) * 12 or p_stage > p_score / 200 + 1 then
+    raise exception 'impossible run' using errcode = '22023';
+  end if;
   -- at most one run every 20 seconds per device
   if exists (select 1 from scores where player = p_player and created_at > now() - interval '20 seconds') then
     raise exception 'too fast' using errcode = '22023';

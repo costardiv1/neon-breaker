@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.5** (10/11/2026)
+Versão atual publicada: **1.6** (11/11/2026)
 
 ## Objetivos
 
@@ -17,6 +17,17 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 _Nenhuma sugestão pendente._
 
 ## Histórico
+
+### 1.6 (11/11/2026)
+
+- [x] Modo INFINITO: blocos descendo sem parar, mecânicas que se revezam (no máximo 4), chefão aleatório a cada 3 min 30 s; placar (local e online) pelo tempo sobrevivido.
+- [x] Pontuação da campanha por fase, com o recorde de cada fase no mapa.
+- [x] TARJA virou VAZAMENTO (tarjas sólidas e bloco de vazamento), também no CENSOR.
+- [x] Mecânicas não se acumulam mais todas: cada fase usa a do distrito e no máximo 1 ou 2 antigas.
+- [x] Cápsulas de 18 para 13, todas até o distrito 6; BOMBA nova; PERFURAR absorveu o FANTASMA.
+- [x] ! de novidade mais sutil.
+- [x] Links: Instagram nos créditos e Quebrabloco no anúncio de teste.
+- [x] Foto da SINGULARIDADE no README.
 
 ### 1.5 (10/11/2026)
 
@@ -102,4 +113,3 @@ _Nenhuma sugestão pendente._
 - As capturas 03 a 17 da documentação são anteriores à 1.3 (numeração antiga das fases no topo da tela).
 - Os anúncios são de teste; os de verdade dependem de uma conta de anúncios na Play Store.
 - O placar online está desligado: falta criar o projeto no Supabase, rodar supabase/schema.sql e colocar a URL e a chave pública em www/js/online.js.
-- O placar acumulado pode ser engordado rejogando fases fáceis sem morrer; vale rever quando o placar online estiver no ar.

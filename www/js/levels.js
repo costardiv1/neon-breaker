@@ -1,8 +1,10 @@
-// Worlds (city districts): each adds ONE new mechanic and keeps the ones from
-// the previous districts (cumulative). Each has its own music and border-light
-// style, a list of stages and a boss that guards the frontier to the next.
+// Worlds (city districts): each brings ONE new mechanic. Mechanics no longer
+// pile up: a stage uses its district's mechanic plus the older ones it picks
+// (`also`, or its own field pieces: wells, portals, bars, beams, V, B).
+// Each district has its own music and border-light style, a list of stages and
+// a boss that guards the frontier to the next.
 // Rows: 9 columns. '.' empty, '1'..'4' hits needed, 'X' wall, 'E' explosive,
-// 'V' infected (CONTÁGIO), 'B' shielded underneath (BLINDAGEM).
+// 'V' infected (CONTÁGIO), 'B' shielded underneath (BLINDAGEM), 'L' leak (VAZAMENTO).
 // Every district has 4 stages and a boss.
 
 export const MECHS = {
@@ -14,7 +16,7 @@ export const MECHS = {
   phase:    { name: 'FASE',      text: 'Blocos tracejados estão fora de fase: o disco atravessa.' },
   descent:  { name: 'PRESSÃO',   text: 'Os blocos descem. Se tocarem a linha de alerta, você perde uma vida.' },
   viral:    { name: 'CONTÁGIO',  text: 'Blocos com o símbolo de vírus criam blocos novos ao redor. Destrua-os primeiro.' },
-  censor:   { name: 'TARJA',     text: 'Tarjas pretas escondem parte do campo. O que está atrás continua lá.' },
+  censor:   { name: 'VAZAMENTO', text: 'Tarjas pretas deslizam sobre os blocos e rebatem o disco. Acerte o bloco com a gota para derrubar todas por alguns segundos.' },
   armor:    { name: 'BLINDAGEM', text: 'Blocos com placa embaixo são blindados por baixo: acerte por cima ou pelos lados.' },
   alarm:    { name: 'SEGURANÇA', text: 'Feixes de segurança ligam e desligam. Ligados, rebatem o disco.' },
 };
@@ -65,7 +67,7 @@ export const WORLDS = [
         '111111111',
         '..1111...',
       ] },
-      { name: 'PING ALTO', wells: [[0.28, 0.36], [0.72, 0.55]], rows: [
+      { name: 'PING ALTO', also: ['slide'], wells: [[0.28, 0.36], [0.72, 0.55]], rows: [
         '222222222',
         '.11111...',
         '...11111.',
@@ -78,7 +80,7 @@ export const WORLDS = [
         '111111111',
         '..11111..',
       ] },
-      { name: 'CORUJÃO', wells: [[0.3, 0.5], [0.7, 0.5]], rows: [
+      { name: 'CORUJÃO', also: ['slide'], wells: [[0.3, 0.5], [0.7, 0.5]], rows: [
         '33.222.33',
         '.2222222.',
         '11.111.11',
@@ -92,7 +94,7 @@ export const WORLDS = [
     boss: { type: 'supervisor', name: 'O SUPERVISOR',
       text: 'Acerte o olho no topo da pirâmide quando ele abrir.' },
     stages: [
-      { name: 'EXPEDIENTE', rows: [
+      { name: 'EXPEDIENTE', also: ['slide'], rows: [
         '222222222',
         '111111111',
         '.1.1.1.1.',
@@ -110,7 +112,7 @@ export const WORLDS = [
         'X.......X',
         '..11111..',
       ] },
-      { name: 'BANCO DE HORAS', rows: [
+      { name: 'BANCO DE HORAS', also: ['slide'], rows: [
         '3X33333X3',
         '222222222',
         '.1111111.',
@@ -138,7 +140,7 @@ export const WORLDS = [
         '111111111',
         '..2...2..',
       ] },
-      { name: 'TRÊS DA MANHÃ', rows: [
+      { name: 'TRÊS DA MANHÃ', also: ['descent'], rows: [
         'X2222222X',
         '.1111111.',
         '3.33333.3',
@@ -160,7 +162,7 @@ export const WORLDS = [
     boss: { type: 'patent', name: 'A PATENTE',
       text: 'Acerte a fechadura embaixo do cadeado quando ela abrir.' },
     stages: [
-      { name: 'HELLO WORLD', portals: [[0.14, 0.4, 0.86, 0.4]], rows: [
+      { name: 'HELLO WORLD', also: ['slide'], portals: [[0.14, 0.4, 0.86, 0.4]], rows: [
         '.2222222.',
         '.1111111.',
         '22.222.22',
@@ -172,7 +174,7 @@ export const WORLDS = [
         '.22222.2.',
         '111111111',
       ] },
-      { name: 'COMMIT', portals: [[0.5, 0.62, 0.5, 0.1]], rows: [
+      { name: 'COMMIT', also: ['descent'], portals: [[0.5, 0.62, 0.5, 0.1]], rows: [
         '2E22E22E2',
         '.1111111.',
         'X.33333.X',
@@ -194,7 +196,7 @@ export const WORLDS = [
     boss: { type: 'algorithm', name: 'O ALGORITMO',
       text: 'Acerte o núcleo passando entre os satélites que giram em volta.' },
     stages: [
-      { name: 'PRIMEIRO SHARE', rows: [
+      { name: 'PRIMEIRO SHARE', also: ['slide'], rows: [
         '..22222..',
         '.1111111.',
         '....V....',
@@ -214,7 +216,7 @@ export const WORLDS = [
         '.1111111.',
         '..2...2..',
       ] },
-      { name: 'MIL CÓPIAS', rows: [
+      { name: 'MIL CÓPIAS', also: ['descent'], rows: [
         'X..V.V..X',
         '.2222222.',
         '.V.....V.',
@@ -229,31 +231,31 @@ export const WORLDS = [
     boss: { type: 'censor', name: 'O CENSOR',
       text: 'Acerte a lente quando a tarja do meio abrir.' },
     stages: [
-      { name: 'FORA DO AR', bars: 1, rows: [
+      { name: 'FORA DO AR', also: ['slide'], bars: 1, rows: [
         '222222222',
         '.1111111.',
         '222222222',
-        '.1111111.',
+        '.111L111.',
       ] },
       { name: 'TARJA PRETA', bars: 2, rows: [
         '3.33333.3',
         '111111111',
         '.22.2.22.',
         '111111111',
-        '..2.V.2..',
+        '..2.L.2..',
       ] },
       { name: 'DENÚNCIA', bars: 1, portals: [[0.12, 0.55, 0.88, 0.12]], rows: [
         'X3333333X',
         '.2222222.',
-        'V.11111.V',
+        '..11111..',
         '.2222222.',
-        '..1E1E1..',
+        'L.1E1E1..',
       ] },
       { name: 'ESPELHO', bars: 2, wells: [[0.5, 0.5]], rows: [
         '33.333.33',
         '2.22222.2',
         '.1111111.',
-        'X.2V2V2.X',
+        'X.22L22.X',
         '.1111111.',
         '..22.22..',
       ] },
@@ -265,13 +267,13 @@ export const WORLDS = [
     boss: { type: 'armored', name: 'O BLINDADO',
       text: 'O escudo gira para encarar o disco. Acerte o núcleo pelo lado aberto.' },
     stages: [
-      { name: 'MUTIRÃO', rows: [
+      { name: 'MUTIRÃO', also: ['descent'], rows: [
         '..22222..',
         '.BBBBBBB.',
         '.1111111.',
         '..1...1..',
       ] },
-      { name: 'RÁDIO PIRATA', rows: [
+      { name: 'RÁDIO PIRATA', also: ['slide'], rows: [
         '2.2.2.2.2',
         'BB.BBB.BB',
         '.2222222.',
@@ -290,7 +292,7 @@ export const WORLDS = [
         '.2222222.',
         'B.2E2E2.B',
         '.1111111.',
-        'BB..1..BB',
+        'BB..L..BB',
       ] },
     ],
   },
@@ -306,7 +308,7 @@ export const WORLDS = [
         '.1111111.',
         '..11111..',
       ] },
-      { name: 'ELEVADOR', beams: [[0.05, 0.52, 0.14, 0], [0.48, 0.95, 0.14, 2.2]], rows: [
+      { name: 'ELEVADOR', also: ['slide'], beams: [[0.05, 0.52, 0.14, 0], [0.48, 0.95, 0.14, 2.2]], rows: [
         '33.333.33',
         '.BBBBBBB.',
         '222222222',
@@ -315,12 +317,12 @@ export const WORLDS = [
       ] },
       { name: 'ANDAR 99', beams: [[0.1, 0.9, 0.1, 0], [0.22, 0.78, 0.4, 1.5]], portals: [[0.12, 0.7, 0.88, 0.7]], rows: [
         'X3333333X',
-        '.2V222V2.',
-        'B.11111.B',
+        '.2222222.',
+        '..11111..',
         '.2222222.',
         '...E.E...',
       ] },
-      { name: 'COBERTURA', bars: 1, beams: [[0.1, 0.9, 0.1, 0], [0.05, 0.47, 0.36, 1], [0.53, 0.95, 0.36, 3]], rows: [
+      { name: 'COBERTURA', beams: [[0.1, 0.9, 0.1, 0], [0.05, 0.47, 0.36, 1], [0.53, 0.95, 0.36, 3]], rows: [
         '4.33333.4',
         '.BBBBBBB.',
         '3.22222.3',
@@ -356,9 +358,35 @@ export function stageLabel(i) {
   return `${w + 1}-${s + 1}`;
 }
 
-// Mechanics active in world w: its own plus every previous world's.
+// Every district mechanic up to world w (bosses still use all of them).
 export function worldMechs(w) {
   return WORLDS.slice(0, w + 1).map((x) => x.mech).filter(Boolean);
+}
+
+// Mechanics a stage uses: the district's own, the older ones it picks and the
+// ones its field pieces bring.
+function stageMechs(world, st) {
+  const own = st.mech === undefined ? world.mech : st.mech;
+  if (!own) return [];
+  const m = new Set([own, ...(st.also || [])]);
+  if (st.wells) m.add('gravity');
+  if (st.portals) m.add('portals');
+  if (st.bars) m.add('censor');
+  if (st.beams) m.add('alarm');
+  const rows = (st.rows || []).join('');
+  if (rows.includes('V')) m.add('viral');
+  if (rows.includes('B')) m.add('armor');
+  return [...m];
+}
+
+// Mechanics that show up in world w, oldest first (for the map).
+const ORDER = WORLDS.map((x) => x.mech).filter(Boolean);
+export function districtMechs(w) {
+  const wd = WORLDS[w];
+  if (wd.soon) return [];
+  const m = new Set([wd.mech]);
+  for (const st of wd.stages) for (const k of stageMechs(wd, st)) m.add(k);
+  return [...m].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
 }
 
 export function getStage(i) {
@@ -368,5 +396,5 @@ export function getStage(i) {
   if (s === worldCount(w) - 1) return { w, s, world, mech: world.mech, mechs: all, boss: world.boss, rows: [] };
   const st = world.stages[s];
   const mech = st.mech === undefined ? world.mech : st.mech;
-  return { w, s, world, mech, mechs: mech ? all : [], rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, beams: st.beams, name: st.name };
+  return { w, s, world, mech, mechs: stageMechs(world, st), rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, beams: st.beams, name: st.name };
 }

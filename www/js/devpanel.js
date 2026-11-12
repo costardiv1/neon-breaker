@@ -112,7 +112,15 @@ export function createDevPanel(api) {
     const worlds = api.WORLDS.map((wd, i) => (wd.soon ? '' : b(String(i + 1), () => api.goStage(api.worldStart(i)), i === w ? 'on' : ''))).join('');
     const n = api.worldCount(w), s0 = api.worldStart(w);
     const stages = Array.from({ length: n }, (_, i) => b(i === n - 1 ? '👑' : String(i + 1), () => api.goStage(s0 + i), s0 + i === g.index ? 'on' : '')).join('');
-    const mundo = [
+    const mundo = g.endless ? [
+      `<div class="lb"><span>Infinito · ${esc(g.endless.mechs.length ? g.endless.mechs.length + ' mecânicas' : 'sem mecânicas')}</span></div>`,
+      `<div class="grid">${[
+        b('⏩ Próxima mecânica', api.endlessSkip),
+        b('👑 Chefão agora', api.endlessBoss),
+        b(g.boss ? '☠️ Matar chefão' : '🧹 Limpar blocos', () => g.devClear()),
+        b('😡 Modo fúria', () => g.devFury()),
+      ].join('')}</div>`,
+    ].join('') : [
       `<div class="lb"><span>Distrito</span><output>${w + 1}</output></div><div class="row num">${worlds}</div>`,
       `<div class="lb"><span>Fase · ${esc(st ? api.stageLabel(g.index) : '')}</span></div><div class="row num">${stages}</div>`,
       `<div class="grid">${[

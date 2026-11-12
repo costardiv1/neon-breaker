@@ -1,4 +1,6 @@
 // ---------- online leaderboard (Supabase) ----------
+// Runs of the INFINITO mode: score = seconds survived, cleared = bricks broken,
+// stage = bosses defeated.
 // Off until the project URL and its public (anon) key are filled in below.
 // The database side is in supabase/schema.sql. The table is never touched
 // directly: the game only calls two functions, submit_score and top_scores.

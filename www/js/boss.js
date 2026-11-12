@@ -255,7 +255,7 @@ class Sentinel extends Boss {
 
   collide(b) {
     if (this.dead) return false;
-    const ghost = !!this.g.effects.ghost;
+    const ghost = !!this.g.effects.pierce;
     const hit = !ghost && collideRect(b, this.cx - this.hw, this.y0 - this.hh, this.hw * 2, this.hh * 2);
     if (hit) { sfx.clang(); this.g.ring(b.x, b.y, 40); return true; }
     if (!ghost) for (const pl of this.plates) {
@@ -442,7 +442,7 @@ class Singularity extends Boss {
     if (this.dead) return false;
     const dx = b.x - this.cx, dy = b.y - this.cy, d = Math.hypot(dx, dy);
     // ring blocks only from the outside, except through the gap
-    if (!this.g.effects.ghost && d > this.R && d < this.R + this.th / 2 + b.r && !this.inGap(b.x, b.y)) {
+    if (!this.g.effects.pierce && d > this.R && d < this.R + this.th / 2 + b.r && !this.inGap(b.x, b.y)) {
       const nx = dx / d, ny = dy / d, dot = b.vx * nx + b.vy * ny;
       if (dot < 0) { b.vx -= 2 * dot * nx; b.vy -= 2 * dot * ny; }
       b.x = this.cx + nx * (this.R + this.th / 2 + b.r + 0.5); b.y = this.cy + ny * (this.R + this.th / 2 + b.r + 0.5);
@@ -658,7 +658,7 @@ class System extends Boss {
 
   collide(b) {
     if (this.dead) return false;
-    if (!this.g.effects.ghost) {
+    if (!this.g.effects.pierce) {
       for (const t of this.tiers) if (collideRect(b, t.x, t.y, t.w, t.h)) { sfx.clang(); return true; }
     }
     if (collideCircle(b, this.cx, this.cy, this.coreR)) {
@@ -852,7 +852,7 @@ class Clock extends Boss {
 
   collide(b) {
     if (this.dead) return false;
-    if (!this.g.effects.ghost) {
+    if (!this.g.effects.pierce) {
       for (const h of this.hands()) if (collideSeg(b, h.x0, h.y0, h.x1, h.y1, h.w)) { sfx.clang(); this.g.ring(b.x, b.y, 36); return true; }
       for (const k of this.knobs()) if (collideCircle(b, k.x, k.y, k.r)) { sfx.clang(); return true; }
     }
@@ -1034,7 +1034,7 @@ class Patent extends Boss {
 
   collide(b) {
     if (this.dead) return false;
-    if (!this.g.effects.ghost) {
+    if (!this.g.effects.pierce) {
       if (collideRect(b, this.cx - this.bw / 2, this.y0, this.bw, this.bh)) { sfx.clang(); this.g.ring(b.x, b.y, 40); return true; }
       for (const q of this.shackle()) if (collideCircle(b, q.x, q.y, 9)) { sfx.clang(); return true; }
     }
@@ -1185,7 +1185,7 @@ class Algorithm extends Boss {
 
   collide(b) {
     if (this.dead) return false;
-    if (!this.g.effects.ghost) for (const s of this.sats()) {
+    if (!this.g.effects.pierce) for (const s of this.sats()) {
       if (collideCircle(b, s.x, s.y, this.satR)) { sfx.clang(); this.g.ring(b.x, b.y, 40); return true; }
     }
     if (collideCircle(b, this.cx, this.cy, this.coreR)) {
@@ -1301,7 +1301,7 @@ class Censor extends Boss {
 
   collide(b) {
     if (this.dead) return false;
-    if (!this.g.effects.ghost) for (const pl of this.plates()) {
+    if (!this.g.effects.pierce) for (const pl of this.plates()) {
       if (pl.w > 0 && collideRect(b, pl.x, pl.y, pl.w, pl.h)) { sfx.clang(); this.g.ring(b.x, b.y, 40); return true; }
     }
     if (collideCircle(b, this.cx, this.y0, this.coreR)) {
@@ -1412,7 +1412,7 @@ class Armored extends Boss {
 
   collide(b) {
     if (this.dead) return false;
-    if (!this.g.effects.ghost && this.inShield(b.x, b.y, b.r)) {
+    if (!this.g.effects.pierce && this.inShield(b.x, b.y, b.r)) {
       const dx = b.x - this.cx, dy = b.y - this.cy, d = Math.hypot(dx, dy) || 1;
       const nx = dx / d, ny = dy / d, dot = b.vx * nx + b.vy * ny;
       if (d >= this.shR) {   // outside: bounce outward
@@ -1536,7 +1536,7 @@ class Council extends Boss {
     if (this.dead) return false;
     const seats = this.seats();
     for (let i = 0; i < 3; i++) {
-      if (i !== this.real && this.g.effects.ghost) continue;
+      if (i !== this.real && this.g.effects.pierce) continue;
       if (!collideCircle(b, seats[i].x, seats[i].y, this.seatR)) continue;
       if (i === this.real && this.swapBlink <= 0 && this.coreCool <= 0) { this.coreCool = 0.35; this.damage(this.g.ballDamage()); }
       else { sfx.clang(); this.g.ring(b.x, b.y, 40); }
