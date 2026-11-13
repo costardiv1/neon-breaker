@@ -5,9 +5,9 @@
 # NEON BREAKER
 
 **Um quebra-blocos minimalista em neon, feito para o celular.**
-Rebata o disco, atravesse os distritos de uma cidade cibernética e derrube O SISTEMA.
+Rebata o disco, atravesse os capítulos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.8-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.8.1-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -26,7 +26,7 @@ Rebata o disco, atravesse os distritos de uma cidade cibernética e derrube O SI
 
 Neon Breaker é um *brick breaker* inspirado no clássico e na estética de Tron: fundo preto, uma cor de tema, linhas neon com brilho e um disco que deixa um rastro de luz. Tudo é desenhado em tempo real no canvas e todo o som é sintetizado na hora, sem nenhum arquivo de imagem ou áudio.
 
-Os nomes dos 10 distritos contam a história de um jovem da periferia que passa as noites programando um jogo e, com ele, derruba o sistema. A crítica social é discreta: está nos nomes, nos chefões e no final.
+Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa as noites programando um jogo e, com ele, derruba o sistema. A crítica social é discreta: está nos nomes, nos chefões e no final.
 
 <div align="center">
 <table>
@@ -40,9 +40,9 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 
 ## Destaques
 
-- **9 distritos jogáveis, 45 fases e 9 chefões**, cada um com dois estágios de vida e MODO FÚRIA.
+- **9 capítulos jogáveis, 45 fases e 9 chefões**, cada um com dois estágios de vida e MODO FÚRIA.
 - **A história em capítulos**: a cada chefão derrotado, um terminal digita um trecho do diário de quem está derrubando o sistema.
-- **Uma mecânica nova por distrito**, misturada em cada fase com uma ou duas das antigas.
+- **Uma mecânica nova por capítulo**, misturada em cada fase com uma ou duas das antigas.
 - **Modo INFINITO**: uma fase só, com blocos descendo sem parar, mecânicas que entram e se revezam e um chefão aleatório a cada 3 min 30 s.
 - **Mapa em cidade 3D isométrica**: o caminho das fases é uma rua, com cercas de neon nos portões, carros de luz que passam atrás dos prédios e a torre AURUM no fim.
 - **Plataforma personalizável**: 7 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.
@@ -51,15 +51,15 @@ Os nomes dos 10 distritos contam a história de um jovem da periferia que passa 
 - **Placar do INFINITO** pelo tempo sobrevivido, com as melhores partidas do aparelho e um placar online (Supabase) pronto para ser ligado. Na campanha, cada fase guarda o seu recorde no mapa.
 - **Arquivos dos chefões** nos créditos: releia o diário de cada chefão derrotado.
 - **Avisos de novidade**: um ! no menu BREAKERS quando há algo para comprar ou um formato novo, e um sino com todas as novidades.
-- **13 cápsulas** de poderes e desvantagens que entram até o distrito 6, do míssil teleguiado e da BOMBA ao APAGÃO, que deixa o campo no escuro.
+- **13 cápsulas** de poderes e desvantagens que entram até o capítulo 6, do míssil teleguiado e da BOMBA ao APAGÃO, que deixa o campo no escuro.
 - **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança, a ASA bate as asas, a ONDA ondula e o FUNIL afunda.
-- **Trilha sonora sintetizada** por distrito, cada vez mais rápida e frenética, com a borda do campo pulsando na batida.
+- **Trilha sonora sintetizada** por capítulo, cada vez mais rápida e frenética, com a borda do campo pulsando na batida.
 - **Feito para celular**: toque para levar a plataforma até o dedo, qualidade gráfica ajustável e padrões diferentes para PC e celular.
 - **Modo dev secreto** (5 toques na versão + senha), com um painel flutuante dentro da partida no estilo do Quebrabloco: seções com ícones, controles deslizantes e cápsulas que caem na plataforma com um toque.
 
-## Distritos
+## Capítulos
 
-| # | Distrito | Mecânica nova | Chefão | |
+| # | Capítulo | Mecânica nova | Chefão | |
 |:-:|---|---|---|---|
 | 1 | SUBÚRBIO | DESLIZE: as fileiras deslizam | SENTINELA | ✅ |
 | 2 | LAN HOUSE | GRAVIDADE: núcleos curvam o disco | SINGULARIDADE | ✅ |
@@ -131,7 +131,7 @@ Ao derrotar O SISTEMA, o jogo finge travar: a tela congela e se rasga, e um term
 | Moeda | Como ganhar | Serve para |
 |---|---|---|
 | **Chips** | 1 por bloco, 10 por fase, 5 por acerto no chefão, 60 por chefão | Comprar e evoluir os perks |
-| **Moedas** | Caem de 7% dos blocos e precisam ser pegas com a plataforma (as que ainda caem no fim da fase contam); cada chefão dá 20 + 5 por distrito; um anúncio opcional dobra as moedas da fase | Cores, emblemas, discos e rastros |
+| **Moedas** | Caem de 7% dos blocos e precisam ser pegas com a plataforma (as que ainda caem no fim da fase contam); cada chefão dá 20 + 5 por capítulo; um anúncio opcional dobra as moedas da fase | Cores, emblemas, discos e rastros |
 
 ## Controles
 
@@ -167,7 +167,7 @@ www/
   js/online.js      placar online (Supabase)
   js/game.js        classe Game: física, blocos, cápsulas, moedas, poderes, HUD
   js/boss.js        classe Boss e os chefões
-  js/levels.js      dados dos 10 distritos, fases e mecânicas
+  js/levels.js      dados dos 10 capítulos, fases e mecânicas
   js/platform.js    formatos, paletas, emblemas e o desenho da plataforma
   js/audio.js       efeitos e músicas sintetizados (Web Audio)
   js/render.js      utilitários de desenho neon
@@ -180,8 +180,8 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 
 ## Documentação
 
-- 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, distritos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.8.
+- 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, capítulos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.8.1.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>
@@ -200,7 +200,7 @@ Inspirado nos quebra-blocos clássicos e na estética neon de Tron.
 
 ## Próximos passos
 
-- [ ] Distrito 10 e a luta final contra O SISTEMA
+- [ ] Capítulo 10 e a luta final contra O SISTEMA
 - [ ] Anúncios de verdade (hoje são de teste)
 - [ ] Ligar o placar online (criar o projeto no Supabase)
 - [ ] APK com Capacitor e publicação na Play Store

@@ -2,6 +2,26 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.8.1 (13/11/2026)
+
+### Mapa
+- [ ] A rua das fases é feita só de retas e não se cruza. As ruas das fases bônus também são retas e não passam por cima dos prédios.
+- [ ] Nada dourado nas ruas, nas estrelas das bônus nem nos parques (tudo na cor do tema). Só o banco AU do capítulo 9 é dourado.
+- [ ] A fase do chefão tem o olho e o nome do chefão em cima.
+- [ ] Embaixo do mapa há uma faixa fixa com CAPÍTULO, nome, chefão e mecânicas. Role o mapa: ela muda de capítulo. No topo mostra o capítulo 1 e no fim o capítulo 10 (O SISTEMA, EM BREVE). Os fechados aparecem como BLOQUEADO.
+
+### Capítulos
+- [ ] Em lugar nenhum aparece mais DISTRITO: cartões de mecânica e chefão, tela de capítulo concluído (PRÓXIMO CAPÍTULO), diário dos chefões e mapa.
+
+### Menu e pausa
+- [ ] Menu inicial: JOGAR, BREAKERS e INFINITO no meio; engrenagem e troféu nos cantos de cima, junto do sino.
+- [ ] OPÇÕES tem COR DO JOGO e CRÉDITOS. O VOLTAR dessas duas telas volta para as OPÇÕES.
+- [ ] Pausa: CONTINUAR grande, MAPA (ou RECOMEÇAR) e MENU embaixo; EFEITOS, MÚSICA e GUIA pequenos no canto de cima. A bolinha do ? do GUIA é da cor do tema.
+
+### INFINITO
+- [ ] Aos 2:00 os blocos estouram um atrás do outro, o disco volta sozinho para a plataforma (não dá para lançar durante isso) e o chefão entra com uma explosão.
+- [ ] Depois de derrotar o chefão não aparece aviso; os blocos voltam com poucos por fileira e vão enchendo.
+
 ## 1.8 (13/11/2026)
 
 ### Mapa

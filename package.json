@@ -1,6 +1,6 @@
 {
   "name": "neon-breaker",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "description": "Minimalist neon brick breaker for mobile (portrait).",
   "scripts": {

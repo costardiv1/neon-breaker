@@ -6,7 +6,6 @@ import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, districtMechs, world
 import { THEMES } from './themes.js';
 import { sfx, music, haptics } from './audio.js';
 import { createDevPanel } from './devpanel.js';
-import { createBoss } from './boss.js';
 import { ONLINE, submitRun, fetchTop, getName, setName, NAME_RE } from './online.js';
 
 // ---------- persistence ----------
@@ -20,7 +19,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.8';
+export const VERSION = '1.8.1';
 
 let H = 1280;
 let safeTop = 0;
@@ -137,8 +136,8 @@ const TUT = [
     text: 'As pontas inclinam o disco.' },
   { on: 'drop', title: 'CÁPSULAS', focus: 'drop', demo: 'caps',
     text: 'As redondas ajudam. As que piscam atrapalham.' },
-  { on: 'clear', title: 'DISTRITOS', focus: null,
-    text: 'Cada distrito tem uma mecânica nova e um chefão.' },
+  { on: 'clear', title: 'CAPÍTULOS', focus: null,
+    text: 'Cada capítulo tem uma mecânica nova e um chefão.' },
 ];
 let tut = null;
 let card = null;
@@ -217,18 +216,18 @@ const game = new Game({
       const st = game.stage;
       if (st.bonus && !seen['bonus_' + st.w]) {
         markSeen('bonus_' + st.w);
-        card = { kicker: `DISTRITO ${st.w + 1}  ·  FASE BÔNUS`, title: st.bonus.name, text: st.bonus.text, demo: st.bonus.demo };
+        card = { kicker: `CAPÍTULO ${st.w + 1}  ·  FASE BÔNUS`, title: st.bonus.name, text: st.bonus.text, demo: st.bonus.demo };
         showCard();
         return;
       }
       if (st.boss && !seen['boss_' + st.boss.type]) {
         markSeen('boss_' + st.boss.type);
-        card = { kicker: (game.endless ? 'INFINITO' : `DISTRITO ${st.w + 1}`) + '  ·  CHEFÃO', title: st.boss.name, text: st.boss.text, focus: 'boss' };
+        card = { kicker: (game.endless ? 'INFINITO' : `CAPÍTULO ${st.w + 1}`) + '  ·  CHEFÃO', title: st.boss.name, text: st.boss.text, focus: 'boss' };
         showCard();
       } else if (st.mech && !seen[st.mech]) {
         markSeen(st.mech);
         const caps = st.w > 0 ? Object.keys(POWERS).filter((q) => POWERS[q].d === st.w + 1) : [];
-        card = { kicker: `DISTRITO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text, focus: 'mech', demo: st.mech, caps };
+        card = { kicker: `CAPÍTULO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text, focus: 'mech', demo: st.mech, caps };
         showCard();
       }
       return;
@@ -414,6 +413,8 @@ function optionRows() {
         presetGfx({ glow: NEON[i < 0 ? 2 : (i + d + n) % n].v });
       }, wide: true },
       { label: 'TUTORIAL', val: () => 'REVER', tap: () => { store.set('tutDone', false); startGame(0); } },
+      { label: 'COR DO JOGO', val: () => THEMES[colorIndex].name + '  ›', tap: () => setScene('colors') },
+      { label: 'CRÉDITOS', val: () => 'ABRIR  ›', tap: () => setScene('credits') },
     ];
     if (opts.dev) {
       rows.push({ label: 'MODO DEV', val: () => onOff(true), tap: () => { opts.dev = false; } });
@@ -475,49 +476,23 @@ function optionButtons() {
 // and districts 2, 5 and 8 have a side street to a bonus stage.
 const TW = 36, TH = 18, J0 = 6;
 const isoXY = (i, j) => ({ x: W / 2 + (i - j) * TW, y: 70 + (i + j - J0) * TH });
-const MAP_Y0 = 80, DIST_H = 660, SOON_H = 300;
-// the bends of each district's street: [x, y] as fractions of the width and
-// of the district's height (every district starts and ends in the middle)
-const ROUTES = [
-  [[0.76, 0.1], [0.84, 0.24], [0.56, 0.33], [0.22, 0.42], [0.16, 0.58], [0.44, 0.67], [0.8, 0.76], [0.78, 0.9]],
-  [[0.26, 0.1], [0.16, 0.22], [0.38, 0.32], [0.76, 0.4], [0.85, 0.55], [0.62, 0.64], [0.28, 0.72], [0.22, 0.87]],
-  [[0.8, 0.08], [0.85, 0.18], [0.5, 0.25], [0.18, 0.32], [0.16, 0.44], [0.5, 0.51], [0.84, 0.58], [0.84, 0.7], [0.5, 0.77], [0.2, 0.84]],
-  [[0.3, 0.1], [0.16, 0.26], [0.3, 0.42], [0.68, 0.48], [0.85, 0.62], [0.72, 0.78], [0.42, 0.86]],
-  [[0.76, 0.1], [0.85, 0.24], [0.62, 0.34], [0.26, 0.4], [0.15, 0.54], [0.3, 0.68], [0.7, 0.75], [0.8, 0.89]],
-  [[0.22, 0.08], [0.15, 0.2], [0.44, 0.28], [0.8, 0.34], [0.86, 0.48], [0.56, 0.58], [0.25, 0.66], [0.2, 0.8], [0.42, 0.91]],
-  [[0.82, 0.1], [0.8, 0.26], [0.46, 0.32], [0.18, 0.4], [0.2, 0.56], [0.55, 0.62], [0.84, 0.7], [0.8, 0.86]],
-  [[0.25, 0.1], [0.17, 0.24], [0.48, 0.32], [0.8, 0.42], [0.82, 0.56], [0.5, 0.64], [0.2, 0.72], [0.24, 0.88]],
-  [[0.8, 0.1], [0.85, 0.24], [0.5, 0.3], [0.18, 0.38], [0.15, 0.54], [0.45, 0.6], [0.8, 0.68], [0.85, 0.82], [0.6, 0.92]],
-  [[0.5, 0.55]],
-];
-const NODE_F = [0.1, 0.3, 0.5, 0.7, 0.9];   // where the stages sit along a district's street
+const MAP_Y0 = 70;                 // y of the first tile of the street
+const STEPS = 36, SOON_STEPS = 16;  // street tiles per chapter (the last one is shorter)
+const DIST_H = STEPS * TH, SOON_H = SOON_STEPS * TH;
+const NODE_F = [0.1, 0.3, 0.5, 0.7, 0.9];   // where the stages sit along a chapter's street
 const BONUS_F = 0.4;                          // where the side street to the bonus stage leaves it
+const EDGE = 8;                               // the street stays within |i - j| <= EDGE
 const bandTop = (w) => MAP_Y0 + w * DIST_H;
 const distH = (w) => (WORLDS[w].soon ? SOON_H : DIST_H);
 const bonusOpen = (b) => unlocked(bonusIndex(b) + 1);
 
-// centripetal Catmull-Rom through the points, resampled every `step` px
-function spline(pts, step) {
-  const n = pts.length;
-  const P = [[2 * pts[0][0] - pts[1][0], 2 * pts[0][1] - pts[1][1]], ...pts, [2 * pts[n - 1][0] - pts[n - 2][0], 2 * pts[n - 1][1] - pts[n - 2][1]]];
-  const raw = [];
-  const tj = (a, b) => Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1])) || 1e-4;
-  for (let s = 1; s < P.length - 2; s++) {
-    const p0 = P[s - 1], p1 = P[s], p2 = P[s + 1], p3 = P[s + 2];
-    const t1 = tj(p0, p1), t2 = t1 + tj(p1, p2), t3 = t2 + tj(p2, p3);
-    for (let q = 0; q < 24; q++) {
-      const t = t1 + ((t2 - t1) * q) / 24;
-      const L = (a, b, ta, tb) => [(a[0] * (tb - t) + b[0] * (t - ta)) / (tb - ta), (a[1] * (tb - t) + b[1] * (t - ta)) / (tb - ta)];
-      const A1 = L(p0, p1, 0, t1), A2 = L(p1, p2, t1, t2), A3 = L(p2, p3, t2, t3);
-      raw.push(L(L(A1, A2, 0, t2), L(A2, A3, t1, t3), t1, t2));
-    }
-  }
-  raw.push(pts[n - 1]);
-  const out = [{ x: raw[0][0], y: raw[0][1] }];
+// points every `step` px along straight segments
+function polyline(pts, step) {
+  const out = [{ x: pts[0].x, y: pts[0].y }];
   let acc = 0;
-  for (let q = 1; q < raw.length; q++) {
-    let ax = raw[q - 1][0], ay = raw[q - 1][1];
-    const bx = raw[q][0], by = raw[q][1];
+  for (let q = 1; q < pts.length; q++) {
+    let ax = pts[q - 1].x, ay = pts[q - 1].y;
+    const bx = pts[q].x, by = pts[q].y;
     let seg = Math.hypot(bx - ax, by - ay);
     while (seg > 0 && acc + seg >= step) {
       const u = (step - acc) / seg;
@@ -527,8 +502,8 @@ function spline(pts, step) {
     }
     acc += seg;
   }
-  const last = raw[raw.length - 1];
-  out.push({ x: last[0], y: last[1] });
+  const last = pts[pts.length - 1];
+  out.push({ x: last.x, y: last.y });
   return out;
 }
 
@@ -558,14 +533,27 @@ function roadNear(RI, x, y) {
 let isoCache = null;
 function isoData() {
   if (isoCache) return isoCache;
-  const pts = [];
+  // the street: straight runs along the city grid, turning at varied lengths
+  // (each tile goes one row down, so it never crosses itself)
+  const R = rng(2718);
+  let i = 3, j = 3, dir = 1;   // dir 1: along i (down-right), -1: along j (down-left)
+  const tiles = [{ i, j }];
   WORLDS.forEach((wd, w) => {
-    const y0 = bandTop(w), h = distH(w);
-    if (!w) pts.push([W / 2, y0]);
-    for (const [fx, fy] of ROUTES[w]) pts.push([W * fx, y0 + h * fy]);
-    pts.push([W / 2, y0 + h]);
+    let left = wd.soon ? SOON_STEPS : STEPS;
+    if (wd.soon && i !== j) dir = i > j ? -1 : 1;   // the last one heads for the middle, to the tower
+    let guard = 0;
+    while (left > 0 && guard++ < 100) {
+      const d = i - j, room = dir > 0 ? EDGE - d : d + EDGE;
+      const want = wd.soon ? Math.max(1, Math.abs(d)) : 3 + Math.floor(R() * 8);
+      const len = Math.min(left, room, want);
+      if (len <= 0) { dir = -dir; continue; }
+      for (let q = 0; q < len; q++) { if (dir > 0) i++; else j++; tiles.push({ i, j }); }
+      left -= len; dir = -dir;
+    }
   });
-  const path = spline(pts, 6);
+  const corner = tiles.filter((t, q) => q === 0 || q === tiles.length - 1
+    || (tiles[q + 1].i - t.i) !== (t.i - tiles[q - 1].i)).map((t) => isoXY(t.i, t.j));
+  const path = polyline(corner, 6);
   const wOf = (y) => { let w = 0; while (w < WORLDS.length - 1 && y >= bandTop(w + 1)) w++; return w; };
   path.forEach((q) => { q.w = wOf(q.y); });
   const dist = WORLDS.map((_, w) => ({ w, t0: Infinity, t1: 0 }));
@@ -579,34 +567,40 @@ function isoData() {
       nodes.push({ t, x: path[t].x, y: path[t].y, boss: k === worldCount(w) - 1, w });
     }
   });
-  // bonus stages: the side street leaves the main one and ends at the bonus,
-  // in the first spot that keeps clear of the main street
+  // bonus stages: a side street along the grid, from the main street's tile
+  // at BONUS_F, in the first direction that keeps clear of the main street
   const RI = roadIndex(path);
   const bonus = BONUS.map((b, bi) => {
-    const d = dist[b.w], t = d.t0 + Math.round(BONUS_F * (d.t1 - d.t0 - 1)), S = path[t];
+    const k0 = b.w * STEPS + Math.round(BONUS_F * STEPS), T = tiles[k0];
+    const S = isoXY(T.i, T.j);
+    let t = 0, bd = Infinity;
+    path.forEach((q, n) => { const dd = Math.hypot(q.x - S.x, q.y - S.y); if (dd < bd) { bd = dd; t = n; } });
     let best = null;
-    const sides = S.x < W / 2 ? [-1, 1] : [1, -1];   // the nearer side first
-    for (const side of sides) {
-      for (const dy of [70, 110, 150, 190, 230, 40]) {
-        for (const fx of [0.13, 0.2, 0.27]) {
-          const Bx = side > 0 ? W * (1 - fx) : W * fx, By = S.y + dy;
-          const ctl = [[S.x, S.y], [S.x + (Bx - S.x) * 0.55, S.y + dy * 0.15], [Bx, By]];
-          const spur = [];
-          for (let q = 0; q <= 40; q++) {
-            const u = q / 40, a = (1 - u) * (1 - u), m = 2 * u * (1 - u), e = u * u;
-            spur.push({ x: a * ctl[0][0] + m * ctl[1][0] + e * ctl[2][0], y: a * ctl[0][1] + m * ctl[1][1] + e * ctl[2][1] });
-          }
-          const ok = roadNear(RI, Bx, By).d > 100 && spur.every((q, i) => i < 8 || roadNear(RI, q.x, q.y).d > 40)
-            && !nodes.some((nd) => Math.hypot(nd.x - Bx, nd.y - By) < 120);
-          if (ok) { best = { b, i: bi, t, x: Bx, y: By, spur }; break; }
+    const DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+    for (let L = 3; L <= 6 && !best; L++) {
+      for (const [di, dj] of DIRS) {
+        for (const second of [null, ...DIRS.filter(([a, e]) => a !== di && e !== dj && a !== -di && e !== -dj)]) {
+          const legs = [[di, dj, L]];
+          if (second) legs.push([second[0], second[1], 2]);
+          let ci = T.i, cj = T.j;
+          const st = [{ i: ci, j: cj }];
+          for (const [a, e, n] of legs) for (let q = 0; q < n; q++) { ci += a; cj += e; st.push({ i: ci, j: cj }); }
+          const end = isoXY(ci, cj);
+          const ok = st.every((s, q) => {
+            if (Math.abs(s.i - s.j) > EDGE - 1) return false;   // room for the name under the star
+            if (q < 2) return true;
+            const p = isoXY(s.i, s.j);
+            return roadNear(RI, p.x, p.y).d > 44;
+          }) && roadNear(RI, end.x, end.y).d > 90 && !nodes.some((nd) => Math.hypot(nd.x - end.x, nd.y - end.y) < 110)
+            && wOf(end.y) === b.w;
+          if (ok) { best = { b, i: bi, t, x: end.x, y: end.y, spur: polyline(st.filter((s, q) => q === 0 || q === st.length - 1 || q === L).map((s) => isoXY(s.i, s.j)), 6) }; break; }
         }
         if (best) break;
       }
-      if (best) break;
     }
     if (!best) {
-      const Bx = S.x < W / 2 ? W * 0.85 : W * 0.15;
-      best = { b, i: bi, t, x: Bx, y: S.y + 90, spur: [{ x: S.x, y: S.y }, { x: Bx, y: S.y + 90 }] };
+      const end = isoXY(T.i, T.j + 4);
+      best = { b, i: bi, t, x: end.x, y: end.y, spur: polyline([S, end], 6) };
     }
     return best;
   });
@@ -615,7 +609,8 @@ function isoData() {
   return isoCache;
 }
 const mapViewTop = () => safeTop + 130;
-const mapViewH = () => H - 150 - mapViewTop();
+const STRIP_H = 150;   // the chapter info strip under the map
+const mapViewH = () => H - 150 - STRIP_H - mapViewTop();
 let mapScroll = 0;
 const clampScroll = (v) => clampN(v, 0, Math.max(0, isoData().height - mapViewH()));
 function focusMap() {
@@ -905,7 +900,7 @@ function itemOpen(key, i) {
 }
 function shapeNeed(i) {
   const wd = WORLDS[i - 1], b = wd && wd.boss;
-  return 'DERROTE ' + (b && !wd.soon ? b.name : 'O CHEFÃO DO DISTRITO ' + i);
+  return 'DERROTE ' + (b && !wd.soon ? b.name : 'O CHEFÃO DO CAPÍTULO ' + i);
 }
 function openPlat() { for (const k in browse) browse[k] = plat[k]; }
 function browseItem(d) {
@@ -1266,7 +1261,7 @@ const storyDone = (now) => storyChars(now) >= story.total;
 function renderStory(c, now) {
   const k = col();
   c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-  glowText(c, 'DISTRITO ' + (story.w + 1) + ' · ' + (WORLDS[story.w] ? WORLDS[story.w].name : ''), 40, safeTop + 92, 13, rgba(k, 0.8), k, 'left', 700, 4);
+  glowText(c, 'CAPÍTULO ' + (story.w + 1) + ' · ' + (WORLDS[story.w] ? WORLDS[story.w].name : ''), 40, safeTop + 92, 13, rgba(k, 0.8), k, 'left', 700, 4);
   c.font = '21px Consolas, "Courier New", monospace';
   c.textAlign = 'left';
   c.fillStyle = '#c8c8c8';
@@ -1402,7 +1397,7 @@ function creditButtons() {
   const ly = H - 190;
   list.push(btn(cx - 158, ly, 300, 62, 'REPOSITÓRIO  ↗', () => openUrl(REPO_URL), { small: true, fs: 14 }));
   list.push(btn(cx + 158, ly, 300, 62, 'INSTAGRAM  ↗', () => openUrl(INSTA_URL), { small: true, fs: 14 }));
-  list.push(btn(cx, H - 90, 400, 76, 'VOLTAR', () => setScene('menu')));
+  list.push(btn(cx, H - 90, 400, 76, 'VOLTAR', () => setScene('options')));
   return list;
 }
 function renderCredits(c) {
@@ -1630,7 +1625,7 @@ function drawMenuIcon(c, kind, x, y, k) {
     c.quadraticCurveTo(x, y - 1, x, y + 8);
     c.lineCap = 'round';
     neonStroke(c, k, k, 3.4, x - 22, y, x + 22, y, 0.8);
-    c.beginPath(); c.arc(x, y + 18, 3, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+    c.beginPath(); c.arc(x, y + 18, 3, 0, TAU); c.fillStyle = k; c.shadowColor = k; c.shadowBlur = 8 * view.blur; c.fill(); c.shadowBlur = 0;
   } else if (kind === 'breakers') {
     c.moveTo(x - 23, y + 16); c.quadraticCurveTo(x, y + 5, x + 23, y + 16);
     c.moveTo(x + 9, y - 10); c.arc(x + 1, y - 10, 8, 0, TAU);
@@ -1651,6 +1646,16 @@ function drawIconButton(c, b) {
   const k = col(), down = pressed === b, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   if (b.off) c.globalAlpha = 0.4;
   else if (b.dim) c.globalAlpha = 0.6;
+  if (b.round || b.bare) {
+    const r = b.w / 2 - 6;
+    c.beginPath(); c.arc(cx, cy, r, 0, TAU);
+    if (b.round) { c.fillStyle = rgba(k, down ? 0.2 : 0.05); c.fill(); neonStroke(c, k, k, 2, cx - r, cy, cx + r, cy, 0.6); }
+    else if (down) { c.fillStyle = rgba(k, 0.2); c.fill(); }
+    c.save(); c.translate(cx, cy); c.scale(0.68, 0.68); drawMenuIcon(c, b.icon, 0, 0, k); c.restore();
+    if (b.bare && b.label) glowText(c, b.label, cx, b.y + b.h + 8, 10, rgba('#ffffff', 0.75), k, 'center', 700, 1);
+    c.globalAlpha = 1;
+    return;
+  }
   roundRectPath(c, b.x, b.y, b.w, b.h, b.w > 120 ? 26 : 18);
   c.fillStyle = rgba(k, down ? 0.2 : b.big ? 0.08 : 0.05); c.fill();
   neonStroke(c, k, k, b.big ? 3.2 : 2.2, b.x, b.y, b.x + b.w, b.y + b.h, b.big ? 1 : 0.6);
@@ -1750,19 +1755,17 @@ function layout() {
   const cx = W / 2, bw = 400, bh = 76;
   switch (scene) {
     case 'menu': {
-      // BREAKERS · JOGAR (bigger) · INFINITO, then a row of smaller icon buttons;
-      // every icon has its name small underneath
-      const y = H * 0.47, s = 88, gap = (bw - 4 * s) / 3, iy = y + 180;
-      const big = 150, mid = 104, base = y + 95, gx = (bw - big - 2 * mid) / 2;
+      // JOGAR, with BREAKERS and INFINITO under it; OPÇÕES and PLACAR are small
+      // round icons in the top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
+      const y = H * 0.47, B = bellRect();
       const lockedMsg = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
-      const icons = [['pal', 'COR', () => setScene('colors')], ['gear', 'OPÇÕES', () => setScene('options')],
-        ['trophy', 'PLACAR', openScores], ['star', 'CRÉDITOS', () => setScene('credits')]];
       return [
-        { x: cx - big / 2, y: base - big, w: big, h: big, label: 'JOGAR', fn: () => setScene('map'), icon: 'play', big: true },
-        { x: cx - big / 2 - gx - mid, y: base - mid, w: mid, h: mid, label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
-        { x: cx + big / 2 + gx, y: base - mid, w: mid, h: mid, label: 'INFINITO', fn: endlessOpen() ? startEndless : lockedMsg, icon: 'inf', off: !endlessOpen() },
-        Object.assign(bellRect(), { label: '', fn: () => setScene('notif'), bell: true }),
-        ...icons.map(([icon, label, fn], i) => ({ x: cx - bw / 2 + i * (s + gap), y: iy, w: s, h: s, label, fn, icon })),
+        btn(cx, y, bw, 88, 'JOGAR', () => setScene('map'), { big: true, fs: 30 }),
+        btn(cx - bw / 4 - 6, y + 104, bw / 2 - 12, bh, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert(), fs: 17 }),
+        btn(cx + bw / 4 + 6, y + 104, bw / 2 - 12, bh, endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', endlessOpen() ? startEndless : lockedMsg, { fs: 17, off: !endlessOpen() }),
+        Object.assign(B, { label: '', fn: () => setScene('notif'), bell: true }),
+        { x: W - B.x - B.w, y: B.y, w: B.w, h: B.h, label: '', fn: () => setScene('options'), icon: 'gear', round: true },
+        { x: B.x - B.w - 14, y: B.y, w: B.w, h: B.h, label: '', fn: openScores, icon: 'trophy', round: true },
       ];
     }
     case 'map': {
@@ -1793,21 +1796,21 @@ function layout() {
     case 'colors': {
       const list = THEMES.map((t, i) => btn(cx + (i % 2 ? 160 : -160), safeTop + 270 + Math.floor(i / 2) * 150, 300, 126, t.name,
         () => { colorIndex = i; game.setColor(t.c); store.set('color', i); }, { theme: i }));
-      list.push(btn(cx, H - 120, bw, bh, 'VOLTAR', () => setScene('menu')));
+      list.push(btn(cx, H - 120, bw, bh, 'VOLTAR', () => setScene('options')));
       return list;
     }
     case 'pause': {
-      // CONTINUAR (bigger) between MAPA/RECOMEÇAR and MENU; EFEITOS, MÚSICA and GUIA below
-      const big = 150, mid = 104, s = 88, base = H * 0.44 + 150, gx = (bw - big - 2 * mid) / 2, iy = base + 70, g2 = 40;
-      const ix = (i) => cx - (3 * s + 2 * g2) / 2 + i * (s + g2);
+      // CONTINUAR (big) with MAPA/RECOMEÇAR and MENU under it; EFEITOS, MÚSICA
+      // and GUIA are small icons without a box in the top right corner
+      const big = 150, mid = 104, top = H * 0.42, y2 = top + big + 56, s = 64, sy = safeTop + 26;
       return [
-        { x: cx - big / 2, y: base - big, w: big, h: big, label: 'CONTINUAR', fn: () => setScene('play'), icon: 'play', big: true },
-        { x: cx - big / 2 - gx - mid, y: base - mid, w: mid, h: mid, label: game.endless ? 'RECOMEÇAR' : 'MAPA',
+        { x: cx - big / 2, y: top, w: big, h: big, label: 'CONTINUAR', fn: () => setScene('play'), icon: 'play', big: true },
+        { x: cx - 62 - mid, y: y2, w: mid, h: mid, label: game.endless ? 'RECOMEÇAR' : 'MAPA',
           fn: () => (game.endless ? startEndless() : setScene('map')), icon: game.endless ? 'restart' : 'pin' },
-        { x: cx + big / 2 + gx, y: base - mid, w: mid, h: mid, label: 'MENU', fn: () => setScene('menu'), icon: 'home' },
-        { x: ix(0), y: iy, w: s, h: s, label: 'EFEITOS', fn: toggleSfx, icon: sfx.enabled ? 'sfx' : 'sfxOff', dim: !sfx.enabled },
-        { x: ix(1), y: iy, w: s, h: s, label: 'MÚSICA', fn: toggleMusic, icon: sfx.musicOn ? 'music' : 'musicOff', dim: !sfx.musicOn },
-        { x: ix(2), y: iy, w: s, h: s, label: 'GUIA', fn: openGuide, icon: 'help', bang: game.endless && guideNews() },
+        { x: cx + 62, y: y2, w: mid, h: mid, label: 'MENU', fn: () => setScene('menu'), icon: 'home' },
+        { x: W - 24 - 3 * s - 2 * 18, y: sy, w: s, h: s, label: 'EFEITOS', fn: toggleSfx, icon: sfx.enabled ? 'sfx' : 'sfxOff', dim: !sfx.enabled, bare: true },
+        { x: W - 24 - 2 * s - 18, y: sy, w: s, h: s, label: 'MÚSICA', fn: toggleMusic, icon: sfx.musicOn ? 'music' : 'musicOff', dim: !sfx.musicOn, bare: true },
+        { x: W - 24 - s, y: sy, w: s, h: s, label: 'GUIA', fn: openGuide, icon: 'help', bang: game.endless && guideNews(), bare: true },
       ];
     }
     case 'guide': {
@@ -1836,7 +1839,7 @@ function layout() {
       const next = game.index + 1;
       const list = [];
       let y = H * 0.62;
-      if (next < TOTAL_STAGES) { list.push(btn(cx, y, bw, bh, 'PRÓXIMO DISTRITO', () => startGame(next), { big: true, fs: 20 })); y += 100; }
+      if (next < TOTAL_STAGES) { list.push(btn(cx, y, bw, bh, 'PRÓXIMO CAPÍTULO', () => startGame(next), { big: true, fs: 20 })); y += 100; }
       if (reward && !reward.done) { list.push(btn(cx, y, bw, bh, 'DOBRAR MOEDAS  ·  ANÚNCIO', startAd, { fs: 17, ad: true })); y += 100; }
       list.push(btn(cx, y, bw, bh, 'BREAKERS', () => openBreakers(null, 'world'), { bang: breakersAlert() }));
       list.push(btn(cx, y + 100, bw, bh, 'MAPA', () => setScene('map')));
@@ -2279,7 +2282,6 @@ const flatTile = (c, x, y, fill, stroke) => {
 };
 const mod5 = (v) => ((v % 5) + 5) % 5;
 const GOLD = '#ffd84a';
-const parkTint = (k) => mix(k, '#2bff88', 0.55);
 const goldTint = (k) => mix(k, GOLD, 0.65);
 
 // Parks, squares and one landmark per district, in the city blocks (4x4 tiles
@@ -2450,7 +2452,7 @@ function landmark(c, w, x, y, k, R, beacons) {
       break;
     }
     case 8: { // TORRE AURUM: the gold bank
-      isoBox(c, x, y, 130, k, 1.25, R, [], w);
+      isoBox(c, x, y, 130, goldTint(k), 1.25, R, [], w);
       c.beginPath(); c.arc(x, y - 104, 15, 0, TAU);
       c.fillStyle = '#000'; c.fill(); c.strokeStyle = GOLD; c.lineWidth = 2; c.stroke();
       glowText(c, 'AU', x, y - 103, 12, GOLD, GOLD, 'center', 800, 1);
@@ -2584,11 +2586,11 @@ function isoLayer() {
       const { x, y } = isoXY(i, j);
       const w = tileDistrict(y);
       c.globalAlpha = cb.globalAlpha = districtOpen(w) ? 1 : 0.38;
-      const kk = w === 8 ? goldTint(k) : k;
+      const kk = k;
       const sp = spots.get(key2);
       if (sp) {
         if (sp.kind === 'park') {
-          const G = parkTint(k);
+          const G = k;
           flatTile(c, x, y, rgba(G, 0.09), rgba(G, 0.2));
           if (sp.pond) {
             c.beginPath(); c.ellipse(x, y, 26, 12, 0, 0, TAU); c.fillStyle = rgba(k, 0.16); c.fill(); c.strokeStyle = rgba(k, 0.7); c.lineWidth = 1.4; c.stroke();
@@ -2763,55 +2765,48 @@ function drawFence(c, D, d, now, k) {
   c.restore();
 }
 
-// The info of the district in focus, in a corner of the view where it covers
-// no stage; it fades out and back in when the focus moves to another district.
-const mapPanel = { w: -1, a: 0, spot: -1, t: 0 };
-function districtPanel(c, D, now, k, vh) {
-  const dt = Math.min(0.1, Math.max(0, now - mapPanel.t)); mapPanel.t = now;
-  if (mapPanel.w !== mapFocus) { mapPanel.a -= dt * 6; if (mapPanel.a <= 0) { mapPanel.a = 0; mapPanel.w = mapFocus; mapPanel.spot = -1; } }
-  else mapPanel.a = Math.min(1, mapPanel.a + dt * 4);
-  const w = mapPanel.w;
-  if (w < 0 || mapPanel.a <= 0.01) return;
-  const wd = WORLDS[w], ms = districtMechs(w), n = ms.length;
-  c.font = `700 22px "Orbitron", sans-serif`;
-  const nameW = Math.max(c.measureText(wd.name).width, 150);
-  const marks = [...D.nodes.map((nd) => ({ x: nd.x, y: nd.y, r: (nd.boss ? 36 : 28) + 8 })), ...D.bonus.map((B) => ({ x: B.x, y: B.y, r: 46 }))];
-  const layout = (spot, PER, SLOT) => {
-    const right = spot % 2 === 0, ROWS = n ? Math.ceil(n / PER) : 0;
-    const pw = Math.max(nameW, PER * SLOT) + 28, ph = n ? 122 + (ROWS - 1) * 50 : 66;
-    const py = spot < 2 ? mapScroll + 16 : mapScroll + vh - ph - 16;
-    return { spot, PER, SLOT, right, x: right ? W - 14 - pw : 14, y: py, w: pw, h: ph };
-  };
-  const clear = (b) => !marks.some((m) => m.x + m.r > b.x && m.x - m.r < b.x + b.w && m.y + m.r + 26 > b.y && m.y - m.r < b.y + b.h);
-  const tryAt = (spot) => {
-    for (let per = n; per >= Math.min(2, n); per--) {
-      for (const slot of per <= 3 ? [86, 64] : [60, 56]) { const b = layout(spot, per, slot); if (clear(b)) return b; }
-    }
-    return null;
-  };
-  let P = mapPanel.spot >= 0 ? tryAt(mapPanel.spot) : null;
-  for (let s = 0; s < 4 && !P; s++) P = tryAt(s);
-  if (!P) P = layout(0, Math.min(n, 3), 56);
-  mapPanel.spot = P.spot;
-  c.save();
-  c.globalAlpha = mapPanel.a;
-  roundRectPath(c, P.x, P.y, P.w, P.h, 12);
-  c.fillStyle = 'rgba(0,0,0,0.78)'; c.fill();
+// The info of the chapter at the focus line, in a fixed strip under the map;
+// it fades to the next one as the map scrolls (the first at the top, the last
+// at the bottom, closed ones too).
+const mapStrip = { w: -1, a: 0, t: 0 };
+function mapRef(D, vh) {
+  const maxS = Math.max(1, D.height - vh), s = mapScroll;
+  let f = 0.5;
+  if (s < 300) f = 0.5 * (s / 300);
+  else if (maxS - s < 300) f = 1 - 0.5 * ((maxS - s) / 300);
+  return s + vh * f;
+}
+function renderMapStrip(c, now, k, y0) {
+  const dt = Math.min(0.1, Math.max(0, now - mapStrip.t)); mapStrip.t = now;
+  const want = tileDistrict(mapRef(isoData(), mapViewH()));
+  if (mapStrip.w !== want) { mapStrip.a -= dt * 7; if (mapStrip.a <= 0) { mapStrip.a = 0; mapStrip.w = want; } }
+  else mapStrip.a = Math.min(1, mapStrip.a + dt * 5);
+  c.fillStyle = '#000'; c.fillRect(0, y0, W, STRIP_H);
+  c.beginPath(); c.moveTo(24, y0 + 1); c.lineTo(W - 24, y0 + 1);
   c.strokeStyle = rgba(k, 0.35); c.lineWidth = 1.2; c.stroke();
-  const x = P.right ? P.x + P.w - 14 : P.x + 14, y = P.y + 46, al = P.right ? 'right' : 'left';
-  glowText(c, 'DISTRITO ' + (w + 1), x, y - 26, 12, rgba(k, 0.9), k, al, 700, 4);
-  glowText(c, wd.name, x, y + 2, 22, '#ffffff', k, al, 700, 3);
-  const S = P.SLOT, small = S < 80;
+  const w = mapStrip.w;
+  if (w < 0) return;
+  const wd = WORLDS[w], open = districtOpen(w), ms = districtMechs(w), n = ms.length;
+  c.save();
+  c.globalAlpha = mapStrip.a;
+  const x = 28;
+  glowText(c, 'CAPÍTULO ' + (w + 1), x, y0 + 32, 13, rgba(k, 0.9), k, 'left', 700, 4);
+  glowText(c, wd.name, x, y0 + 66, 26, open ? '#ffffff' : rgba('#ffffff', 0.55), k, 'left', 700, 3);
+  const sub = wd.soon ? 'EM BREVE' : !open ? 'BLOQUEADO' : 'CHEFÃO: ' + wd.boss.name;
+  glowText(c, sub, x, y0 + 98, 12, rgba('#ffffff', open ? 0.75 : 0.5), k, 'left', 600, 3);
+  // mechanics, newest first, on the right (two rows when they do not fit)
+  c.font = `700 26px "Orbitron", sans-serif`;
+  const left = x + Math.max(220, c.measureText(wd.name).width) + 24, S = 70;
+  const per = Math.max(1, Math.floor((W - 24 - left) / S)), rows = Math.ceil(n / per);
   ms.forEach((m, q) => {
-    const mm = ms[n - 1 - q];   // always newest to oldest, left to right (then the next row)
-    const r2 = Math.floor(q / P.PER), cl = q % P.PER, cnt = Math.min(P.PER, n - r2 * P.PER);
-    const ix = P.right ? x - S / 2 + 4 - (cnt - 1 - cl) * S : x + S / 2 - 4 + cl * S, iy = y + 42 + r2 * 50;
+    const mm = ms[n - 1 - q], r2 = Math.floor(q / per), cl = q % per, cnt = Math.min(per, n - r2 * per);
+    const ix = W - 24 - S / 2 - (cnt - 1 - cl) * S, iy = y0 + (rows > 1 ? 40 + r2 * 54 : 62);
     const isNew = mm === wd.mech;
-    c.beginPath(); c.arc(ix, iy, small ? 15 : 17, 0, TAU);
+    c.beginPath(); c.arc(ix, iy, 16, 0, TAU);
     c.fillStyle = rgba(k, isNew ? 0.2 : 0.06); c.fill();
     c.strokeStyle = rgba(k, isNew ? 0.95 : 0.5); c.lineWidth = isNew ? 2 : 1.4; c.stroke();
-    drawMechIcon(c, mm, ix, iy, 9, '#ffffff');
-    glowText(c, MECHS[mm].name, ix, iy + 29, small ? 7.5 : 9, rgba('#ffffff', isNew ? 0.9 : 0.6), k, 'center', 600, small ? 0 : 0.5);
+    drawMechIcon(c, mm, ix, iy, 9, open ? '#ffffff' : rgba('#ffffff', 0.6));
+    glowText(c, MECHS[mm].name, ix, iy + 28, 8, rgba('#ffffff', isNew ? 0.9 : 0.6), k, 'center', 600, 0);
   });
   c.restore();
 }
@@ -2849,9 +2844,9 @@ function renderMap(c, now) {
   c.translate(0, mapScroll - top);
   blit(L.bld);
   c.translate(0, top - mapScroll);
-  // the district in focus: the one in the middle of the view (the first one
-  // when the map is at the top)
-  updateMapDim(D, now, mapScroll + vh * 0.5 * clampN(mapScroll / 300, 0, 1));
+  // the chapter in focus: the one at the focus line (the middle of the view;
+  // the first one at the top, the last one at the bottom)
+  updateMapDim(D, now, mapRef(D, vh));
   // closed districts stay dark; one that just opened lights up
   D.dist.forEach((d) => {
     const dk = mapDim[d.w] || 0;
@@ -2904,7 +2899,7 @@ function renderMap(c, now) {
     if (open) {
       neonStroke(c, k, k, focusR ? 4 : 3, 0, 0, W, 0, focusR ? 1.2 : 0.8);
       c.save(); c.setLineDash([14, 120]); c.lineDashOffset = -((now * 90) % 134);
-      pathPoly(c, D, 0, B.spur.length - 1, B.spur); c.strokeStyle = GOLD; c.lineWidth = 3; c.shadowColor = GOLD; c.shadowBlur = 12 * view.blur; c.stroke();
+      pathPoly(c, D, 0, B.spur.length - 1, B.spur); c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.shadowColor = k; c.shadowBlur = 12 * view.blur; c.stroke();
       c.restore();
     } else { c.save(); c.setLineDash([7, 9]); c.strokeStyle = rgba(k, 0.55); c.lineWidth = 2.2; c.stroke(); c.restore(); }
   }
@@ -2921,13 +2916,7 @@ function renderMap(c, now) {
     c.beginPath(); c.moveTo(end.x - 16, ey); c.quadraticCurveTo(end.x, ey - 12 * o, end.x + 16, ey); c.quadraticCurveTo(end.x, ey + 12 * o, end.x - 16, ey);
     c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.stroke();
     c.beginPath(); c.arc(end.x, ey, 4 * o + 1, 0, TAU); c.fillStyle = '#ffffff'; c.shadowColor = k; c.shadowBlur = 16 * view.blur; c.fill(); c.shadowBlur = 0;
-    const last = WORLDS[WORLDS.length - 1];
-    if (last.soon) {
-      glowText(c, 'DISTRITO ' + WORLDS.length + '  ·  ' + last.name, end.x, ey - 92, 14, rgba('#ffffff', 0.75), k, 'center', 700, 4);
-      glowText(c, 'EM BREVE', end.x, ey - 70, 11, rgba(k, 0.8), k, 'center', 500, 5);
-    }
   }
-  districtPanel(c, D, now, k, vh);
   c.restore();
   // soft fade at the edges of the scroll view
   for (const [y0, y1] of [[top, top + 40], [top + vh, top + vh - 40]]) {
@@ -2939,40 +2928,7 @@ function renderMap(c, now) {
   const total = D.height, bh = Math.max(40, vh * (vh / total)), by = top + (vh - bh) * (mapScroll / Math.max(1, total - vh));
   c.fillStyle = rgba(k, 0.4); c.fillRect(W - 8, by, 3, bh);
   neonTitle(c, 'CIDADE', W / 2, safeTop + 84, 52, k, k, 14);
-}
-
-// Boss miniatures for the map: each boss drawn by its own code on a scratch
-// game, cropped and kept (one per boss and color).
-const thumbs = {};
-function bossThumb(w) {
-  const k = col(), key = w + k + view.res;
-  if (thumbs[key] !== undefined) return thumbs[key];
-  let out = null;
-  try {
-    const g = Object.create(game);
-    Object.assign(g, { bricks: [], balls: [], drops: [], shots: [], rings: [], particles: [], floats: [], effects: {}, wells: [], portals: [], bars: [], beams: [], rows: [],
-      missiles: [], bolts: [], blasts: [], coins: [], alive: 0, t: 0, mt: 0, top: 120, H: 1400, col: k, paddle: { x: W / 2, y: 1200, hw: BASE_HW }, emit() {}, ring() {}, burst() {}, float() {} });
-    const b = createBoss(WORLDS[w].boss.type, g);
-    if (b.move) b.move(0.2);
-    const S = 0.6, cv = document.createElement('canvas');
-    cv.width = Math.round(W * S); cv.height = Math.round(900 * S);
-    const x = cv.getContext('2d');
-    x.scale(S, S);
-    b.render(x);
-    const d = x.getImageData(0, 0, cv.width, cv.height).data;
-    let x0 = cv.width, y0 = cv.height, x1 = 0, y1 = 0;
-    for (let yy = 0; yy < cv.height; yy += 2) for (let xx = 0; xx < cv.width; xx += 2) {
-      if (d[(yy * cv.width + xx) * 4 + 3] > 50) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
-    }
-    if (x1 > x0 && y1 > y0) {
-      const t = document.createElement('canvas');
-      t.width = x1 - x0 + 4; t.height = y1 - y0 + 4;
-      t.getContext('2d').drawImage(cv, x0 - 2, y0 - 2, t.width, t.height, 0, 0, t.width, t.height);
-      out = t;
-    }
-  } catch (e) { out = null; }
-  thumbs[key] = out;
-  return out;
+  renderMapStrip(c, now, k, top + vh);
 }
 
 function drawNode(c, b, now) {
@@ -2994,14 +2950,15 @@ function drawNode(c, b, now) {
   if (open) { shape(); neonStroke(c, k, k, next ? 3.5 : 2.5, p.x - r, p.y, p.x + r, p.y, next ? 1 + 0.4 * Math.sin(now * 5) : 0.6); }
   else { c.save(); c.setLineDash([5, 6]); shape(); c.strokeStyle = rgba(k, 0.8); c.lineWidth = 2; c.stroke(); c.restore(); }
   if (next) { c.beginPath(); c.arc(p.x, p.y, r + 10 + 4 * Math.sin(now * 5), 0, TAU); c.strokeStyle = rgba(k, 0.45); c.lineWidth = 1.5; c.stroke(); }
-  if (p.boss) {   // a miniature of the boss
-    const t = bossThumb(w);
-    if (t) {
-      const s = Math.min(52 / t.width, 40 / t.height);
-      const ga = c.globalAlpha; c.globalAlpha = ga * (open ? 1 : 0.45);
-      c.drawImage(t, p.x - (t.width * s) / 2, p.y - (t.height * s) / 2, t.width * s, t.height * s);
-      c.globalAlpha = ga;
-    }
+  if (p.boss) {   // the eye, with the boss name over the hexagon
+    c.beginPath(); c.moveTo(p.x - 16, p.y); c.quadraticCurveTo(p.x, p.y - 13, p.x + 16, p.y); c.quadraticCurveTo(p.x, p.y + 13, p.x - 16, p.y);
+    c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.stroke();
+    c.beginPath(); c.arc(p.x, p.y, 4, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+    const name = WORLDS[w].boss.name;
+    c.font = `700 11px "Orbitron", sans-serif`;
+    const tw = c.measureText(name).width + 22;
+    c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(p.x - tw / 2, p.y - r - 30, tw, 18);
+    glowText(c, name, p.x, p.y - r - 20, 11, open ? '#ffffff' : rgba('#ffffff', 0.7), k, 'center', 700, 2);
   } else {
     glowText(c, stageLabel(i), p.x, p.y + 1, 14, '#ffffff', k, 'center', 700, 1);
   }
@@ -3031,10 +2988,11 @@ function drawBonusNode(c, b, now) {
     c.closePath();
   };
   star(36, 18); c.fillStyle = '#000'; c.fill();
-  star(36, 18); c.fillStyle = rgba(GOLD, done ? 0.3 : pressed === b ? 0.35 : 0.1); c.fill();
-  if (open) { star(36, 18); neonStroke(c, GOLD, GOLD, 2.6, x - 36, y, x + 36, y, done ? 0.6 : 0.9 + 0.4 * Math.sin(now * 4)); }
-  else { c.save(); c.setLineDash([5, 6]); star(36, 18); c.strokeStyle = rgba(GOLD, 0.8); c.lineWidth = 2; c.stroke(); c.restore(); }
-  drawSprite(c, coinSprite(), x - 8.5, y - 5.5, 0.62);
+  star(36, 18); c.fillStyle = rgba(k, done ? 0.3 : pressed === b ? 0.35 : 0.1); c.fill();
+  if (open) { star(36, 18); neonStroke(c, k, k, 2.6, x - 36, y, x + 36, y, done ? 0.6 : 0.9 + 0.4 * Math.sin(now * 4)); }
+  else { c.save(); c.setLineDash([5, 6]); star(36, 18); c.strokeStyle = rgba(k, 0.8); c.lineWidth = 2; c.stroke(); c.restore(); }
+  c.beginPath(); c.arc(x, y + 3, 8, 0, TAU); c.moveTo(x + 4, y + 3); c.arc(x, y + 3, 4, 0, TAU);   // a coin
+  c.strokeStyle = '#ffffff'; c.lineWidth = 1.6; c.stroke();
   if (done) {
     c.beginPath(); c.moveTo(x + 18, y - 26); c.lineTo(x + 24, y - 20); c.lineTo(x + 36, y - 34);
     c.strokeStyle = '#ffffff'; c.lineWidth = 2.5; c.stroke();
@@ -3042,7 +3000,7 @@ function drawBonusNode(c, b, now) {
   c.font = `700 11px "Orbitron", sans-serif`;
   const t = 'BÔNUS  ·  ' + def.name, tw = c.measureText(t).width + 24;
   c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(x - tw / 2, y + 40, tw, 18);
-  glowText(c, t, x, y + 50, 11, open ? '#ffffff' : rgba('#ffffff', 0.6), GOLD, 'center', 700, 2);
+  glowText(c, t, x, y + 50, 11, open ? '#ffffff' : rgba('#ffffff', 0.6), k, 'center', 700, 2);
   c.globalAlpha = 1;
 }
 
@@ -3151,7 +3109,7 @@ function render() {
     if (bestT > 0) glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
     if (menuMsg && now - menuMsg.t < 2) {
       ctx.globalAlpha = Math.min(1, (2 - (now - menuMsg.t)) * 2);
-      glowText(ctx, menuMsg.text, W / 2, H * 0.47 + 152, 14, '#ffffff', k, 'center', 700, 3);
+      glowText(ctx, menuMsg.text, W / 2, H * 0.47 + 166, 14, '#ffffff', k, 'center', 700, 3);
       ctx.globalAlpha = 1;
     }
     drawPlatform(ctx, plat, W / 2, H - 150, BASE_HW, now, k);
@@ -3206,10 +3164,10 @@ function render() {
       }
     } else if (scene === 'world') {
       dim(ctx, 0.7);
-      glowText(ctx, `DISTRITO ${game.stage.w + 1}  ·  ${game.world.name}`, W / 2, H * 0.28, 22, rgba(k, 0.9), k, 'center', 700, 8);
+      glowText(ctx, `CAPÍTULO ${game.stage.w + 1}  ·  ${game.world.name}`, W / 2, H * 0.28, 22, rgba(k, 0.9), k, 'center', 700, 8);
       neonTitle(ctx, 'CONCLUÍDO', W / 2, H * 0.34, 62, k, k, 10);
       glowText(ctx, String(lastScore), W / 2, H * 0.45, 52, '#ffffff', k, 'center', 700, 3);
-      if (game.index + 1 >= TOTAL_STAGES) glowText(ctx, 'NOVOS DISTRITOS EM BREVE', W / 2, H * 0.545, 16, rgba(k, 0.9), k, 'center', 500, 5);
+      if (game.index + 1 >= TOTAL_STAGES) glowText(ctx, 'NOVOS CAPÍTULOS EM BREVE', W / 2, H * 0.545, 16, rgba(k, 0.9), k, 'center', 500, 5);
       if (newShape) glowText(ctx, 'NOVO FORMATO DE PLATAFORMA: ' + newShape, W / 2, H * 0.575, 15, '#ffffff', k, 'center', 700, 3);
       if (reward) renderCoinsWon(ctx, H * 0.49, k);
       renderChipsWon(ctx, reward ? H * 0.49 + 38 : H * 0.49, k);

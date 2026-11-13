@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.8** (13/11/2026)
+Versão atual publicada: **1.8.1** (13/11/2026)
 
 ## Objetivos
 
@@ -16,6 +16,16 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 
 ## Histórico
+
+### 1.8.1 (13/11/2026)
+
+- [x] DISTRITO virou CAPÍTULO.
+- [x] Mapa: ruas só em retas e na cor do tema (também nas bônus e nos parques); só o banco AURUM dourado.
+- [x] Mapa: faixa fixa embaixo com a informação do capítulo no meio da tela.
+- [x] Mapa: olho na fase do chefão, com o nome em cima.
+- [x] Menu inicial e pausa mais leves (opção A nos dois).
+- [x] INFINITO: chefão chega estourando os blocos em sequência e com o disco voltando; depois dele, sem aviso e com poucos blocos de novo.
+- [x] Bug: bolinha do GUIA branca.
 
 ### 1.8 (13/11/2026)
 

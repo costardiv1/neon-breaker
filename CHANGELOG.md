@@ -2,6 +2,27 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.8.1] · 13/11/2026 · Capítulos, mapa em retas e menus mais leves
+
+### Adicionado
+
+- Mapa: faixa fixa embaixo com o nome, o chefão e as mecânicas do capítulo no meio da tela; ela muda conforme a rolagem (no topo mostra o primeiro e no fim o último).
+- INFINITO: quando o chefão chega, os blocos estouram em sequência, o disco volta sozinho para a plataforma e o chefão entra numa explosão.
+
+### Alterado
+
+- DISTRITO passa a se chamar CAPÍTULO em todo o jogo.
+- Mapa: a rua das fases e as ruas das fases bônus voltaram a ser só retas, seguindo a grade da cidade, e só na cor do tema (sem dourado). Os parques também ficaram na cor do tema; só o banco da TORRE AURUM continua dourado.
+- Mapa: o olho voltou na fase do chefão, com o nome dele em cima.
+- Menu inicial: só JOGAR, BREAKERS e INFINITO no meio; OPÇÕES e PLACAR viraram ícones redondos nos cantos de cima, junto do sino, e COR e CRÉDITOS foram para dentro das OPÇÕES.
+- Pausa: CONTINUAR grande com MAPA (ou RECOMEÇAR) e MENU embaixo; EFEITOS, MÚSICA e GUIA viraram ícones pequenos no canto de cima.
+- INFINITO: depois de derrotar o chefão não aparece aviso, e as fileiras voltam com poucos blocos, enchendo de novo com o tempo.
+- BARRICADA sem as muralhas do meio, que escondiam blocos.
+
+### Corrigido
+
+- A bolinha do ícone do GUIA era branca; agora é da cor do tema.
+
 ## [1.8] · 13/11/2026 · Cidade nova, fases bônus e ícones
 
 ### Adicionado

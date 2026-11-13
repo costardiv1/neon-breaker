@@ -121,7 +121,7 @@ export function createDevPanel(api) {
         b('😡 Modo fúria', () => g.devFury()),
       ].join('')}</div>`,
     ].join('') : [
-      `<div class="lb"><span>Distrito</span><output>${w + 1}</output></div><div class="row num">${worlds}</div>`,
+      `<div class="lb"><span>Capítulo</span><output>${w + 1}</output></div><div class="row num">${worlds}</div>`,
       `<div class="lb"><span>Fase · ${esc(st ? api.stageLabel(g.index) : '')}</span></div><div class="row num">${stages}</div>`,
       `<div class="grid">${[
         b('⏭️ Pular fase', () => g.devSkip()),
@@ -165,7 +165,7 @@ export function createDevPanel(api) {
     ].join('');
 
     el.innerHTML = `<div class="hd"><span>🛠️ MODO DEV</span><button data-fold aria-label="Recolher">${folded ? '+' : '–'}</button></div>`
-      + `<div class="bd">${sec('jogo', '🎮 Jogo', jogo)}${sec('graf', '🖥️ Gráficos', graf)}${sec('mundo', '🗺️ Distrito e fase', mundo)}`
+      + `<div class="bd">${sec('jogo', '🎮 Jogo', jogo)}${sec('graf', '🖥️ Gráficos', graf)}${sec('mundo', '🗺️ Capítulo e fase', mundo)}`
       + `${sec('breaker', '🛸 Breaker', breaker)}${sec('caps', '💊 Cápsulas', caps)}</div>`;
     el.classList.toggle('fold', folded);
     el.querySelector('.bd').scrollTop = scroll;

@@ -737,7 +737,7 @@ export class Game {
     if (this.endless && !st.boss) {
       this.endless.rowTop = 0; this.endless.rowY = y0;
       for (const m of this.endless.mechs) this.endlessFeature(m, true);
-      this.banner = { text: 'INFINITO', sub: this.endless.t < 1 ? 'SOBREVIVA O MÁXIMO QUE PUDER' : 'DE VOLTA AOS BLOCOS', t: 2.4, max: 2.4 };
+      this.banner = this.endless.t < 1 ? { text: 'INFINITO', sub: 'SOBREVIVA O MÁXIMO QUE PUDER', t: 2.4, max: 2.4 } : null;
     }
     music.play(st.boss ? this.world.bossMusic : this.world.music);
     this.emit('level');
@@ -762,8 +762,8 @@ export class Game {
   // a row of bricks as a string, with the specials of the active mechanics
   endlessRow(maxHp) {
     const E = this.endless, has = (m) => E.mechs.includes(m);
-    // the rows start sparse and fill up over the first ~3 minutes
-    const gap = Math.max(0.25, 0.62 - E.t / 480);
+    // the rows start sparse and fill up over ~3 minutes (again after each boss)
+    const gap = Math.max(0.25, 0.62 - (E.t - (E.since || 0)) / 480);
     let row = '';
     for (let c = 0; c < COLS; c++) {
       if (Math.random() < gap) { row += '.'; continue; }
@@ -826,17 +826,53 @@ export class Game {
   endlessBoss() {
     const E = this.endless;
     const ws = WORLDS.map((wd, i) => (wd.soon ? -1 : i)).filter((i) => i >= 0);
-    E.boss = ws[E.bosses % ws.length];
-    E.round = Math.floor(E.bosses / ws.length);   // 0 the first time, 1 with double health...
     E.bossT = ENDLESS_BOSS;
-    for (const br of this.bricks) if (!br.dead) this.burst(br.x + br.w / 2, br.y + br.h / 2, 4, 0.6);
+    // first the bricks break one after another, from the middle out, and the
+    // discs fly back to the platform; then the boss bursts in
+    const cx = W / 2, cy = this.top + 200;
+    const list = this.bricks.filter((b) => !b.dead).sort((a, b) => Math.hypot(a.x + a.w / 2 - cx, a.y - cy) - Math.hypot(b.x + b.w / 2 - cx, b.y - cy));
+    E.intro = { t: 0, list, next: 0.15, step: Math.min(0.07, 1.1 / Math.max(1, list.length)), n: 0, w: ws[E.bosses % ws.length], round: Math.floor(E.bosses / ws.length) };
+    this.drops = []; this.bolts = []; this.missiles = []; this.shots = [];
+    this.banner = null;
+  }
+
+  endlessIntro(dt) {
+    const E = this.endless, I = E.intro, p = this.paddle;
+    I.t += dt;
+    I.next -= dt;
+    while (I.next <= 0 && I.list.length) {
+      I.next += I.step;
+      const br = I.list.shift();
+      if (br.dead) continue;
+      br.dead = true;
+      this.derez(br, tierTone(this.col, Math.max(1, Math.ceil(br.hp))));
+      sfx.brk(Math.min(20, ++I.n));
+      this.shake = Math.max(this.shake, 0.22);
+    }
+    this.bricks = this.bricks.filter((b) => !b.dead);
+    let back = true;
+    for (const b of this.balls) {
+      if (b.held) continue;
+      const tx = p.x, ty = p.y + Math.min(0, this.shape.y(0, p.hw)) - b.r - 6, f = Math.min(1, dt * 5);
+      b.x += (tx - b.x) * f; b.y += (ty - b.y) * f;
+      trimTrail(b.path, b.x, b.y);
+      if (Math.hypot(tx - b.x, ty - b.y) < 10) { b.held = true; b.hold = 0; } else back = false;
+    }
+    if (I.list.length || !back || I.t < 1.4) return;
+    E.intro = null;
+    E.boss = I.w; E.round = I.round;   // 0 the first time, 1 with double health...
     this.loadLevel();
+    const B = this.boss;
+    if (B) { B.flash = 1; this.ring(B.cx, B.cy, 340); this.ring(B.cx, B.cy, 220); this.ring(B.cx, B.cy, 120); this.burst(B.cx, B.cy, 46, 1.8); }
+    this.shake = 1.1;
+    sfx.blast(); vibrate(90);
   }
 
   updateEndless(dt) {
     const E = this.endless;
     E.t += dt;
     if (this.boss) return;
+    if (E.intro) { this.endlessIntro(dt); return; }
     this.baseSpeed = this.endlessSpeed();
     E.next -= dt;
     if (E.next <= 0) { E.next = ENDLESS_STEP; this.endlessMech(); }
@@ -885,6 +921,7 @@ export class Game {
   get holding() { return this.balls.some((b) => b.held); }
 
   launch() {
+    if (this.endless && this.endless.intro) return;   // the boss is on its way
     this.holdT = 0;
     let any = false;
     for (const b of this.balls) {
@@ -940,7 +977,7 @@ export class Game {
     if (this.boss && this.boss.dead) {
       this.boss.update(dt);
       if (this.boss.deathT <= 0 && !this.worldDone) {
-        if (this.endless) { this.endless.bosses++; this.endless.boss = null; this.endless.music++; this.loadLevel(); return; }
+        if (this.endless) { const E = this.endless; E.bosses++; E.boss = null; E.music++; E.since = E.t; this.loadLevel(); return; }
         this.worldDone = true; this.emit('worldClear');
       }
       return;
@@ -963,7 +1000,7 @@ export class Game {
       return;
     }
 
-    if (this.endless) { this.updateEndless(dt); if (this.endless.boss !== null && !this.boss) return; }
+    if (this.endless) { this.updateEndless(dt); if ((this.endless.boss !== null || this.endless.intro) && !this.boss) return; }
     this.updateMechanics(dt);
     if (this.boss) {
       this.boss.update(dt);
@@ -2546,7 +2583,7 @@ export class Game {
       neonTitle(c, bnr.text, W / 2, this.H * 0.5, 54, col, col, 6);
       if (bnr.sub) glowText(c, bnr.sub, W / 2, this.H * 0.5 + 56, 20, WHITE, col, 'center', 700, 6);
       c.globalAlpha = 1;
-    } else if (this.holding && showHud) {
+    } else if (this.holding && showHud && !(this.endless && this.endless.intro)) {
       c.globalAlpha = 0.45 + 0.35 * Math.sin(this.t * 4);
       glowText(c, 'SOLTE PARA LANÇAR', W / 2, this.H * 0.62, 18, WHITE, col, 'center', 500, 4);
       c.globalAlpha = 1;
@@ -2580,7 +2617,7 @@ export class Game {
     const hy = this.top - 62;
     const E = this.endless;
     glowText(c, E ? fmtTime(E.t) : String(this.score), W / 2, hy, 36, WHITE, col, 'center', 700, 3);
-    const sub = E ? this.score + ' PONTOS  ·  ' + (this.boss ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
+    const sub = E ? this.score + ' PONTOS  ·  ' + (this.boss || E.intro ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
       : this.bonus ? 'BÔNUS  ·  ' + this.bonus.name : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
     glowText(c, sub, W / 2, hy + 36, 13, rgba(col, 0.85), col, 'center', 500, 4);
     const ds = discSprite(col, BALL_R, this.plat.disc || 0);
