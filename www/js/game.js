@@ -44,7 +44,7 @@ export const POWERS = {
   laser:   { good: true,  d: 2, w: 2.2, label: 'LASER', tip: 'A plataforma dispara lasers.' },
   life:    { good: true,  d: 3, w: 0.6, label: '+1 VIDA', tip: 'Uma vida a mais.' },
   missile: { good: true,  d: 4, w: 2,   label: 'MÍSSIL', tip: 'Um míssil busca o alvo e explode.' },
-  pierce:  { good: true,  d: 5, w: 1.6, label: 'PERFURAR', tip: 'O disco atravessa tudo por 8 s.' },
+  pierce:  { good: true,  d: 5, w: 1.6, label: 'PERFURAR', tip: 'O disco atravessa os blocos por um tempo.' },
   mega:    { good: true,  d: 6, w: 1.8, label: 'MEGA DISCO', tip: 'Disco maior, com dano dobrado.' },
   bomb:    { good: true,  d: 6, w: 1.6, label: 'BOMBA', tip: 'O próximo bloco acertado explode.' },
   shrink:  { good: false, d: 1, w: 1.7, label: 'PLATAFORMA -', tip: 'Plataforma menor.' },
@@ -740,7 +740,7 @@ export class Game {
     const src = WORLDS[E.music % 9];
     const world = { name: 'INFINITO', music: src.music, bossMusic: src.bossMusic, border: src.border };
     const rows = [];
-    for (let r = 0; r < 4; r++) rows.push(this.endlessRow(r === 0 ? 2 : 1));
+    for (let r = 0; r < 2; r++) rows.push(this.endlessRow(r === 0 ? 2 : 1));
     return { w: 8, s: 0, world, mech: null, mechs, rows, name: 'INFINITO', endless: true };
   }
 
@@ -1562,6 +1562,8 @@ export class Game {
       if (b.heavy > 0) { b.heavy--; amt *= 2; this.ring(br.x + br.w / 2, br.y + br.h / 2, 46); this.shake = Math.max(this.shake, 0.2); }
       this.damage(br, pierce, amt);
       if (bounce) return;
+      const pe = this.effects.pierce;
+      if (pe && pe.hit && !pe.hit.has(br)) { pe.hit.add(br); if (--pe.n <= 0) { delete this.effects.pierce; return; } }
     }
   }
 
@@ -1698,7 +1700,8 @@ export class Game {
       case 'mega': case 'mini':
         this.effects.disc = { type, t: 12, max: 12, good: def.good }; break;
       case 'pierce':
-        this.effects.pierce = { type, t: 8, max: 8, good: true }; break;
+        // in INFINITO (bricks never end) it is shorter and goes through at most 10 bricks
+        this.effects.pierce = this.endless ? { type, t: 4, max: 4, good: true, n: 10, hit: new Set() } : { type, t: 8, max: 8, good: true }; break;
       case 'laser': {
         const left = this.effects.laser ? this.effects.laser.t : 0;
         const t = Math.min(14, left + 7);

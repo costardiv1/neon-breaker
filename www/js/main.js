@@ -19,7 +19,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.7.1';
+export const VERSION = '1.7.2';
 
 let H = 1280;
 let safeTop = 0;
@@ -224,17 +224,12 @@ const game = new Game({
       return;
     }
     if (e === 'endlessMech') {
-      if (!seen[data]) { markSeen(data); card = { kicker: 'INFINITO  ·  NOVA MECÂNICA', title: MECHS[data].name, text: MECHS[data].text, focus: 'mech', demo: data }; showCard(); }
-      return;
+      return;   // INFINITO: no card mid-run (the banner shows the name; the GUIA in the pause explains it)
     }
     // INFINITO has every capsule from the start: the first time one the player
     // never met falls, a card shows what it does
     if (e === 'capsule') {
-      const kk = 'cap_' + data;
-      if (!seen[kk]) {
-        markSeen(kk);
-        if (game.endless && !capKnown(data)) { card = { kicker: 'INFINITO  ·  CÁPSULA NOVA', title: POWERS[data].label, text: POWERS[data].tip, focus: 'drop', demo: 'cap:' + data }; showCard(); }
-      }
+      if (!game.endless) markSeen('cap_' + data);   // the campaign shows them; the GUIA marks the rest
       return;
     }
     if (e === 'chip') { chips += data; return; }
@@ -284,7 +279,7 @@ let devOpen = false;
 let freeze = false;
 let drag = null;
 
-const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story', 'reward', 'ad'];
+const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story', 'reward', 'ad', 'guide'];
 function setScene(s) {
   if (s !== 'play') saveChips();
   if (s === 'map' && scene !== 'map') focusMap();
@@ -295,7 +290,7 @@ function setScene(s) {
   sfx.setPlaying(s === 'play');
   if (s === 'crash') music.play(null);
   else if (!IN_GAME.includes(s)) music.play('map');
-  music.duck(s === 'pause' || s === 'card' || s === 'over' || s === 'story' || s === 'reward' || s === 'ad');
+  music.duck(s === 'pause' || s === 'guide' || s === 'card' || s === 'over' || s === 'story' || s === 'reward' || s === 'ad');
   if (s !== 'play') devOpen = false;
 }
 setScene('menu');
@@ -1589,7 +1584,16 @@ function layout() {
         btn(cx, H * 0.48 + 200, bw, bh, 'MENU', () => setScene('menu')),
         btn(cx - 102, H * 0.48 + 300, 196, 64, 'EFEITOS: ' + (sfx.enabled ? 'SIM' : 'NÃO'), toggleSfx, { fs: 14, on: sfx.enabled }),
         btn(cx + 102, H * 0.48 + 300, 196, 64, 'MÚSICA: ' + (sfx.musicOn ? 'SIM' : 'NÃO'), toggleMusic, { fs: 14, on: sfx.musicOn }),
+        btn(cx, H * 0.48 + 390, 400, 64, 'GUIA  ?', openGuide, { fs: 16, bang: game.endless && guideNews() }),
       ];
+    case 'guide': {
+      const b = guideBox(), y = b.y + b.h / 2;
+      return [
+        btn(cx - W / 2 + 48, y, 76, 76, '', () => guideStep(-1), { arrow: -1 }),
+        btn(cx + W / 2 - 48, y, 76, 76, '', () => guideStep(1), { arrow: 1 }),
+        btn(cx, Math.min(H - 90, b.y + b.h + 120), bw, bh, 'VOLTAR', () => setScene('pause'), { big: true }),
+      ];
+    }
     case 'over':
       if (game.endless) return [
         btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', startEndless, { big: true }),
@@ -1649,6 +1653,56 @@ function startEndless() {
   tut = null; game.tutorial = false;
   endlessDev = opts.dev;
   game.newEndless();
+  if (!seen.endlessIntro) {   // one card, the first time only
+    markSeen('endlessIntro');
+    card = { kicker: 'MODO INFINITO', title: 'INFINITO', demo: 'descent',
+      text: 'Sobreviva o máximo que puder. Mecânicas novas entram com o tempo e um chefão vem a cada 3:30. Dúvidas? GUIA, na pausa.' };
+    showCard();
+  }
+}
+
+// ---------- GUIA (from the pause): the mechanics in play and the capsules ----------
+let guide = { items: [], i: 0 };
+function openGuide() {
+  const items = [];
+  for (const m of game.mechs || []) {
+    if (!MECHS[m]) continue;
+    items.push({ kicker: 'MECÂNICA EM JOGO', title: MECHS[m].name, text: MECHS[m].text, demo: m, isNew: !seen[m], key: m });
+  }
+  for (const q of Object.keys(POWERS)) {
+    if (!game.endless && POWERS[q].d > game.stage.w + 1) continue;
+    const v = POWERS[q];
+    items.push({ kicker: v.good ? 'CÁPSULA BOA' : 'CÁPSULA RUIM', title: v.label, text: v.tip, demo: 'cap:' + q, isNew: !seen['cap_' + q] && !capKnown(q), key: 'cap_' + q });
+  }
+  // the new ones first
+  items.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0));
+  guide = { items, i: 0 };
+  setScene('guide');
+}
+function guideStep(d) { const n = guide.items.length; guide.i = (guide.i + d + n) % n; }
+// something in the GUIA the player has not seen yet (a "!" on the pause button)
+const guideNews = () => (game.mechs || []).some((m) => MECHS[m] && !seen[m]) || Object.keys(POWERS).some((q) => !seen['cap_' + q] && !capKnown(q));
+const guideBox = () => {
+  const h = 200 + demoH() + 24 + 3 * 36 + 40, y = Math.max(safeTop + 170, H * 0.45 - h / 2);
+  return { x: 100, y, w: W - 200, h };
+};
+function renderGuide(c, now) {
+  const k = col(), it = guide.items[guide.i], b = guideBox();
+  dim(c, 0.82);
+  neonTitle(c, 'GUIA', W / 2, b.y - 60, 46, k, k, 12);
+  if (!it) return;
+  if (it.isNew) markSeen(it.key);
+  roundRectPath(c, b.x, b.y, b.w, b.h, 24);
+  c.fillStyle = 'rgba(0,0,0,0.9)'; c.fill();
+  neonStroke(c, k, k, 2.4, b.x, b.y, b.x + b.w, b.y + b.h, 0.8);
+  glowText(c, it.kicker, W / 2, b.y + 40, 13, rgba(k, 0.9), k, 'center', 600, 5);
+  if (it.isNew) glowText(c, 'NOVO', b.x + b.w - 40, b.y + 40, 12, '#ffd84a', '#ffd84a', 'center', 800, 2);
+  neonTitle(c, it.title, W / 2, b.y + 92, 32, k, k, 5);
+  drawDemo(c, it.demo, b.x + 30, b.y + 128, b.w - 60, demoH(), now, k);
+  c.save(); c.font = `500 23px ${BODY_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = 'rgba(255,255,255,0.92)';
+  wrap(c, it.text, b.w - 60).slice(0, 3).forEach((ln, i) => c.fillText(ln, W / 2, b.y + 128 + demoH() + 40 + i * 34));
+  c.restore();
+  glowText(c, (guide.i + 1) + ' / ' + guide.items.length, W / 2, b.y + b.h + 34, 14, rgba('#ffffff', 0.7), k, 'center', 600, 3);
 }
 
 function startGame(index = 0) {
@@ -1923,15 +1977,32 @@ function lightUpMap() {
   if (litD < 0) { litD = n; store.set('litD', litD); return; }
   if (n > litD) { lightAnim = { from: litD, to: n, t0: performance.now() / 1000 }; litD = n; store.set('litD', litD); }
 }
-function districtDark(w, now) {
-  if (!districtOpen(w)) return DARK;
-  if (lightAnim && w >= lightAnim.from && w < lightAnim.to) {
-    const f = clampN((now - lightAnim.t0 - 0.6) / 1.6, 0, 1);
-    if (f >= 1) return 0;
-    const flick = f > 0 && Math.sin(now * 37) > 0.4 ? 0.25 : 0;   // a neon tube switching on
-    return Math.max(0, DARK * (1 - f) - flick);
+const FOCUS_DIM = 0.36;    // open districts away from the middle of the screen
+const mapDim = {};          // current darkness of each district (eases toward its target)
+let mapFocus = -1, mapDimT = 0;
+function districtBand(D, w) {
+  const d = D.dist[w];
+  return [w ? D.path[D.dist[w - 1].gate].y : -300, w < D.dist.length - 1 ? D.path[d.gate].y : D.height + 300];
+}
+function updateMapDim(D, now, cy) {
+  const dt = Math.min(0.1, Math.max(0, now - mapDimT)); mapDimT = now;
+  // the open district closest to the middle of the screen
+  let best = Infinity; mapFocus = -1;
+  for (const d of D.dist) {
+    if (!districtOpen(d.w)) continue;
+    const [a, b] = districtBand(D, d.w), dist = cy < a ? a - cy : cy > b ? cy - b : 0;
+    if (dist < best) { best = dist; mapFocus = d.w; }
   }
-  return 0;
+  for (const d of D.dist) {
+    const w = d.w, target = !districtOpen(w) ? DARK : w === mapFocus ? 0 : FOCUS_DIM;
+    let v = mapDim[w] === undefined ? target : mapDim[w] + (target - mapDim[w]) * Math.min(1, dt * 5);
+    if (lightAnim && w >= lightAnim.from && w < lightAnim.to) {   // just opened: a neon tube switching on
+      const f = clampN((now - lightAnim.t0 - 0.6) / 1.6, 0, 1);
+      const flick = f > 0 && f < 1 && Math.sin(now * 37) > 0.4 ? 0.25 : 0;
+      v = Math.max(v, DARK * (1 - f) - flick);
+    }
+    mapDim[w] = v;
+  }
 }
 
 // one isometric box (footprint inset f) with floors, optional neon band
@@ -2183,10 +2254,11 @@ function renderMap(c, now) {
   blit(L.bld);
   c.translate(0, top - mapScroll);
   // closed districts stay dark; one that just opened lights up
+  updateMapDim(D, now, mapScroll + vh / 2);
   D.dist.forEach((d) => {
-    const dk = districtDark(d.w, now);
+    const dk = mapDim[d.w] || 0;
     if (dk <= 0.01) return;
-    const yA = d.w ? D.path[D.dist[d.w - 1].gate].y : -300, yB = d.w < D.dist.length - 1 ? D.path[d.gate].y : D.height + 300;
+    const [yA, yB] = districtBand(D, d.w);
     if (yB < mapScroll - 100 || yA > mapScroll + vh + 100) return;
     const g = c.createLinearGradient(0, yA - 50, 0, yB + 50), e = Math.min(0.45, 100 / (yB - yA + 100));
     g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(e, `rgba(0,0,0,${dk})`);
@@ -2207,8 +2279,10 @@ function renderMap(c, now) {
   pathPoly(c, D, 0, N[0].t);
   neonStroke(c, k, k, 3, 0, 0, W, 0, 0.8);
   for (let i = 0; i < N.length - 1; i++) {
+    const dimR = mapDim[N[i + 1].w] || 0, focusR = N[i + 1].w === mapFocus;
+    c.globalAlpha = 1 - dimR * 0.9;
     pathPoly(c, D, N[i].t, N[i + 1].t);
-    if (i < prog) neonStroke(c, k, k, 3.5, 0, 0, W, 0, 0.9);
+    if (i < prog) neonStroke(c, k, k, focusR ? 4.5 : 3.5, 0, 0, W, 0, focusR ? 1.3 : 0.9);
     else { c.save(); c.setLineDash([7, 9]); c.strokeStyle = rgba(k, 0.6); c.lineWidth = 2.5; c.stroke(); c.restore(); }
     if (i < prog) {
       c.save(); c.setLineDash([18, 260]); c.lineDashOffset = -((now * 140) % 278);
@@ -2216,6 +2290,7 @@ function renderMap(c, now) {
       c.restore();
     }
   }
+  c.globalAlpha = 1;
   // the rest of the road, still locked
   c.save(); c.setLineDash([4, 12]); pathPoly(c, D, N[N.length - 1].t, D.total - 1);
   c.strokeStyle = rgba(k, 0.3); c.lineWidth = 2; c.stroke(); c.restore();
@@ -2288,7 +2363,7 @@ function drawNode(c, b, now) {
   const p = nodePos(i);
   const done = i < prog, open = unlocked(i), next = i === prog && open;
   const r = p.boss ? 36 : 28;
-  c.globalAlpha = open ? 1 : 0.5;
+  c.globalAlpha = (open ? 1 : 0.5) * (1 - (mapDim[isoData().nodes[i].w] || 0) * 0.6);
   const shape = () => {
     c.beginPath();
     if (p.boss) for (let q = 0; q < 6; q++) { const a = (q * TAU) / 6 + Math.PI / 6; c[q ? 'lineTo' : 'moveTo'](p.x + Math.cos(a) * r, p.y + Math.sin(a) * r); }
@@ -2495,6 +2570,8 @@ function render() {
       if (reward) renderCoinsWon(ctx, H * 0.43, k);
       renderChipsWon(ctx, H * 0.43 + 38, k);
       if (reward && !reward.done) glowText(ctx, 'ASSISTA A UM ANÚNCIO PARA DOBRAR AS MOEDAS', W / 2, H * 0.49 + 18, 15, rgba(k, 0.9), k, 'center', 500, 4);
+    } else if (scene === 'guide') {
+      renderGuide(ctx, now);
     } else if (scene === 'card' && card) {
       renderCard(ctx, now);
     }

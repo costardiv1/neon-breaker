@@ -2,6 +2,20 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.7.2 (12/11/2026)
+
+### INFINITO
+- [ ] Na primeira partida do INFINITO aparece um cartão só, explicando o modo. Na segunda partida ele não aparece.
+- [ ] Durante a partida não aparece nenhum cartão: quando entra uma mecânica, só o nome aparece no topo.
+- [ ] O começo tem só 2 fileiras de blocos.
+- [ ] Pegue um PERFURAR: ele dura uns 4 s ou acaba antes, depois de atravessar 10 blocos.
+- [ ] Na pausa, o botão GUIA ? tem um ! quando há coisa nova. Ele abre as mecânicas em jogo e as cápsulas com animação, e as setas passam de uma para outra. As novas vêm primeiro, com NOVO. VOLTAR volta para a pausa.
+- [ ] O GUIA também funciona na pausa da campanha (as mecânicas da fase e as cápsulas do distrito).
+
+### Mapa
+- [ ] Os distritos liberados estão acesos como antes. Role o mapa: o distrito do meio da tela fica mais claro, com a rua mais forte, e os outros liberados ficam um pouco apagados.
+- [ ] Os fechados continuam escuros e o distrito novo ainda acende quando você derrota um chefão.
+
 ## 1.7.1 (12/11/2026)
 
 - [ ] INFINITO: quebre todos os blocos (ou use LIMPAR BLOCOS no modo dev): fileiras novas entram rápido e o jogo segue.

@@ -2,6 +2,20 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.7.2] · 12/11/2026 · GUIA na pausa e mapa com foco
+
+### Adicionado
+
+- GUIA na pausa (botão GUIA ?): as mecânicas em jogo e as cápsulas, cada uma com animação; as que o jogador ainda não conhece vêm primeiro, marcadas como NOVO.
+- INFINITO: um cartão só, na primeira partida, explicando o modo.
+
+### Alterado
+
+- INFINITO: sem cartões de mecânica ou cápsula no meio da partida.
+- INFINITO começa com 2 fileiras de blocos (eram 4).
+- PERFURAR no INFINITO: 4 s e no máximo 10 blocos (na campanha continua 8 s).
+- Mapa: os distritos liberados voltaram a ficar acesos; o que está no meio da tela fica em destaque, com a rua mais forte, e os outros um pouco apagados. Os fechados continuam escuros e o distrito novo continua acendendo.
+
 ## [1.7.1] · 12/11/2026 · Correções do INFINITO e da PRESSÃO
 
 ### Corrigido
