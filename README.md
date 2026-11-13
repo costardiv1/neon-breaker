@@ -198,6 +198,10 @@ Feito por **Vinícius Costardi** e **Claude Code**, desenvolvido em vibe code.
 
 Inspirado nos quebra-blocos clássicos e na estética neon de Tron.
 
+## Licença
+
+© 2026 Vinícius Costardi. **Todos os direitos reservados.** O código está aqui só para consulta: copiar, modificar ou publicar o jogo (inclusive na Google Play ou em outras lojas) sem autorização por escrito do autor é proibido. Jogar a versão publicada é livre. Os detalhes estão no arquivo [LICENSE](LICENSE).
+
 ## Próximos passos
 
 - [ ] Capítulo 10 e a luta final contra O SISTEMA
