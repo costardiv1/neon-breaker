@@ -19,7 +19,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.8.1';
+export const VERSION = '1.8.2';
 
 let H = 1280;
 let safeTop = 0;
@@ -43,7 +43,7 @@ let bestT = store.get('bestT', 0);
 let eruns = store.get('eruns', []);        // best endless runs on this device: { t, bosses, date }
 // bonus stages already cleared ({ district: true }): the first clear pays the full reward
 let bonusWon = store.get('bonus', {});
-const BONUS_AGAIN = 10;                    // coins for clearing a bonus stage again
+const BONUS_AGAIN = 3;                     // coins for clearing a bonus stage again
 let devUI = null;                          // in-game dev panel (created further down)
 const REPO_URL = 'https://github.com/costardiv1/neon-breaker';
 const INSTA_URL = 'https://www.instagram.com/v.costardi';
@@ -477,11 +477,12 @@ function optionButtons() {
 const TW = 36, TH = 18, J0 = 6;
 const isoXY = (i, j) => ({ x: W / 2 + (i - j) * TW, y: 70 + (i + j - J0) * TH });
 const MAP_Y0 = 70;                 // y of the first tile of the street
-const STEPS = 36, SOON_STEPS = 16;  // street tiles per chapter (the last one is shorter)
+const STEPS = 36, SOON_STEPS = 26;  // street tiles per chapter (the last one is shorter)
 const DIST_H = STEPS * TH, SOON_H = SOON_STEPS * TH;
 const NODE_F = [0.1, 0.3, 0.5, 0.7, 0.9];   // where the stages sit along a chapter's street
 const BONUS_F = 0.4;                          // where the side street to the bonus stage leaves it
 const EDGE = 8;                               // the street stays within |i - j| <= EDGE
+const LEAD = { i: 1, j: 3, bi: 2, bj: 4, h: 58 }; // where the street comes in, and the building in front of it
 const bandTop = (w) => MAP_Y0 + w * DIST_H;
 const distH = (w) => (WORLDS[w].soon ? SOON_H : DIST_H);
 const bonusOpen = (b) => unlocked(bonusIndex(b) + 1);
@@ -538,24 +539,34 @@ function isoData() {
   const R = rng(2718);
   let i = 3, j = 3, dir = 1;   // dir 1: along i (down-right), -1: along j (down-left)
   const tiles = [{ i, j }];
-  WORLDS.forEach((wd, w) => {
-    let left = wd.soon ? SOON_STEPS : STEPS;
-    if (wd.soon && i !== j) dir = i > j ? -1 : 1;   // the last one heads for the middle, to the tower
-    let guard = 0;
-    while (left > 0 && guard++ < 100) {
-      const d = i - j, room = dir > 0 ? EDGE - d : d + EDGE;
-      const want = wd.soon ? Math.max(1, Math.abs(d)) : 3 + Math.floor(R() * 8);
-      const len = Math.min(left, room, want);
-      if (len <= 0) { dir = -dir; continue; }
-      for (let q = 0; q < len; q++) { if (dir > 0) i++; else j++; tiles.push({ i, j }); }
-      left -= len; dir = -dir;
+  const total = WORLDS.reduce((n, wd) => n + (wd.soon ? SOON_STEPS : STEPS), 0);
+  const lastStart = (WORLDS.length - 1) * STEPS;
+  // around each chapter border (from the boss to the next chapter's first
+  // stage) the street runs straight for GATE_RUN tiles, so the gate crosses it
+  // far from any corner
+  const GATE_RUN = 8;
+  const gateAt = (k) => { for (let w = 1; w < WORLDS.length; w++) { const s0 = w * STEPS - GATE_RUN / 2; if (k <= s0) return s0; } return Infinity; };
+  let k = 0, guard = 0;
+  const step = (n) => { for (let q = 0; q < n; q++) { if (dir > 0) i++; else j++; tiles.push({ i, j }); } k += n; };
+  while (k < total && guard++ < 400) {
+    const d = i - j, room = dir > 0 ? EDGE - d : d + EDGE, g = gateAt(k);
+    if (k === g) {   // the straight stretch through the gate, on the side with room for it
+      if (room < GATE_RUN) dir = -dir;
+      step(Math.min(GATE_RUN, total - k)); dir = -dir;
+      continue;
     }
-  });
+    // the last chapter heads for the middle, to the tower
+    const want = k >= lastStart + GATE_RUN / 2 ? Math.max(1, Math.abs(d)) : 3 + Math.floor(R() * 8);
+    if (k >= lastStart + GATE_RUN / 2 && i !== j) dir = i > j ? -1 : 1;
+    const len = Math.min(total - k, room, want, g - k);
+    if (len <= 0) { dir = -dir; continue; }
+    step(len); dir = -dir;
+  }
   const corner = tiles.filter((t, q) => q === 0 || q === tiles.length - 1
     || (tiles[q + 1].i - t.i) !== (t.i - tiles[q - 1].i)).map((t) => isoXY(t.i, t.j));
   const path = polyline(corner, 6);
   const wOf = (y) => { let w = 0; while (w < WORLDS.length - 1 && y >= bandTop(w + 1)) w++; return w; };
-  path.forEach((q) => { q.w = wOf(q.y); });
+  path.forEach((q, n) => { q.w = wOf(q.y); q.n = n; });
   const dist = WORLDS.map((_, w) => ({ w, t0: Infinity, t1: 0 }));
   path.forEach((q, t) => { const d = dist[q.w]; d.t0 = Math.min(d.t0, t); d.t1 = Math.max(d.t1, t + 1); });
   const nodes = [];
@@ -604,8 +615,50 @@ function isoData() {
     }
     return best;
   });
+  // the gate of each chapter: across a straight stretch of street between its
+  // boss and the next chapter's first stage (never on a corner), as long as
+  // it can be without reaching another street
+  const unit = (a, b) => { const x = b.x - a.x, y = b.y - a.y, m = Math.hypot(x, y) || 1; return [x / m, y / m]; };
+  const AX = [[TW, TH], [-TW, TH]].map(([u, v]) => { const m = Math.hypot(u, v); return [u / m, v / m]; });
+  dist.forEach((d) => {
+    d.gate = null;
+    if (d.w >= WORLDS.length - 1 || WORLDS[d.w].soon) return;
+    const boss = nodes.find((nd) => nd.w === d.w && nd.boss), next = nodes.find((nd) => nd.w === d.w + 1);
+    const lo = boss.t + 9, hi = (next ? next.t : path.length - 1) - 9;
+    // each half of the fence grows while it keeps clear of the other streets;
+    // the spot where both halves come out longest wins (closer to the border on a tie)
+    let best = null;
+    for (let t = Math.max(10, lo); t <= Math.min(hi, path.length - 11); t++) {
+      const u0 = unit(path[t - 10], path[t]), u1 = unit(path[t], path[t + 10]);
+      if (u0[0] * u1[0] + u0[1] * u1[1] < 0.999) continue;   // a corner nearby
+      const [nx, ny] = Math.abs(AX[0][0] * u0[0] + AX[0][1] * u0[1]) < Math.abs(AX[1][0] * u0[0] + AX[1][1] * u0[1]) ? AX[0] : AX[1];
+      const P = path[t];
+      // distance to the other streets (the gate's own stretch does not count)
+      const other = (x, y) => {
+        let m = Infinity;
+        for (let k = Math.floor((y - 60) / 40); k <= Math.floor((y + 60) / 40); k++) {
+          for (const q of RI.get(k) || []) if (Math.abs(q.n - t) > 10) m = Math.min(m, Math.hypot(q.x - x, q.y - y));
+        }
+        return m;
+      };
+      const side = (sd) => {
+        let L = 30;
+        while (L < 90) {
+          const q = { x: P.x + nx * (L + 8) * sd, y: P.y + ny * (L + 8) * sd };
+          if (other(q.x, q.y) < 34 || q.x < 20 || q.x > W - 20) break;
+          L += 8;
+        }
+        return L;
+      };
+      const La = side(-1), Lb = side(1), score = Math.min(La, Lb) * 10 - Math.abs(t - d.t1);
+      if (!best || score > best.score) best = { score, t, x: P.x, y: P.y, nx, ny, La, Lb };
+    }
+    d.gate = best;
+  });
   const end = path[path.length - 1];
-  isoCache = { path, dist, nodes, bonus, total: path.length, height: end.y + 300 };
+  // the street comes into the map from behind a building at the top
+  const lead = polyline([isoXY(LEAD.i, LEAD.j), isoXY(3, 3)], 6);
+  isoCache = { path, dist, nodes, bonus, lead, total: path.length, height: end.y + 300 };
   return isoCache;
 }
 const mapViewTop = () => safeTop + 130;
@@ -1417,7 +1470,9 @@ function renderCredits(c) {
   c.textAlign = 'center';
   c.font = `400 21px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.85)';
   c.fillText('Desenvolvido em vibe code  ·  versão ' + VERSION, cx, y + 40);
-  y += 105;
+  c.font = `400 17px ${BODY_FONT}`; c.fillStyle = 'rgba(255,255,255,0.6)';
+  c.fillText('© 2026 Vinícius Costardi. Todos os direitos reservados.', cx, y + 72);
+  y += 125;
   glowText(c, 'ASSETS DE TERCEIROS', cx, y, 16, k, k, 'center', 700, 5);
   y += 42;
   for (const [lead, rest] of CREDITS) {
@@ -1627,12 +1682,18 @@ function drawMenuIcon(c, kind, x, y, k) {
     neonStroke(c, k, k, 3.4, x - 22, y, x + 22, y, 0.8);
     c.beginPath(); c.arc(x, y + 18, 3, 0, TAU); c.fillStyle = k; c.shadowColor = k; c.shadowBlur = 8 * view.blur; c.fill(); c.shadowBlur = 0;
   } else if (kind === 'breakers') {
-    c.moveTo(x - 23, y + 16); c.quadraticCurveTo(x, y + 5, x + 23, y + 16);
-    c.moveTo(x + 9, y - 10); c.arc(x + 1, y - 10, 8, 0, TAU);
-    c.moveTo(x - 9, y - 4); c.lineTo(x - 15, y + 2);
-    c.moveTo(x - 6, y - 18); c.lineTo(x - 18, y - 12);
-    c.lineCap = 'round';
+    // the platform with the disc over it and a spark: your breaker
+    const px = x - 2, py = y + 14;
+    c.moveTo(px - 20, py - 4); c.lineTo(px + 20, py - 4); c.arc(px + 20, py, 4, -Math.PI / 2, Math.PI / 2);
+    c.lineTo(px - 20, py + 4); c.arc(px - 20, py, 4, Math.PI / 2, Math.PI * 1.5);
+    c.moveTo(px + 7, y - 6); c.arc(px, y - 6, 7, 0, TAU);
+    c.lineJoin = 'round';
     neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+    c.beginPath();
+    const sx = x + 15, sy = y - 17;
+    c.moveTo(sx, sy - 9); c.quadraticCurveTo(sx, sy, sx + 9, sy); c.quadraticCurveTo(sx, sy, sx, sy + 9);
+    c.quadraticCurveTo(sx, sy, sx - 9, sy); c.quadraticCurveTo(sx, sy, sx, sy - 9);
+    c.fillStyle = k; c.shadowColor = k; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
   } else if (kind === 'inf') {
     for (let i = 0; i <= 64; i++) {
       const t = (i / 64) * TAU, d = 1 + Math.sin(t) * Math.sin(t);
@@ -1665,7 +1726,7 @@ function drawIconButton(c, b) {
   c.translate(cx, cy - 1); c.scale(sc, sc);
   drawMenuIcon(c, b.icon, 0, 0, k);
   c.restore();
-  glowText(c, b.label, cx, b.y + b.h + 22, 12, rgba('#ffffff', 0.8), k, 'center', 700, 2);
+  glowText(c, b.label, cx, b.y + b.h + (b.big ? 26 : 22), b.big ? 16 : 12, rgba('#ffffff', b.big ? 0.9 : 0.8), k, 'center', 700, 2);
   c.globalAlpha = 1;
 }
 
@@ -1751,18 +1812,25 @@ devUI = createDevPanel({
   canvasRect: () => canvas.getBoundingClientRect(),
 });
 
+// the big icon and the two under it (main menu and pause share it)
+function menuGrid() {
+  const big = 150, mid = 104, top = H * 0.42;
+  return { big, mid, top, y2: top + big + 56 };
+}
+
 function layout() {
   const cx = W / 2, bw = 400, bh = 76;
   switch (scene) {
     case 'menu': {
-      // JOGAR, with BREAKERS and INFINITO under it; OPÇÕES and PLACAR are small
-      // round icons in the top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
-      const y = H * 0.47, B = bellRect();
+      // JOGAR (big icon) with BREAKERS and INFINITO under it, each with its name
+      // below, like the pause; OPÇÕES and PLACAR are small round icons in the
+      // top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
+      const { big, mid, top, y2 } = menuGrid(), B = bellRect();
       const lockedMsg = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
       return [
-        btn(cx, y, bw, 88, 'JOGAR', () => setScene('map'), { big: true, fs: 30 }),
-        btn(cx - bw / 4 - 6, y + 104, bw / 2 - 12, bh, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert(), fs: 17 }),
-        btn(cx + bw / 4 + 6, y + 104, bw / 2 - 12, bh, endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', endlessOpen() ? startEndless : lockedMsg, { fs: 17, off: !endlessOpen() }),
+        { x: cx - big / 2, y: top, w: big, h: big, label: 'JOGAR', fn: () => setScene('map'), icon: 'play', big: true },
+        { x: cx - 62 - mid, y: y2, w: mid, h: mid, label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
+        { x: cx + 62, y: y2, w: mid, h: mid, label: endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', fn: endlessOpen() ? startEndless : lockedMsg, icon: 'inf', off: !endlessOpen() },
         Object.assign(B, { label: '', fn: () => setScene('notif'), bell: true }),
         { x: W - B.x - B.w, y: B.y, w: B.w, h: B.h, label: '', fn: () => setScene('options'), icon: 'gear', round: true },
         { x: B.x - B.w - 14, y: B.y, w: B.w, h: B.h, label: '', fn: openScores, icon: 'trophy', round: true },
@@ -1802,7 +1870,7 @@ function layout() {
     case 'pause': {
       // CONTINUAR (big) with MAPA/RECOMEÇAR and MENU under it; EFEITOS, MÚSICA
       // and GUIA are small icons without a box in the top right corner
-      const big = 150, mid = 104, top = H * 0.42, y2 = top + big + 56, s = 64, sy = safeTop + 26;
+      const { big, mid, top, y2 } = menuGrid(), s = 64, sy = safeTop + 26;
       return [
         { x: cx - big / 2, y: top, w: big, h: big, label: 'CONTINUAR', fn: () => setScene('play'), icon: 'play', big: true },
         { x: cx - 62 - mid, y: y2, w: mid, h: mid, label: game.endless ? 'RECOMEÇAR' : 'MAPA',
@@ -2573,8 +2641,9 @@ function isoLayer() {
   const pts = D.path.slice();
   for (const B of D.bonus) pts.push(...B.spur, { x: B.x, y: B.y, r: 30 });
   for (const n of D.nodes) pts.push({ x: n.x, y: n.y, r: n.boss ? 30 : 22 });
-  const RI = roadIndex(pts);
-  const spots = citySpots(RI);
+  for (const d of D.dist) if (d.gate) for (let o = -d.gate.La; o <= d.gate.Lb; o += 10) pts.push({ x: d.gate.x + d.gate.nx * o, y: d.gate.y + d.gate.ny * o });
+  const spots = citySpots(roadIndex(pts));   // (placed before the lead-in street existed: keep them there)
+  const RI = roadIndex(pts.concat(D.lead));
   const end = D.path[D.total - 1];
   const beacons = [], streets = [], live = [];
   const R = rng(9001);
@@ -2606,6 +2675,7 @@ function isoLayer() {
         }
         continue;
       }
+      if (i === LEAD.bi && j === LEAD.bj) { isoBox(cb, x, y, LEAD.h, kk, 0.78, rng(41), beacons, w); continue; }
       const nearTower = Math.abs(x - end.x) < 120 && y > end.y - 30 && y < end.y + 130;
       const street = mod5(i) === 0 || mod5(j) === 0;
       const rn = roadNear(RI, x, y), lim = rn.gap - 32;
@@ -2631,7 +2701,7 @@ function isoLayer() {
     c.save(); c.setLineDash([10, 14]); c.strokeStyle = rgba(k, 0.22); c.lineWidth = 1.5; c.stroke(); c.restore();
   };
   for (const B of D.bonus) road(B.spur, 30);
-  road(D.path, 40);
+  road(D.lead.concat(D.path), 40);
   // AURUM tower at the end of the road: the system's pyramid
   cb.globalAlpha = districtOpen(WORLDS.length - 1) ? 1 : 0.5;
   const tx = end.x, ty = end.y + TH * 2;
@@ -2735,19 +2805,15 @@ function pathPoly(c, D, t0, t1, list = D.path) {
 
 // a neon fence across the street at a district gate
 function drawFence(c, D, d, now, k) {
-  const g = d.t1;
-  if (g <= 3 || g >= D.path.length - 4) return;
-  const P = D.path[g], A0 = D.path[g - 3], B0 = D.path[g + 3];
-  let tx = B0.x - A0.x, ty = B0.y - A0.y;
-  const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
-  // the fence runs along the city grid, on the axis most across the street
-  const ax = [[TW, TH], [-TW, TH]].map(([u, v]) => { const m = Math.hypot(u, v); return [u / m, v / m]; });
-  const [nx, ny] = Math.abs(ax[0][0] * tx + ax[0][1] * ty) < Math.abs(ax[1][0] * tx + ax[1][1] * ty) ? ax[0] : ax[1];
+  const G = d.gate;
+  if (!G) return;
+  const P = G, nx = G.nx, ny = G.ny;
   const boss = worldStart(d.w) + worldCount(d.w) - 1;
   const open = !WORLDS[d.w].soon && prog > boss;
   const pt = (o) => ({ x: P.x + nx * o, y: P.y + ny * o });
   c.save();
-  for (const [a, b] of [[-118, -30], [30, 118]]) {
+  for (const [a, b] of [[-G.La, -30], [30, G.Lb]]) {
+    if (b - a < 14) continue;
     const A = pt(a), B = pt(b);
     c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(B.x, B.y); c.moveTo(A.x, A.y - 26); c.lineTo(B.x, B.y - 26);
     neonStroke(c, k, k, 2, A.x, A.y, B.x, B.y, 0.7);
@@ -2908,7 +2974,7 @@ function renderMap(c, now) {
   c.save(); c.setLineDash([4, 12]); pathPoly(c, D, N[N.length - 1].t, D.total - 1);
   c.strokeStyle = rgba(k, 0.3); c.lineWidth = 2; c.stroke(); c.restore();
   // fences at the gates
-  for (const d of D.dist) if (d.w < WORLDS.length - 1 && vis(D.path[Math.min(d.t1, D.total - 1)].y)) drawFence(c, D, d, now, k);
+  for (const d of D.dist) if (d.gate && vis(d.gate.y)) drawFence(c, D, d, now, k);
   // the eye on top of the tower
   const end = D.path[D.total - 1], ey = end.y + TH * 2 - 230 - 62;
   if (vis(ey)) {
@@ -3109,7 +3175,8 @@ function render() {
     if (bestT > 0) glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
     if (menuMsg && now - menuMsg.t < 2) {
       ctx.globalAlpha = Math.min(1, (2 - (now - menuMsg.t)) * 2);
-      glowText(ctx, menuMsg.text, W / 2, H * 0.47 + 166, 14, '#ffffff', k, 'center', 700, 3);
+      const G = menuGrid();
+      glowText(ctx, menuMsg.text, W / 2, G.y2 + G.mid + 62, 14, '#ffffff', k, 'center', 700, 3);
       ctx.globalAlpha = 1;
     }
     drawPlatform(ctx, plat, W / 2, H - 150, BASE_HW, now, k);

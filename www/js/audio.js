@@ -201,6 +201,19 @@ class Sfx {
     this.voice({ f: 140, to: 35, dur: 0.45, type: 'sine', vol: 0.5, ff: 900, send: 0.2 });
     this.noise({ dur: 0.4, vol: 0.2, filter: 'lowpass', ff: 3500, fto: 120, q: 1, send: 0.5 });
   }
+  // INFINITO, boss arrival: one deep boom and a short hiss of shards
+  shatter() {
+    this.voice({ f: 75, to: 26, dur: 1.2, detune: [-12, 12], type: 'sine', vol: 0.5, ff: 600, send: 0.35 });
+    this.noise({ dur: 0.9, vol: 0.18, filter: 'lowpass', ff: 1800, fto: 80, q: 1, send: 0.5 });
+    this.noise({ dur: 0.45, vol: 0.07, filter: 'highpass', ff: 7000, fto: 2500, q: 0.8, send: 0.4, delay: 0.05 });
+    [0.1, 0.18, 0.29, 0.41].forEach((d, i) => this.noise({ dur: 0.05, vol: 0.035 - i * 0.006, ff: 6000 + i * 900, fto: 3000, q: 6, send: 0.6, delay: d }));
+  }
+  // INFINITO, the bricks reach the line: a sweep rising through the rows
+  purge() {
+    this.voice({ f: 70, to: 820, dur: 0.6, detune: [-14, 14], vol: 0.13, ff: 400, fto: 5000, q: 10, send: 0.5 });
+    this.noise({ dur: 0.6, vol: 0.12, ff: 500, fto: 6500, q: 2, send: 0.5 });
+    this.voice({ f: 120, to: 40, dur: 0.4, type: 'sine', vol: 0.35, ff: 700, send: 0.2 });
+  }
   laser() {
     this.voice({ f: 2400, to: 700, dur: 0.09, type: 'square', vol: 0.025, filter: 'bandpass', ff: 2600, q: 3, send: 0.3 });
   }

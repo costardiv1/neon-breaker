@@ -24,8 +24,10 @@ const MISSILE_R = 125;
 const COIN_CHANCE = 0.07;   // coins: rare drops, caught with the platform, spent on cosmetics
 const ENDLESS_COIN = 0.3;   // INFINITO: the bricks never end, so coins drop much less
 const MULTI_MAX = 4;        // MULTI stops dropping with this many discs in play
-const FORK_MAX = 20;        // FORK BOMB (bonus): at most this many discs
-const BONUS_COIN = 3;       // bonus stages: coins drop this many times more
+const FORK_MAX = 8;         // FORK BOMB (bonus): at most this many discs
+const BONUS_COIN = 1.5;     // bonus stages: coins drop this many times more
+const BONUS_TIME = 40;      // bonus stages: seconds to clear the field for the prize
+const LAG_EVERY = 3;        // LAG (bonus): a missile every this many seconds
 const COIN_R = 13;
 const PHASE_T = 2.8;   // FASE: seconds each group stays solid / out of phase
 const PORTAL_R = 24;
@@ -734,6 +736,10 @@ export class Game {
     const sub = st.name || (this.world.name + (this.mechs.length ? '  ·  ' + this.mechs.map((m) => MECHS[m].name).join(' + ') : ''));
     this.banner = { text: st.boss ? 'CHEFÃO' : st.bonus ? 'BÔNUS' : stageLabel(this.index), sub: st.boss ? st.boss.name : sub, t: 2.4, max: 2.4 };
     this.bonusT = 1.5;
+    this.bonusTime = BONUS_TIME;
+    this.bonusHits = 0;
+    this.bonusEnd = null;
+    if (st.bonus && st.bonus.slide) for (const r of st.bonus.slide) this.rows[r] = this.rowMotion(r);
     if (this.endless && !st.boss) {
       this.endless.rowTop = 0; this.endless.rowY = y0;
       for (const m of this.endless.mechs) this.endlessFeature(m, true);
@@ -834,6 +840,8 @@ export class Game {
     E.intro = { t: 0, list, next: 0.15, step: Math.min(0.07, 1.1 / Math.max(1, list.length)), n: 0, w: ws[E.bosses % ws.length], round: Math.floor(E.bosses / ws.length) };
     this.drops = []; this.bolts = []; this.missiles = []; this.shots = [];
     this.banner = null;
+    E.purge = null;
+    sfx.shatter(); vibrate(40);
   }
 
   endlessIntro(dt) {
@@ -846,7 +854,7 @@ export class Game {
       if (br.dead) continue;
       br.dead = true;
       this.derez(br, tierTone(this.col, Math.max(1, Math.ceil(br.hp))));
-      sfx.brk(Math.min(20, ++I.n));
+      I.n++;
       this.shake = Math.max(this.shake, 0.22);
     }
     this.bricks = this.bricks.filter((b) => !b.dead);
@@ -888,6 +896,37 @@ export class Game {
     if (!rb.length) return { A: 0 };
     const minX = Math.min(...rb.map((b) => b.baseX)), maxX = Math.max(...rb.map((b) => b.baseX + b.w));
     return { A: Math.max(0, Math.min(minX - (LEFT + 10), RIGHT - 10 - maxX)), sp: 0.7 + (r % 3) * 0.2, ph: r * 1.3 };
+  }
+
+  // INFINITO: the bricks touched the line. A beam rises from the line and
+  // wipes out the three lowest rows (the life is still lost)
+  startPurge() {
+    const live = this.bricks.filter((b) => !b.dead);
+    const rows = [...new Set(live.filter(counts).map((b) => b.row))].sort((a, b) => b - a).slice(0, 3);
+    const list = live.filter((b) => rows.includes(b.row));
+    const top = Math.min(...list.map((b) => b.y));
+    this.endless.purge = { y: this.dangerY, top: top - 30, from: this.dangerY, t: 0, dur: 0.7, list };
+    this.ring(W / 2, this.dangerY, 400);
+    this.shake = Math.max(this.shake, 0.5);
+    sfx.purge();
+  }
+
+  updatePurge(dt) {
+    const P = this.endless.purge;
+    P.t += dt;
+    const k = Math.min(1, P.t / P.dur), e = 1 - Math.pow(1 - k, 2);
+    P.y = P.from + (P.top - P.from) * e;
+    for (const br of P.list) {
+      if (br.dead || br.y + br.h / 2 < P.y) continue;
+      br.dead = true;
+      if (counts(br)) this.alive--;
+      this.derez(br, tierTone(this.col, Math.max(1, Math.ceil(br.hp || 1))));
+      this.shake = Math.max(this.shake, 0.18);
+    }
+    if (k >= 1) {
+      for (const br of P.list) if (!br.dead) { br.dead = true; if (counts(br)) this.alive--; this.derez(br, this.col); }
+      this.endless.purge = null;
+    }
   }
 
   get dangerY() { return this.paddle.y - 120; }
@@ -1033,7 +1072,12 @@ export class Game {
 
     if (this.bonus && this.bonus.kind === 'missiles' && !this.holding) {
       this.bonusT -= dt;
-      if (this.bonusT <= 0) { this.bonusT = 1.5; this.missiles.push({ x: p.x, y: p.y - 20, vx: 0, vy: -320, t: 0 }); sfx.missile(); }
+      if (this.bonusT <= 0) { this.bonusT = LAG_EVERY; this.missiles.push({ x: p.x, y: p.y - 20, vx: 0, vy: -320, t: 0 }); sfx.missile(); }
+    }
+    // bonus stages: the clock starts with the first launch
+    if (this.bonus && (!this.holding || this.bonusTime < BONUS_TIME)) {
+      this.bonusTime -= dt;
+      if (this.bonusTime <= 0) { this.bonusTime = 0; this.endBonus('TEMPO ESGOTADO'); return; }
     }
     this.updateWeapons(dt);
     this.updateAbility(dt);
@@ -1064,7 +1108,7 @@ export class Game {
     }
 
     this.balls = this.balls.filter((b) => !b.lost);
-    if (this.balls.length === 0) { this.loseLife(); return; }
+    if (this.balls.length === 0) { if (this.bonus) this.endBonus('O DISCO CAIU'); else this.loseLife(); return; }
 
     for (const d of this.drops) {
       d.y += 230 * dt;
@@ -1105,7 +1149,7 @@ export class Game {
   }
 
   updateMechanics(dt) {
-    if (this.mechs.includes('slide') || this.rows[99]) {
+    if (this.mechs.includes('slide') || this.rows[99] || this.bonus) {
       for (const br of this.bricks) {
         const r = this.rows[br.row];
         if (r && r.A) br.x = br.baseX + r.A * Math.sin(this.mt * r.sp + r.ph);
@@ -1113,7 +1157,8 @@ export class Game {
     }
     // PRESSÃO: every brick creeps down; touching the alert line costs a life
     // (INFINITO keeps going with an empty field, faster, so new rows come in)
-    if (this.mechs.includes('descent') && !this.boss && (this.bricks.length || this.endless)) {
+    if (this.endless && this.endless.purge) this.updatePurge(dt);
+    else if (this.mechs.includes('descent') && !this.boss && (this.bricks.length || this.endless)) {
       const E = this.endless;
       const empty = E && !this.bricks.some((b) => !b.dead && counts(b));
       const v = (E ? Math.min(26, 10 + E.t * 0.04) : 6 + this.stage.s * 0.7) * (empty ? 8 : 1);
@@ -1133,7 +1178,12 @@ export class Game {
       if (E) E.rowY += v * dt;
       else { for (const q of this.beams) if (q.t === undefined) q.y += v * dt; for (const q of this.bars) if (q.t === undefined) q.y += v * dt; }
       this.press = clamp((low - (this.top + 200)) / (this.dangerY - (this.top + 200)), 0, 1);
-      if (low >= this.dangerY && !this.holding) {
+      if (low >= this.dangerY && !this.holding && E) {
+        this.startPurge();
+        this.float('PRESSÃO', W / 2, this.dangerY - 30, 30);
+        this.balls = [];
+        this.loseLife();
+      } else if (low >= this.dangerY && !this.holding) {
         const shift = Math.min(240, high - (this.top + 60));
         for (const br of this.bricks) br.y -= shift;
         if (E) E.rowY -= shift;
@@ -1619,7 +1669,8 @@ export class Game {
         this.missileBlast(br.x + br.w / 2, br.y + br.h / 2);
         if (br.dead) return;
       }
-      if (this.bonus && this.bonus.kind === 'bombs') { this.explode(br); if (br.dead) return; }
+      // BARRICADA: every other hit blows up the bricks on each side
+      if (this.bonus && this.bonus.kind === 'bombs' && ++this.bonusHits % 2 === 0) { this.sideBlast(br); if (br.dead) return; }
       let amt = this.ballDamage();
       if (b.heavy > 0) { b.heavy--; amt *= 2; this.ring(br.x + br.w / 2, br.y + br.h / 2, 46); this.shake = Math.max(this.shake, 0.2); }
       this.damage(br, pierce, amt);
@@ -1687,6 +1738,27 @@ export class Game {
     }
   }
 
+  // BARRICADA: the blast runs along the row both ways, through every brick
+  // touching it, until a gap or a wall
+  sideBlast(src) {
+    const cy = src.y + src.h / 2;
+    this.ring(src.x + src.w / 2, cy, 90);
+    this.shake = Math.max(this.shake, 0.3);
+    sfx.blast();
+    const row = this.bricks.filter((o) => !o.dead && o.row === src.row);
+    for (const dir of [-1, 1]) {
+      let edge = src;
+      for (;;) {
+        const nx = edge.x + (dir > 0 ? edge.w + GAP : -GAP);
+        const o = row.find((q) => !q.dead && q !== edge && Math.abs((dir > 0 ? q.x : q.x + q.w) - nx) < GAP + 6);
+        if (!o || !counts(o)) break;
+        this.damage(o, true);
+        this.ring(o.x + o.w / 2, cy, 40);
+        edge = o;
+      }
+    }
+  }
+
   derez(br, tone) {
     const n = Math.round(22 * gfx.fx);
     for (let i = 0; i < n; i++) {
@@ -1710,7 +1782,7 @@ export class Game {
       const recent = this.recent || (this.recent = []);
       const badRun = recent.length >= 2 && recent.slice(-2).every((q) => !POWERS[q].good);
       const seenN = (k) => recent.filter((q) => q === k).length;
-      const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 2 : k === 'life' && this.lives === 1 ? v.w * 2 : v.w) * (v.good ? 1 : badRun || this.bonus ? 0 : luck) * Math.pow(0.25, seenN(k));
+      const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 2 : k === 'life' && this.lives === 1 ? v.w * 2 : v.w) * (v.good ? 1 : badRun ? 0 : luck) * Math.pow(0.25, seenN(k));
       const pool = Object.entries(POWERS).filter(([k, v]) => (this.endless || v.d <= this.stage.w + 1) && !(k === 'life' && this.lives >= 6)
         && !(k === 'multi' && this.balls.length >= MULTI_MAX));
       const total = pool.reduce((s, [k, v]) => s + wt(k, v), 0);
@@ -1822,6 +1894,22 @@ export class Game {
     vibrate(200);
     this.banner = { text: 'DERROTADO', sub: boss.name, t: 2.6, max: 2.6 };
     if (!this.endless) this.emit('stageClear', this.index);
+  }
+
+  // a bonus stage has one chance: when the disc falls or the time runs out it
+  // ends with no prize (and no life lost), keeping the coins caught in it
+  endBonus(why) {
+    this.bonusEnd = why;
+    this.clearT = 1.6;
+    this.banner = null;
+    for (const b of this.balls) this.burst(b.x, b.y, 16);
+    this.balls = [];
+    this.drops = [];
+    this.bolts = []; this.missiles = []; this.shots = [];
+    this.abil = null; this.effects = {};
+    this.collectCoins();
+    this.shake = Math.max(this.shake, 0.6);
+    sfx.lose(); vibrate(60);
   }
 
   loseLife() {
@@ -2253,6 +2341,19 @@ export class Game {
       neonStroke(c, col, col, 2 + k * 2, LEFT, y, RIGHT, y, 0.5 + k);
       c.restore();
     }
+    const P = this.endless && this.endless.purge;
+    if (P) {
+      const a = 1 - Math.max(0, (P.t - P.dur * 0.75) / (P.dur * 0.25));
+      c.save();
+      const g = c.createLinearGradient(0, P.y, 0, P.y + 90);
+      g.addColorStop(0, rgba(col, 0.45 * a)); g.addColorStop(1, rgba(col, 0));
+      c.fillStyle = g; c.fillRect(LEFT, P.y, RIGHT - LEFT, Math.min(90, P.from - P.y + 4));
+      c.globalAlpha = a;
+      c.beginPath(); c.moveTo(LEFT + 4, P.y); c.lineTo(RIGHT - 4, P.y);
+      neonStroke(c, col, col, 5, LEFT, P.y, RIGHT, P.y, 1.6);
+      c.strokeStyle = WHITE; c.lineWidth = 2; c.stroke();
+      c.restore();
+    }
     for (const w of this.wells) {
       for (let i = 0; i < 4; i++) {
         const k = ((t * 0.5 + i / 4) % 1);
@@ -2591,7 +2692,10 @@ export class Game {
     }
     if (this.clearT > 0) {
       c.globalAlpha = Math.min(1, (1.6 - this.clearT) / 0.3);
-      neonTitle(c, 'LIMPO', W / 2, this.H * 0.5, 66, col, col, 10);
+      if (this.bonusEnd) {
+        neonTitle(c, 'FIM DO BÔNUS', W / 2, this.H * 0.5, 50, col, col, 10);
+        glowText(c, this.bonusEnd + '  ·  SEM PRÊMIO', W / 2, this.H * 0.5 + 56, 18, WHITE, col, 'center', 600, 5);
+      } else neonTitle(c, 'LIMPO', W / 2, this.H * 0.5, 66, col, col, 10);
       c.globalAlpha = 1;
     }
 
@@ -2616,12 +2720,18 @@ export class Game {
     const col = this.col;
     const hy = this.top - 62;
     const E = this.endless;
-    glowText(c, E ? fmtTime(E.t) : String(this.score), W / 2, hy, 36, WHITE, col, 'center', 700, 3);
+    if (this.bonus) {
+      const T = Math.max(0, this.bonusTime), low = T <= 10 && T > 0;
+      const a = low ? 0.55 + 0.45 * Math.abs(Math.sin(this.t * 6)) : 1;
+      c.globalAlpha = a;
+      glowText(c, fmtTime(Math.ceil(T)), W / 2, hy, low ? 40 : 36, WHITE, col, 'center', 700, low ? 8 : 3);
+      c.globalAlpha = 1;
+    } else glowText(c, E ? fmtTime(E.t) : String(this.score), W / 2, hy, 36, WHITE, col, 'center', 700, 3);
     const sub = E ? this.score + ' PONTOS  ·  ' + (this.boss || E.intro ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
       : this.bonus ? 'BÔNUS  ·  ' + this.bonus.name : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
     glowText(c, sub, W / 2, hy + 36, 13, rgba(col, 0.85), col, 'center', 500, 4);
     const ds = discSprite(col, BALL_R, this.plat.disc || 0);
-    for (let i = 0; i < Math.min(this.lives, 6); i++) drawSprite(c, ds, 30 + i * 30, hy - 9, 0.55);
+    for (let i = 0; i < Math.min(this.bonus ? 1 : this.lives, 6); i++) drawSprite(c, ds, 30 + i * 30, hy - 9, 0.55);
     if (this.wallet) {
       drawSprite(c, coinSprite(), 30, hy + 18, 0.62);
       const cs = String(this.wallet());

@@ -2,6 +2,26 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.8.2 (13/11/2026)
+
+### Fases bônus
+- [ ] Entre numa fase bônus: o relógio no topo marca 0:40 e só começa a correr quando você lança o disco. Nos últimos 10 s ele pisca.
+- [ ] Deixe o disco cair: aparece FIM DO BÔNUS (O DISCO CAIU · SEM PRÊMIO), você não perde vida, fica com as moedas que pegou e volta para o mapa.
+- [ ] Deixe o tempo acabar: FIM DO BÔNUS (TEMPO ESGOTADO · SEM PRÊMIO).
+- [ ] Limpe uma fase bônus pela primeira vez: o prêmio é 15 (LAG), 20 (FORK BOMB) ou 25 (BARRICADA). Na segunda vez é 3.
+- [ ] LAG: um míssil a cada 3 s. FORK BOMB: no máximo 8 discos. BARRICADA: a cada duas batidas, uma explosão corre pela fileira e destrói os blocos dos lados.
+- [ ] Os blocos são mais duros, algumas fileiras deslizam e as cápsulas ruins também caem.
+
+### INFINITO
+- [ ] Deixe os blocos chegarem na linha tracejada: um feixe sobe da linha e destrói as três fileiras de baixo, você perde uma vida e o disco volta para a plataforma.
+- [ ] Aos 2:00, na chegada do chefão: um estrondo grave e um chiado curto, sem a sequência de sons de bloco quebrando.
+
+### Menu, mapa e créditos
+- [ ] Menu inicial: JOGAR (grande), BREAKERS e INFINITO são ícones com o nome embaixo. O BREAKERS tem o ícone novo (plataforma, disco e brilho).
+- [ ] Mapa no topo: a rua sai de trás de um prédio.
+- [ ] Os portões dos capítulos atravessam um trecho reto da rua, longe das esquinas.
+- [ ] OPÇÕES > CRÉDITOS: aparece "© 2026 Vinícius Costardi. Todos os direitos reservados."
+
 ## 1.8.1 (13/11/2026)
 
 ### Mapa

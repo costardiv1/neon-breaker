@@ -2,6 +2,27 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.8.2] · 13/11/2026 · Fases bônus de verdade e INFINITO sem empurrão
+
+### Adicionado
+
+- INFINITO: quando os blocos chegam na linha, um feixe sobe da linha e destrói as três fileiras de baixo (o jogador continua perdendo uma vida). Antes os blocos eram empurrados para cima.
+- Fases bônus: relógio de 40 s no topo, que começa no primeiro lançamento e pisca nos últimos 10 s.
+- Créditos: linha "© 2026 Vinícius Costardi. Todos os direitos reservados."
+
+### Alterado
+
+- Fases bônus rebalanceadas: uma chance só (se o disco cair, a fase acaba sem tirar vida e o jogador fica com as moedas que pegou) e 40 s para limpar; prêmio de 15, 20 e 25 moedas na primeira vez (eram 40, 60 e 80) e 3 nas outras (eram 10); os blocos soltam 1,5x moedas (era 3x); as cápsulas ruins voltaram.
+- LAG: um míssil a cada 3 s (era 1,5 s). FORK BOMB: até 8 discos (eram 20). BARRICADA: a cada duas batidas, uma explosão corre pela fileira e destrói os blocos dos lados (antes toda batida explodia em volta).
+- Fases bônus com blocos mais duros (de 3 e 4 batidas) e fileiras deslizando.
+- INFINITO: a chegada do chefão tem um estrondo grave e um chiado curto de estilhaços no lugar do som de bloco quebrado repetido.
+- Menu inicial: JOGAR, BREAKERS e INFINITO viraram ícones com o nome embaixo, como na pausa; o BREAKERS ganhou um ícone novo (a plataforma com o disco e um brilho).
+- Mapa: a rua agora começa atrás de um prédio, no topo do mapa.
+
+### Corrigido
+
+- Os portões dos capítulos caíam nas esquinas e ficavam ao longo da rua. Agora a rua tem um trecho reto entre o chefão e o capítulo seguinte e o portão atravessa esse trecho; a torre do SISTEMA ficou mais longe do último portão.
+
 ## [1.8.1] · 13/11/2026 · Capítulos, mapa em retas e menus mais leves
 
 ### Adicionado

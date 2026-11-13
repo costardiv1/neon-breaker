@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.8.1** (13/11/2026)
+Versão atual publicada: **1.8.2** (13/11/2026)
 
 ## Objetivos
 
@@ -14,8 +14,17 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
-
 ## Histórico
+
+### 1.8.2 (13/11/2026)
+
+- [x] INFINITO: na linha, um feixe destrói as três fileiras de baixo (ainda tira vida).
+- [x] INFINITO: chegada do chefão com um estrondo grave e um chiado de estilhaços.
+- [x] Fases bônus rebalanceadas: uma chance, 40 s, prêmio 15/20/25 (3 depois), moedas 1,5x, cápsulas ruins, blocos mais duros e fileiras deslizando; LAG 3 s, FORK BOMB 8 discos, BARRICADA explode a fileira a cada duas batidas.
+- [x] Menu inicial com ícones e o nome embaixo; ícone novo do BREAKERS.
+- [x] Mapa: a rua começa atrás de um prédio.
+- [x] Créditos com "© 2026 Vinícius Costardi. Todos os direitos reservados."
+- [x] Bug: portões dos capítulos nas esquinas.
 
 ### 1.8.1 (13/11/2026)
 
