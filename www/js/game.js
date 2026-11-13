@@ -25,8 +25,14 @@ const COIN_CHANCE = 0.07;   // coins: rare drops, caught with the platform, spen
 const ENDLESS_COIN = 0.3;   // INFINITO: the bricks never end, so coins drop much less
 const MULTI_MAX = 4;        // MULTI stops dropping with this many discs in play
 const FORK_MAX = 8;         // FORK BOMB (bonus): at most this many discs
-const BONUS_COIN = 1.5;     // bonus stages: coins drop this many times more
 const BONUS_TIME = 40;      // bonus stages: seconds to clear the field for the prize
+// bonus stages are a pinball table: bumpers and the B-Ô-N-U-S letters fill a
+// pot of coins (paid at the end), times a combo that resets on the platform
+const BUMPER_R = 28;
+const BUMP_COIN = 0.1;      // coins a bumper adds to the pot (times the combo)
+const WORD_COIN = 3;        // coins for lighting all five letters
+const POT_MAX = 12;         // the pot is full at this many coins
+const MULT_MAX = 5;
 const LAG_EVERY = 3;        // LAG (bonus): a missile every this many seconds
 const COIN_R = 13;
 const PHASE_T = 2.8;   // FASE: seconds each group stays solid / out of phase
@@ -644,6 +650,7 @@ export class Game {
   newBonus(b) {
     this.endless = null;
     this.bonus = b;
+    this.ability = null; this.passive = null;   // no perks in the bonus stages
     this.startRun(bonusIndex(b));
   }
 
@@ -740,6 +747,9 @@ export class Game {
     this.bonusHits = 0;
     this.bonusEnd = null;
     if (st.bonus && st.bonus.slide) for (const r of st.bonus.slide) this.rows[r] = this.rowMotion(r);
+    this.table = st.bonus ? this.makeTable(lowY, span) : null;
+    this.pot = 0;
+    this.mult = 1;
     if (this.endless && !st.boss) {
       this.endless.rowTop = 0; this.endless.rowY = y0;
       for (const m of this.endless.mechs) this.endlessFeature(m, true);
@@ -747,6 +757,100 @@ export class Game {
     }
     music.play(st.boss ? this.world.bossMusic : this.world.music);
     this.emit('level');
+  }
+
+  // ---------- bonus stages: the pinball table ----------
+  makeTable(lowY, span) {
+    const bumpers = [[0.25, 0.4], [0.75, 0.4], [0.5, 0.62]].map(([xf, yf]) => ({ x: W * xf, y: lowY + span * yf, r: BUMPER_R, f: 0 }));
+    const letters = ['B', 'Ô', 'N', 'U', 'S'].map((ch, i) => ({ ch, x: W * (0.16 + i * 0.17) - 22, y: lowY + span * 0.16, w: 44, h: 30, lit: false, f: 0 }));
+    return { bumpers, letters, flash: 0 };
+  }
+
+  // a hit on the table pays with the current combo, then raises it
+  tableScore(coins, x, y) {
+    this.pot = Math.min(POT_MAX, this.pot + coins * this.mult);
+    if (this.mult < MULT_MAX) {
+      this.mult++;
+      this.float('x' + this.mult, x, y, 20);
+    }
+  }
+
+  tableHit(b) {
+    const T = this.table;
+    for (const q of T.bumpers) {
+      const dx = b.x - q.x, dy = b.y - q.y, d = Math.hypot(dx, dy);
+      if (d >= q.r + b.r || d === 0) continue;
+      const nx = dx / d, ny = dy / d, dot = b.vx * nx + b.vy * ny;
+      if (dot < 0) { b.vx -= 2 * dot * nx; b.vy -= 2 * dot * ny; }
+      b.x = q.x + nx * (q.r + b.r + 0.5); b.y = q.y + ny * (q.r + b.r + 0.5);
+      b.s = Math.min(b.s * 1.3, this.baseSpeed * 1.7);   // the kick (it eases back)
+      this.fixAngle(b); this.mark(b);
+      q.f = 1;
+      this.ring(q.x, q.y, 60);
+      this.tableScore(BUMP_COIN, q.x, q.y - q.r - 18);
+      sfx.bumper(); vibrate(10);
+      return;
+    }
+    for (const [i, L] of T.letters.entries()) {
+      if (!collideRect(b, L.x, L.y, L.w, L.h)) continue;
+      this.fixAngle(b); this.mark(b);
+      L.f = 1;
+      if (!L.lit && !T.flash) {
+        L.lit = true;
+        sfx.target(i);
+        if (T.letters.every((q) => q.lit)) {   // the whole word: a big bonus, then they go dark again
+          T.flash = 1.4;
+          this.pot = Math.min(POT_MAX, this.pot + WORD_COIN);
+          this.float('BÔNUS!  +' + WORD_COIN + ' NO POTE', W / 2, L.y - 30, 26);
+          for (const q of T.letters) this.ring(q.x + q.w / 2, q.y + q.h / 2, 70);
+          this.shake = Math.max(this.shake, 0.4);
+          sfx.coin();
+        }
+      } else sfx.wall();
+      this.tableScore(0, L.x + L.w / 2, L.y - 16);
+      return;
+    }
+  }
+
+  updateTable(dt) {
+    const T = this.table;
+    for (const q of T.bumpers) q.f = Math.max(0, q.f - dt * 4);
+    for (const q of T.letters) q.f = Math.max(0, q.f - dt * 4);
+    if (T.flash > 0) { T.flash -= dt; if (T.flash <= 0) { T.flash = 0; for (const q of T.letters) q.lit = false; } }
+  }
+
+  // the end of a bonus stage: the pot goes to the player's wallet
+  payPot() {
+    const n = Math.floor(this.pot + 1e-6);
+    this.pot = 0;
+    if (n <= 0) return 0;
+    this.stageCoins += n;
+    this.emit('coin', n);
+    this.float('POTE  +' + n + (n > 1 ? ' MOEDAS' : ' MOEDA'), W / 2, this.paddle.y - 120, 22);
+    sfx.coin();
+    return n;
+  }
+
+  renderTable(c) {
+    const T = this.table, col = this.col;
+    for (const q of T.bumpers) {
+      const r = q.r * (1 + 0.18 * q.f);
+      c.beginPath(); c.arc(q.x, q.y, r, 0, TAU);
+      c.fillStyle = rgba(col, 0.1 + 0.35 * q.f); c.fill();
+      neonStroke(c, col, col, 3, q.x - r, q.y, q.x + r, q.y, 0.9 + q.f);
+      c.beginPath(); c.arc(q.x, q.y, r * 0.55, 0, TAU);
+      c.strokeStyle = rgba(WHITE, 0.55 + 0.45 * q.f); c.lineWidth = 2; c.stroke();
+      c.beginPath(); c.arc(q.x, q.y, 4 + 2 * q.f, 0, TAU); c.fillStyle = WHITE; c.fill();
+    }
+    const blink = T.flash > 0 && Math.sin(this.t * 24) > 0;
+    for (const L of T.letters) {
+      const on = L.lit && (!T.flash || blink);
+      roundRectPath(c, L.x, L.y, L.w, L.h, 7);
+      c.fillStyle = rgba(col, on ? 0.45 : 0.06 + 0.3 * L.f); c.fill();
+      if (on) neonStroke(c, col, col, 2.6, L.x, L.y, L.x + L.w, L.y + L.h, 1.1);
+      else { c.strokeStyle = rgba(col, 0.55 + 0.4 * L.f); c.lineWidth = 1.8; c.stroke(); }
+      glowText(c, L.ch, L.x + L.w / 2, L.y + L.h / 2 + 1, 17, on ? WHITE : rgba(WHITE, 0.55), col, 'center', 800, 0);
+    }
   }
 
   // ---------- INFINITO ----------
@@ -979,7 +1083,6 @@ export class Game {
   }
 
   mark(b) { b.pn = 0; b.path.push({ x: b.x, y: b.y }); }   // pn: portal jumps since the last bounce
-  solid(br) { return !br.dead; }
 
   // ---------- update ----------
   update(dt) {
@@ -1101,7 +1204,7 @@ export class Game {
       this.collectCoins();
       sfx.clear();
       this.emit('chip', 10);
-      if (this.bonus) { this.emit('bonusClear', this.bonus); return; }
+      if (this.bonus) { this.payPot(); this.emit('bonusClear', this.bonus); return; }
       this.emit('stageClear', this.index);
       this.emit('clear');
       return;
@@ -1217,6 +1320,7 @@ export class Game {
       for (const q of this.bars) if (q.t !== undefined) q.t -= dt;
       this.bars = this.bars.filter((q) => q.t === undefined || q.t > 0);
     }
+    if (this.table) this.updateTable(dt);
     // FASE: each group spends PHASE_T seconds solid and PHASE_T out of phase
     const cyc = this.mt % (PHASE_T * 2), cur = cyc < PHASE_T ? 0 : 1;
     this.phaseWarn = PHASE_T - (cyc % PHASE_T) < 0.5;
@@ -1563,6 +1667,7 @@ export class Game {
         this.ring(b.x, b.y + r, 60); sfx.wall();
       }
       this.brickHit(b, pierce);
+      if (this.table) this.tableHit(b);
       if (b.y > this.bottom + r * 2) { b.lost = true; break; }
     }
   }
@@ -1639,6 +1744,7 @@ export class Game {
     b.y = qy + ny * (r + PAD_TH / 2 + 0.5);
     this.mark(b);
     this.combo = 0;
+    this.mult = 1;   // bonus stages: the table combo ends on the platform
     sfx.paddle();
     this.padPulses.push({ u: qx - p.x, t: 0 });
     p.hit = 1;
@@ -1710,9 +1816,10 @@ export class Game {
       if (this.combo >= 3) this.float('x' + this.combo, cx, cy, 24);
       if (br.kind === 'exp') this.blasts.push({ br, t: 0.12 });
       if (this.bonus && this.bonus.kind === 'fork' && this.balls.length < FORK_MAX) this.forkBall(cx, cy);
-      if (!this.tutorial && Math.random() < COIN_CHANCE * GRANA_MUL[this.pLvl('grana')] * (this.endless ? ENDLESS_COIN : this.bonus ? BONUS_COIN : 1)) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
+      // bonus stages drop nothing: their coins come from the pot, at the end
+      if (!this.tutorial && !this.bonus && Math.random() < COIN_CHANCE * GRANA_MUL[this.pLvl('grana')] * (this.endless ? ENDLESS_COIN : 1)) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
       if (this.tutorial && this.breaks === 3) this.spawnDrop(cx, cy, 'wide');
-      else if (!this.tutorial && Math.random() < this.dropChance) this.spawnDrop(cx, cy);
+      else if (!this.tutorial && !this.bonus && Math.random() < this.dropChance) this.spawnDrop(cx, cy);
     } else {
       this.burst(cx, cy, 6, 0.6, [tone]);
       sfx.brick(this.combo);
@@ -1776,8 +1883,7 @@ export class Game {
   spawnDrop(x, y, forced = null) {
     let type = forced;
     if (!type) {
-      // in boss fights lasers and missiles are more likely; +1 VIDA too with the last life;
-      // bonus stages only drop good ones
+      // in boss fights lasers and missiles are more likely; +1 VIDA too with the last life
       const luck = SORTE_MUL[this.pLvl('sorte')];
       const recent = this.recent || (this.recent = []);
       const badRun = recent.length >= 2 && recent.slice(-2).every((q) => !POWERS[q].good);
@@ -1897,9 +2003,10 @@ export class Game {
   }
 
   // a bonus stage has one chance: when the disc falls or the time runs out it
-  // ends with no prize (and no life lost), keeping the coins caught in it
+  // ends with no prize (and no life lost), paying only the pot
   endBonus(why) {
     this.bonusEnd = why;
+    this.bonusPot = this.payPot();
     this.clearT = 1.6;
     this.banner = null;
     for (const b of this.balls) this.burst(b.x, b.y, 16);
@@ -1907,7 +2014,6 @@ export class Game {
     this.drops = [];
     this.bolts = []; this.missiles = []; this.shots = [];
     this.abil = null; this.effects = {};
-    this.collectCoins();
     this.shake = Math.max(this.shake, 0.6);
     sfx.lose(); vibrate(60);
   }
@@ -2071,7 +2177,7 @@ export class Game {
     if (A && A.type === 'megalaser') {
       const top = this.top + 4;
       if (A.charge > 0) {
-        const k = 1 - A.charge / 0.5;
+        const k = 1 - A.charge / 0.4;
         c.beginPath(); c.arc(p.x, p.y - 20, 6 + 18 * k, 0, TAU);
         c.fillStyle = rgba(WHITE, 0.5 + 0.5 * k); c.shadowColor = col; c.shadowBlur = 30 * view.blur * k; c.fill(); c.shadowBlur = 0;
         c.setLineDash([4, 8]);
@@ -2089,8 +2195,8 @@ export class Game {
       }
     } else if (A && A.type === 'shock') {
       const k = A.t / A.max;
-      for (const f of [1, 0.85]) {
-        c.beginPath(); c.arc(p.x, p.y, A.r * f, Math.PI, TAU);
+      for (const f of [1, 0.85]) {   // the wave stays where it started
+        c.beginPath(); c.arc(A.cx, A.cy, A.r * f, Math.PI, TAU);
         c.strokeStyle = rgba(f === 1 ? WHITE : col, 0.9 * k); c.lineWidth = f === 1 ? 4 : 2;
         c.shadowColor = col; c.shadowBlur = 20 * view.blur; c.stroke(); c.shadowBlur = 0;
       }
@@ -2163,7 +2269,7 @@ export class Game {
   devRestart() { this.loadLevel(); }
   devClear() {
     if (this.boss) { this.boss.lives = 1; this.boss.hp = 0.01; this.boss.damage(1, true); return; }
-    for (const b of this.bricks) if (b.kind !== 'wall' && !b.dead) { b.dead = true; this.alive--; }
+    for (const b of this.bricks) if (counts(b) && !b.dead) { b.dead = true; this.alive--; }
   }
   devBoss() { this.index = worldStart(this.stage.w) + worldCount(this.stage.w) - 1; this.loadLevel(); }
   devBossHit(n) { if (this.boss) this.boss.damage(n, true); }
@@ -2473,6 +2579,7 @@ export class Game {
 
     this.renderField(c);
     this.renderMechanics(c);
+    if (this.table) this.renderTable(c);
     if (this.boss && (!this.boss.dead || this.boss.deathT > 1.2)) {
       c.globalAlpha = this.boss.dead ? (this.boss.deathT - 1.2) / 1.4 : 1;
       this.boss.render(c);
@@ -2694,7 +2801,7 @@ export class Game {
       c.globalAlpha = Math.min(1, (1.6 - this.clearT) / 0.3);
       if (this.bonusEnd) {
         neonTitle(c, 'FIM DO BÔNUS', W / 2, this.H * 0.5, 50, col, col, 10);
-        glowText(c, this.bonusEnd + '  ·  SEM PRÊMIO', W / 2, this.H * 0.5 + 56, 18, WHITE, col, 'center', 600, 5);
+        glowText(c, this.bonusEnd + (this.bonusPot ? '  ·  FICA O POTE' : '  ·  SEM PRÊMIO'), W / 2, this.H * 0.5 + 56, 18, WHITE, col, 'center', 600, 5);
       } else neonTitle(c, 'LIMPO', W / 2, this.H * 0.5, 66, col, col, 10);
       c.globalAlpha = 1;
     }
@@ -2728,7 +2835,7 @@ export class Game {
       c.globalAlpha = 1;
     } else glowText(c, E ? fmtTime(E.t) : String(this.score), W / 2, hy, 36, WHITE, col, 'center', 700, 3);
     const sub = E ? this.score + ' PONTOS  ·  ' + (this.boss || E.intro ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
-      : this.bonus ? 'BÔNUS  ·  ' + this.bonus.name : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
+      : this.bonus ? this.bonus.name + '  ·  POTE ' + Math.floor(this.pot + 1e-6) + (this.pot >= POT_MAX ? ' (CHEIO)' : '') + (this.mult > 1 ? '  ·  x' + this.mult : '') : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
     glowText(c, sub, W / 2, hy + 36, 13, rgba(col, 0.85), col, 'center', 500, 4);
     const ds = discSprite(col, BALL_R, this.plat.disc || 0);
     for (let i = 0; i < Math.min(this.bonus ? 1 : this.lives, 6); i++) drawSprite(c, ds, 30 + i * 30, hy - 9, 0.55);

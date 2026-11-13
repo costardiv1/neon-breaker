@@ -2,6 +2,30 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.8.3] · 13/11/2026 · Fases bônus de pinball e modo dev compacto
+
+### Adicionado
+
+- Fases bônus viraram uma mesa de pinball: 3 bumpers que chutam o disco mais rápido e 5 alvos com as letras B-Ô-N-U-S, que acendem quando atingidos; com as cinco acesas o pote ganha 3 moedas e elas apagam de novo.
+- Fases bônus: pote de moedas no topo da tela. Cada bumper soma moeda no pote, vezes um combo (x2 a x5) que sobe a cada batida na mesa e zera quando o disco toca a plataforma. O pote enche até 12 moedas e é pago no final: quem limpa a fase recebe o pote e o prêmio; quem falha recebe só o pote.
+
+### Alterado
+
+- Fases bônus sem perks (o ativo e o passivo ficam desligados), sem cápsulas e sem moedas caindo dos blocos.
+- Modo dev compacto: painel com cerca de um terço da tela e meio transparente, com uma fileira de abas com ícones no topo (uma seção por vez); dá para arrastar pela barra de cima e recolher num botão pequeno, e ele lembra a posição, a aba e se estava recolhido.
+- Ícone do BREAKERS no menu: só a curva do breaker ARCO, sem o disco e sem o brilho.
+- Mapa: o coração de curtidas do capítulo 6 ficou na cor do tema (era vermelho).
+- Com o neon desligado (padrão no celular), textos e contornos neon são desenhados uma vez só, em vez de duas ou três, sem mudar o visual.
+- Revisão do código: removidos uma função sem uso, um botão que nunca aparecia, restos das cores antigas do mapa e comentários desatualizados.
+
+### Corrigido
+
+- O bônus do capítulo 8 (BARRICADA) ficava fora da tela, à esquerda do mapa. Agora a rua dele sai de um ponto do capítulo com espaço livre, ao lado da 8-3, e o nome não encosta em nenhuma fase.
+- O banco AURUM do mapa misturava a cor do tema com o dourado (ficava esverdeado no tema verde); agora é dourado puro.
+- A ONDA DE CHOQUE era desenhada seguindo a plataforma, mas acertava os blocos de onde tinha começado; agora o desenho fica parado no lugar certo.
+- O brilho de carga do MEGA LASER começava já meio aceso.
+- Modo dev: "Limpar blocos" contava o bloco do VAZAMENTO e deixava a contagem de blocos errada.
+
 ## [1.8.2] · 13/11/2026 · Fases bônus de verdade e INFINITO sem empurrão
 
 ### Adicionado

@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.8.2** (13/11/2026)
+Versão atual publicada: **1.8.3** (13/11/2026)
 
 ## Objetivos
 
@@ -15,6 +15,16 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
 ## Histórico
+
+### 1.8.3 (13/11/2026)
+
+- [x] Fases bônus sem perks, sem cápsulas e com moedas só no final.
+- [x] Fases bônus com mesa de pinball: bumpers, letras B-Ô-N-U-S e combo, enchendo um pote de até 12 moedas pago no final (também quando falha).
+- [x] Modo dev compacto: abas com ícones, um terço da tela, arrastável e recolhível.
+- [x] Ícone do BREAKERS: só a curva do breaker ARCO.
+- [x] Mapa: coração do VIRAL na cor do tema.
+- [x] Revisão do código: desenho mais leve com o neon desligado e restos de código removidos.
+- [x] Bugs: bônus do capítulo 8 fora da tela; banco AURUM esverdeado; ONDA DE CHOQUE desenhada fora do lugar; carga do MEGA LASER; "Limpar blocos" do modo dev.
 
 ### 1.8.2 (13/11/2026)
 

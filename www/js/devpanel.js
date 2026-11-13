@@ -1,25 +1,25 @@
 // ---------- in-game dev panel ----------
-// An HTML panel over the canvas (like the one in Quebrabloco): sections that
-// open and close, sliders with their value in big, and buttons with icons.
+// A small HTML panel over the canvas: a row of tabs with icons on top (one
+// section at a time), sliders with their value in big and buttons with icons.
+// It is dragged by its top bar, folds into a small button and remembers both.
 // main.js passes in everything it needs through `api`.
 
 const CSS = `
 #nbdev { position: fixed; z-index: 6; box-sizing: border-box; display: none; flex-direction: column;
-  background: rgba(8,8,12,0.94); border: 1px solid var(--k35); border-radius: 12px; color: #fff;
+  background: rgba(8,8,12,0.8); border: 1px solid var(--k35); border-radius: 12px; color: #fff;
   font: 600 13px "Segoe UI", Roboto, Arial, sans-serif; box-shadow: 0 0 18px var(--k25); overflow: hidden;
   touch-action: pan-y; -webkit-user-select: none; user-select: none; }
 #nbdev * { box-sizing: border-box; }
-#nbdev .hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px;
-  border-bottom: 1px solid var(--k25); font: 700 13px Orbitron, "Segoe UI", sans-serif; letter-spacing: 0.08em; }
-#nbdev .hd button { width: 30px; height: 26px; padding: 0; font-size: 16px; }
-#nbdev .bd { overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain; }
-#nbdev.fold .bd { display: none; }
-#nbdev details { border: 1px solid var(--k25); border-radius: 8px; padding: 6px 8px; }
-#nbdev details[open] { display: flex; flex-direction: column; gap: 7px; background: var(--k06); }
-#nbdev summary { cursor: pointer; list-style: none; font-weight: 800; font-size: 14px; padding: 2px 0; }
-#nbdev summary::-webkit-details-marker { display: none; }
-#nbdev summary::before { content: '▸ '; color: var(--k); }
-#nbdev details[open] > summary::before { content: '▾ '; }
+#nbdev .hd { display: flex; align-items: center; gap: 3px; padding: 4px; cursor: grab; touch-action: none;
+  border-bottom: 1px solid var(--k25); }
+#nbdev .hd button { flex: 1 1 0; height: 30px; padding: 0; font-size: 15px; text-align: center; }
+#nbdev .hd .grip { flex: 0 0 auto; width: 18px; text-align: center; color: var(--k); font-size: 13px; letter-spacing: -2px; }
+#nbdev .bd { overflow-y: auto; padding: 7px; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain; }
+#nbdev.fold { width: auto !important; }
+#nbdev.fold .bd, #nbdev.fold .hd .tab { display: none; }
+#nbdev.fold .hd { border-bottom: 0; }
+#nbdev.fold .hd button { flex: 0 0 auto; width: 40px; }
+#nbdev .ttl { font-weight: 800; font-size: 12px; letter-spacing: 0.12em; color: var(--k); text-transform: uppercase; }
 #nbdev .lb { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px;
   letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.6); font-weight: 700; margin-top: 2px; }
 #nbdev .lb output { color: var(--k); font: 700 18px Orbitron, "Segoe UI", sans-serif; letter-spacing: 0; text-shadow: 0 0 8px var(--k60); }
@@ -54,8 +54,12 @@ export function createDevPanel(api) {
   el.id = 'nbdev';
   document.body.appendChild(el);
 
-  const openSecs = new Set(['jogo']);
-  let folded = false, shown = false, direct = false, lastCol = '';
+  const TABS = [['jogo', '🎮', 'Jogo'], ['graf', '🖥️', 'Gráficos'], ['mundo', '🗺️', 'Capítulo e fase'], ['breaker', '🛸', 'Breaker'], ['caps', '💊', 'Cápsulas']];
+  // position (fractions of the canvas), folded and tab are kept between sessions
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('nb_devui')) || {}; } catch (e) { return {}; } })();
+  let tab = TABS.some((t) => t[0] === saved.tab) ? saved.tab : 'jogo', pos = saved.pos || null;
+  let folded = !!saved.fold, shown = false, direct = false, lastCol = '', dragging = null;
+  const save = () => { try { localStorage.setItem('nb_devui', JSON.stringify({ tab, pos, fold: folded })); } catch (e) { /* ignore */ } };
   let acts = {}, sliders = {};
   const imgCache = {};
 
@@ -77,7 +81,6 @@ export function createDevPanel(api) {
       + `<input type="range" data-s="${id}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.get()}">`
       + (ticks ? `<div class="sc">${ticks.map((t) => `<span>${t}</span>`).join('')}</div>` : '');
   };
-  const sec = (key, title, body) => `<details data-sec="${key}" ${openSecs.has(key) ? 'open' : ''}><summary>${title}</summary>${body}</details>`;
 
   function build() {
     const g = api.game, o = api.opts;
@@ -164,26 +167,47 @@ export function createDevPanel(api) {
       `<div class="lb"><span>Debuffs</span></div><div class="grid">${keys.filter((k) => !api.POWERS[k].good).map((k) => capBtn(k)).join('')}${capBtn('shrink', 2)}</div>`,
     ].join('');
 
-    el.innerHTML = `<div class="hd"><span>🛠️ MODO DEV</span><button data-fold aria-label="Recolher">${folded ? '+' : '–'}</button></div>`
-      + `<div class="bd">${sec('jogo', '🎮 Jogo', jogo)}${sec('graf', '🖥️ Gráficos', graf)}${sec('mundo', '🗺️ Capítulo e fase', mundo)}`
-      + `${sec('breaker', '🛸 Breaker', breaker)}${sec('caps', '💊 Cápsulas', caps)}</div>`;
+    const body = { jogo, graf, mundo, breaker, caps }[tab];
+    el.innerHTML = `<div class="hd"><span class="grip" aria-hidden="true">⋮⋮</span>`
+      + TABS.map(([k, ic, name]) => `<button class="tab ${k === tab ? 'on' : ''}" data-tab="${k}" aria-label="${name}">${ic}</button>`).join('')
+      + `<button data-fold aria-label="${folded ? 'Abrir' : 'Recolher'}">${folded ? '🛠️' : '–'}</button></div>`
+      + `<div class="bd"><div class="ttl">${TABS.find((t) => t[0] === tab)[2]}</div>${body}</div>`;
     el.classList.toggle('fold', folded);
     el.querySelector('.bd').scrollTop = scroll;
   }
 
   el.addEventListener('click', (e) => {
-    if (e.target.closest('[data-fold]')) { folded = !folded; build(); return; }
+    if (dragging && dragging.moved) return;   // the end of a drag is not a tap
+    if (e.target.closest('[data-fold]')) { folded = !folded; save(); build(); place(); return; }
+    const tb = e.target.closest('[data-tab]');
+    if (tb) { tab = tb.dataset.tab; save(); api.click(); build(); return; }
     const t = e.target.closest('[data-a]');
     if (!t || !acts[t.dataset.a]) return;
     api.click();
     acts[t.dataset.a]();
     setTimeout(build, 0);   // labels (names, current stage) may have changed
   });
-  el.addEventListener('toggle', (e) => {
-    const d = e.target;
-    if (!d.dataset || !d.dataset.sec) return;
-    if (d.open) openSecs.add(d.dataset.sec); else openSecs.delete(d.dataset.sec);
-  }, true);
+  // drag by the top bar
+  el.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.hd')) return;
+    const r = el.getBoundingClientRect();
+    dragging = { id: e.pointerId, dx: e.clientX - r.left, dy: e.clientY - r.top, x0: e.clientX, y0: e.clientY, moved: false };
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging || dragging.id !== e.pointerId) return;
+    if (!dragging.moved && Math.hypot(e.clientX - dragging.x0, e.clientY - dragging.y0) < 8) return;
+    if (!dragging.moved) { dragging.moved = true; try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+    const c = api.canvasRect();
+    pos = { x: (e.clientX - dragging.dx - c.left) / c.width, y: (e.clientY - dragging.dy - c.top) / c.height };
+    place();
+  });
+  const endDrag = (e) => {
+    if (!dragging || dragging.id !== e.pointerId) return;
+    const moved = dragging.moved;
+    if (moved) { save(); setTimeout(() => { dragging = null; }, 0); } else dragging = null;
+  };
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
   el.addEventListener('input', (e) => {
     const s = sliders[e.target.dataset.s];
     if (!s) return;
@@ -196,11 +220,17 @@ export function createDevPanel(api) {
   el.addEventListener('keydown', (e) => e.stopPropagation());
   for (const ev of ['pointerdown', 'pointermove', 'pointerup', 'wheel']) el.addEventListener(ev, (e) => e.stopPropagation());
 
+  // about a third of the screen, top right by default; kept inside the canvas
   function place() {
     const r = api.canvasRect(), s = r.width / api.W;
-    const top = r.top + (api.game.top + 6) * s;
-    const w = Math.min(310, r.width - 16);
-    Object.assign(el.style, { left: r.right - w - 8 + 'px', top: top + 'px', width: w + 'px', maxHeight: Math.max(160, r.bottom - top - 120 * s) + 'px' });
+    const w = Math.min(268, r.width - 16), h = Math.max(170, r.height * 0.36);
+    el.style.width = folded ? '' : w + 'px';
+    el.style.maxHeight = h + 'px';
+    const ew = folded ? el.offsetWidth || 60 : w, eh = Math.min(h, el.offsetHeight || h);
+    let x = pos ? r.left + pos.x * r.width : r.right - w - 8, y = pos ? r.top + pos.y * r.height : r.top + (api.game.top + 6) * s;
+    x = Math.max(r.left + 4, Math.min(r.right - ew - 4, x));
+    y = Math.max(r.top + 4, Math.min(r.bottom - eh - 4, y));
+    el.style.left = x + 'px'; el.style.top = y + 'px';
   }
   function theme() {
     const k = api.col();

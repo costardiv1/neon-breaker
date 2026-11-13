@@ -193,6 +193,16 @@ class Sfx {
     this.voice({ f: 330, to: 38, dur: 1.1, detune: [-20, 0, 20], vol: 0.2, ff: 3500, fto: 90, q: 16, send: 0.6 });
     this.noise({ dur: 0.9, vol: 0.16, ff: 6000, fto: 150, q: 3, send: 0.5 });
   }
+  // bonus stages (pinball table): a bright ping for the bumpers, a rising
+  // note for each letter of B-Ô-N-U-S
+  bumper() {
+    this.voice({ f: 1250, to: 1900, dur: 0.12, type: 'sine', vol: 0.12, ff: 8000, send: 0.5 });
+    this.voice({ f: 310, to: 150, dur: 0.1, type: 'square', vol: 0.05, ff: 2400, fto: 400, q: 3, send: 0.2 });
+  }
+  target(i) {
+    const f = this.note(i * 2, 520);
+    this.voice({ f, dur: 0.18, detune: [-8, 8], type: 'triangle', vol: 0.12, ff: 6000, fto: 1500, q: 2, send: 0.6 });
+  }
   portal() {
     this.voice({ f: 180, to: 1400, dur: 0.22, type: 'sine', vol: 0.14, ff: 5000, send: 0.6 });
     this.voice({ f: 1400, to: 180, dur: 0.22, type: 'triangle', vol: 0.08, ff: 5000, send: 0.6, delay: 0.05 });

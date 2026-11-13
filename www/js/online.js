@@ -48,7 +48,7 @@ export function submitRun(run) {
 }
 
 let flushing = false;
-export async function flush() {
+async function flush() {
   if (!ONLINE || flushing || !NAME_RE.test(getName())) return;
   flushing = true;
   try {

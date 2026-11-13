@@ -19,7 +19,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.8.2';
+export const VERSION = '1.8.3';
 
 let H = 1280;
 let safeTop = 0;
@@ -235,8 +235,8 @@ const game = new Game({
     if (e === 'endlessMech') {
       return;   // INFINITO: no card mid-run (the banner shows the name; the GUIA in the pause explains it)
     }
-    // INFINITO has every capsule from the start: the first time one the player
-    // never met falls, a card shows what it does
+    // INFINITO has every capsule from the start: the ones the campaign never
+    // showed get a "!" on the GUIA, in the pause
     if (e === 'capsule') {
       if (!game.endless) markSeen('cap_' + data);   // the campaign shows them; the GUIA marks the rest
       return;
@@ -281,7 +281,7 @@ game.plat = plat;
 game.wallet = () => coins;
 game.chipWallet = () => chips;
 game.setColor(col());
-window.__nb = { game, render: () => render(), go: (s) => setScene(s), crash: () => startCrash(), scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
+window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
 
 function applyOpts() {
   store.set('opts', opts);
@@ -565,8 +565,7 @@ function isoData() {
   const corner = tiles.filter((t, q) => q === 0 || q === tiles.length - 1
     || (tiles[q + 1].i - t.i) !== (t.i - tiles[q - 1].i)).map((t) => isoXY(t.i, t.j));
   const path = polyline(corner, 6);
-  const wOf = (y) => { let w = 0; while (w < WORLDS.length - 1 && y >= bandTop(w + 1)) w++; return w; };
-  path.forEach((q, n) => { q.w = wOf(q.y); q.n = n; });
+  path.forEach((q, n) => { q.w = tileDistrict(q.y); q.n = n; });
   const dist = WORLDS.map((_, w) => ({ w, t0: Infinity, t1: 0 }));
   path.forEach((q, t) => { const d = dist[q.w]; d.t0 = Math.min(d.t0, t); d.t1 = Math.max(d.t1, t + 1); });
   const nodes = [];
@@ -579,16 +578,15 @@ function isoData() {
     }
   });
   // bonus stages: a side street along the grid, from the main street's tile
-  // at BONUS_F, in the first direction that keeps clear of the main street
+  // at BONUS_F, in the first direction that keeps clear of the main street;
+  // when none does there (a tight zigzag at the edge), from a tile further on
   const RI = roadIndex(path);
-  const bonus = BONUS.map((b, bi) => {
-    const k0 = b.w * STEPS + Math.round(BONUS_F * STEPS), T = tiles[k0];
-    const S = isoXY(T.i, T.j);
+  const DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+  const spurFrom = (b, bi, f) => {
+    const T = tiles[b.w * STEPS + Math.round(f * STEPS)], S = isoXY(T.i, T.j);
     let t = 0, bd = Infinity;
     path.forEach((q, n) => { const dd = Math.hypot(q.x - S.x, q.y - S.y); if (dd < bd) { bd = dd; t = n; } });
-    let best = null;
-    const DIRS = [[0, 1], [0, -1], [1, 0], [-1, 0]];
-    for (let L = 3; L <= 6 && !best; L++) {
+    for (let L = 3; L <= 6; L++) {
       for (const [di, dj] of DIRS) {
         for (const second of [null, ...DIRS.filter(([a, e]) => a !== di && e !== dj && a !== -di && e !== -dj)]) {
           const legs = [[di, dj, L]];
@@ -598,22 +596,28 @@ function isoData() {
           for (const [a, e, n] of legs) for (let q = 0; q < n; q++) { ci += a; cj += e; st.push({ i: ci, j: cj }); }
           const end = isoXY(ci, cj);
           const ok = st.every((s, q) => {
+            if (q === 0) return true;                            // the main street's own tile
             if (Math.abs(s.i - s.j) > EDGE - 1) return false;   // room for the name under the star
             if (q < 2) return true;
             const p = isoXY(s.i, s.j);
             return roadNear(RI, p.x, p.y).d > 44;
-          }) && roadNear(RI, end.x, end.y).d > 90 && !nodes.some((nd) => Math.hypot(nd.x - end.x, nd.y - end.y) < 110)
-            && wOf(end.y) === b.w;
-          if (ok) { best = { b, i: bi, t, x: end.x, y: end.y, spur: polyline(st.filter((s, q) => q === 0 || q === st.length - 1 || q === L).map((s) => isoXY(s.i, s.j)), 6) }; break; }
+          }) && roadNear(RI, end.x, end.y).d > 90 && !nodes.some((nd) => Math.hypot(nd.x - end.x, nd.y - end.y) < 110
+            || (Math.abs(nd.x - end.x) < 170 && nd.y - end.y > 0 && nd.y - end.y < 110))   // nor under its name
+            && tileDistrict(end.y) === b.w;
+          if (ok) return { b, i: bi, t, x: end.x, y: end.y, spur: polyline(st.filter((s, q) => q === 0 || q === st.length - 1 || q === L).map((s) => isoXY(s.i, s.j)), 6) };
         }
-        if (best) break;
       }
     }
-    if (!best) {
-      const end = isoXY(T.i, T.j + 4);
-      best = { b, i: bi, t, x: end.x, y: end.y, spur: polyline([S, end], 6) };
-    }
-    return best;
+    return null;
+  };
+  const bonus = BONUS.map((b, bi) => {
+    for (const f of [BONUS_F, 0.5, 0.3, 0.6, 0.2, 0.7]) { const sp = spurFrom(b, bi, f); if (sp) return sp; }
+    // nothing fits: straight toward the middle of the map
+    const T = tiles[b.w * STEPS + Math.round(BONUS_F * STEPS)], S = isoXY(T.i, T.j);
+    const end = T.i < T.j ? isoXY(T.i + 4, T.j) : isoXY(T.i, T.j + 4);
+    let t = 0, bd = Infinity;
+    path.forEach((q, n) => { const dd = Math.hypot(q.x - S.x, q.y - S.y); if (dd < bd) { bd = dd; t = n; } });
+    return { b, i: bi, t, x: end.x, y: end.y, spur: polyline([S, end], 6) };
   });
   // the gate of each chapter: across a straight stretch of street between its
   // boss and the next chapter's first stage (never on a corner), as long as
@@ -1682,18 +1686,13 @@ function drawMenuIcon(c, kind, x, y, k) {
     neonStroke(c, k, k, 3.4, x - 22, y, x + 22, y, 0.8);
     c.beginPath(); c.arc(x, y + 18, 3, 0, TAU); c.fillStyle = k; c.shadowColor = k; c.shadowBlur = 8 * view.blur; c.fill(); c.shadowBlur = 0;
   } else if (kind === 'breakers') {
-    // the platform with the disc over it and a spark: your breaker
-    const px = x - 2, py = y + 14;
-    c.moveTo(px - 20, py - 4); c.lineTo(px + 20, py - 4); c.arc(px + 20, py, 4, -Math.PI / 2, Math.PI / 2);
-    c.lineTo(px - 20, py + 4); c.arc(px - 20, py, 4, Math.PI / 2, Math.PI * 1.5);
-    c.moveTo(px + 7, y - 6); c.arc(px, y - 6, 7, 0, TAU);
-    c.lineJoin = 'round';
-    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
-    c.beginPath();
-    const sx = x + 15, sy = y - 17;
-    c.moveTo(sx, sy - 9); c.quadraticCurveTo(sx, sy, sx + 9, sy); c.quadraticCurveTo(sx, sy, sx, sy + 9);
-    c.quadraticCurveTo(sx, sy, sx - 9, sy); c.quadraticCurveTo(sx, sy, sx, sy - 9);
-    c.fillStyle = k; c.shadowColor = k; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
+    // the ARCO breaker, just its curve
+    for (let i = 0; i <= 24; i++) {
+      const u = -1 + i / 12;
+      c[i ? 'lineTo' : 'moveTo'](x + u * 24, y + 2 + 12 * u * u);
+    }
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 4, x - 24, y, x + 24, y, 0.8);
   } else if (kind === 'inf') {
     for (let i = 0; i <= 64; i++) {
       const t = (i / 64) * TAU, d = 1 + Math.sin(t) * Math.sin(t);
@@ -1896,7 +1895,7 @@ function layout() {
         btn(cx, H * 0.6 + 200, bw, bh, 'MENU', () => setScene('menu')),
       ];
       return [
-        btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', () => (game.bonus ? startBonus(game.bonus) : startGame(game.index)), { big: true }),
+        btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', () => startGame(game.index), { big: true }),
         btn(cx, H * 0.6 + 100, bw, bh, 'MAPA', () => setScene('map')),
       ];
     case 'story':
@@ -2350,7 +2349,6 @@ const flatTile = (c, x, y, fill, stroke) => {
 };
 const mod5 = (v) => ((v % 5) + 5) % 5;
 const GOLD = '#ffd84a';
-const goldTint = (k) => mix(k, GOLD, 0.65);
 
 // Parks, squares and one landmark per district, in the city blocks (4x4 tiles
 // between the side streets) that the route keeps clear of.
@@ -2520,7 +2518,7 @@ function landmark(c, w, x, y, k, R, beacons) {
       break;
     }
     case 8: { // TORRE AURUM: the gold bank
-      isoBox(c, x, y, 130, goldTint(k), 1.25, R, [], w);
+      isoBox(c, x, y, 130, GOLD, 1.25, R, [], w);   // pure gold, whatever the theme
       c.beginPath(); c.arc(x, y - 104, 15, 0, TAU);
       c.fillStyle = '#000'; c.fill(); c.strokeStyle = GOLD; c.lineWidth = 2; c.stroke();
       glowText(c, 'AU', x, y - 103, 12, GOLD, GOLD, 'center', 800, 1);
@@ -2571,8 +2569,8 @@ function landmarkLive(c, w, x, y, k, now) {
     case 5: { // the like heart beats and the counter keeps going up
       const s = 24 * (1 + 0.08 * Math.max(0, Math.sin(now * 5))), cy = y - 110;
       heart(c, x, cy, s);
-      c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba('#ff3864', 0.25); c.fill();
-      c.strokeStyle = '#ff3864'; c.lineWidth = 2.4; c.shadowColor = '#ff3864'; c.shadowBlur = 12 * view.blur; c.stroke(); c.shadowBlur = 0;
+      c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(k, 0.25); c.fill();
+      c.strokeStyle = k; c.lineWidth = 2.4; c.shadowColor = k; c.shadowBlur = 12 * view.blur; c.stroke(); c.shadowBlur = 0;
       glowText(c, '+' + (100 + Math.floor(now * 9) % 900), x + 34, cy - 30, 11, '#ffffff', k, 'left', 700, 1);
       break;
     }
@@ -2609,7 +2607,7 @@ function plaza(c, x, y, k, lamps) {
   if (!lamps) return;
   for (const [dx, dy] of [[-TW * 1.7, 0], [TW * 1.7, 0], [0, -TH * 1.7], [0, TH * 1.7]]) {
     c.beginPath(); c.moveTo(x + dx, y + dy); c.lineTo(x + dx, y + dy - 24); c.strokeStyle = rgba(k, 0.6); c.lineWidth = 1.4; c.stroke();
-    c.beginPath(); c.arc(x + dx, y + dy - 26, 3, 0, TAU); c.fillStyle = '#ffffff'; c.shadowColor = k; c.shadowBlur = 10; c.fill(); c.shadowBlur = 0;
+    c.beginPath(); c.arc(x + dx, y + dy - 26, 3, 0, TAU); c.fillStyle = '#ffffff'; c.shadowColor = k; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
   }
 }
 function fountainLive(c, x, y, now, alpha) {
@@ -2655,39 +2653,37 @@ function isoLayer() {
       const { x, y } = isoXY(i, j);
       const w = tileDistrict(y);
       c.globalAlpha = cb.globalAlpha = districtOpen(w) ? 1 : 0.38;
-      const kk = k;
       const sp = spots.get(key2);
       if (sp) {
         if (sp.kind === 'park') {
-          const G = k;
-          flatTile(c, x, y, rgba(G, 0.09), rgba(G, 0.2));
+          flatTile(c, x, y, rgba(k, 0.09), rgba(k, 0.2));
           if (sp.pond) {
             c.beginPath(); c.ellipse(x, y, 26, 12, 0, 0, TAU); c.fillStyle = rgba(k, 0.16); c.fill(); c.strokeStyle = rgba(k, 0.7); c.lineWidth = 1.4; c.stroke();
             c.beginPath(); c.moveTo(x - 10, y - 3); c.lineTo(x + 6, y - 3); c.strokeStyle = rgba('#ffffff', 0.4); c.stroke();
-          } else for (let q = R() < 0.4 ? 2 : 1; q > 0; q--) tree(cb, x + (R() - 0.5) * 34, y + (R() - 0.5) * 14, G, R);
+          } else for (let q = R() < 0.4 ? 2 : 1; q > 0; q--) tree(cb, x + (R() - 0.5) * 34, y + (R() - 0.5) * 14, k, R);
         } else {
-          flatTile(c, x, y, rgba(kk, sp.kind === 'plaza' ? 0.07 : 0.04), rgba(kk, sp.kind === 'plaza' ? 0.3 : 0.16));
-          if (sp.kind === 'plaza') { c.beginPath(); c.moveTo(x - TW * 0.5, y); c.lineTo(x, y - TH * 0.5); c.lineTo(x + TW * 0.5, y); c.lineTo(x, y + TH * 0.5); c.closePath(); c.strokeStyle = rgba(kk, 0.18); c.lineWidth = 1; c.stroke(); }
+          flatTile(c, x, y, rgba(k, sp.kind === 'plaza' ? 0.07 : 0.04), rgba(k, sp.kind === 'plaza' ? 0.3 : 0.16));
+          if (sp.kind === 'plaza') { c.beginPath(); c.moveTo(x - TW * 0.5, y); c.lineTo(x, y - TH * 0.5); c.lineTo(x + TW * 0.5, y); c.lineTo(x, y + TH * 0.5); c.closePath(); c.strokeStyle = rgba(k, 0.18); c.lineWidth = 1; c.stroke(); }
           if (sp.front) {
-            if (sp.kind === 'plaza') { plaza(cb, sp.cx, sp.cy, kk, true); live.push({ kind: 'fountain', w, x: sp.cx, y: sp.cy }); }
-            else { landmark(cb, w, sp.cx, sp.cy, kk, R, beacons); live.push({ kind: 'lm', w, x: sp.cx, y: sp.cy }); }
+            if (sp.kind === 'plaza') { plaza(cb, sp.cx, sp.cy, k, true); live.push({ kind: 'fountain', w, x: sp.cx, y: sp.cy }); }
+            else { landmark(cb, w, sp.cx, sp.cy, k, R, beacons); live.push({ kind: 'lm', w, x: sp.cx, y: sp.cy }); }
           }
         }
         continue;
       }
-      if (i === LEAD.bi && j === LEAD.bj) { isoBox(cb, x, y, LEAD.h, kk, 0.78, rng(41), beacons, w); continue; }
+      if (i === LEAD.bi && j === LEAD.bj) { isoBox(cb, x, y, LEAD.h, k, 0.78, rng(41), beacons, w); continue; }
       const nearTower = Math.abs(x - end.x) < 120 && y > end.y - 30 && y < end.y + 130;
       const street = mod5(i) === 0 || mod5(j) === 0;
       const rn = roadNear(RI, x, y), lim = rn.gap - 32;
-      if (rn.d < 34 || street || nearTower) { flatTile(c, x, y, rgba(kk, 0.03), rgba(kk, 0.1)); continue; }
+      if (rn.d < 34 || street || nearTower) { flatTile(c, x, y, rgba(k, 0.03), rgba(k, 0.1)); continue; }
       if (rn.d < 56 || lim < 40) {
-        if (R() < 0.5 && lim >= 8) isoBox(cb, x, y, Math.min(lim, 6 + R() * 8), kk, 0.6, R, beacons, w);
-        else flatTile(c, x, y, rgba(kk, 0.02), rgba(kk, 0.08));
+        if (R() < 0.5 && lim >= 8) isoBox(cb, x, y, Math.min(lim, 6 + R() * 8), k, 0.6, R, beacons, w);
+        else flatTile(c, x, y, rgba(k, 0.02), rgba(k, 0.08));
         continue;
       }
-      if (R() < 0.12) { flatTile(c, x, y, rgba(kk, 0.02), rgba(kk, 0.08)); continue; }
+      if (R() < 0.12) { flatTile(c, x, y, rgba(k, 0.02), rgba(k, 0.08)); continue; }
       const hmin = 14 + w * 7, hmax = 42 + w * 13;
-      isoBox(cb, x, y, Math.min(lim, hmin + R() * (hmax - hmin) * (R() < 0.15 ? 1.6 : 1)), kk, 0.78, R, beacons, w);
+      isoBox(cb, x, y, Math.min(lim, hmin + R() * (hmax - hmin) * (R() < 0.15 ? 1.6 : 1)), k, 0.78, R, beacons, w);
     }
   }
   // the streets: a dark lane with a neon edge and a dashed middle line
@@ -2936,7 +2932,7 @@ function renderMap(c, now) {
     const a = districtOpen(o.w) ? 1 - (mapDim[o.w] || 0) * 0.85 : 0.25;
     c.globalAlpha = a;
     if (o.kind === 'fountain') fountainLive(c, o.x, o.y, now, a);
-    else landmarkLive(c, o.w, o.x, o.y, o.w === 8 ? goldTint(k) : k, now);
+    else landmarkLive(c, o.w, o.x, o.y, o.w === 8 ? GOLD : k, now);
   }
   c.globalAlpha = 1;
   // route along the main street
@@ -3227,7 +3223,7 @@ function render() {
         glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + fmtTime(bestT), W / 2, H * 0.42 + 92, 18, rgba(k, 0.9), k, 'center', 500, 5);
       } else {
         glowText(ctx, String(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
-        if (sbest[game.index] && !game.bonus) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
+        if (sbest[game.index]) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
       }
     } else if (scene === 'world') {
       dim(ctx, 0.7);

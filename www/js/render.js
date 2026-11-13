@@ -26,6 +26,12 @@ export function roundRectPath(c, x, y, w, h, r) {
   c.closePath();
 }
 
+// Without glow (NEON off, the phone default) the two glow passes of a neon
+// stroke or title are the same plain line drawn twice: one is enough, unless
+// the drawing is see-through or additive (then twice is brighter).
+const opaque = (col) => typeof col === 'string' && col[0] === '#' && col.length === 7;
+const once = (c) => view.blur <= 0 && c.globalAlpha >= 1 && c.globalCompositeOperation === 'source-over';
+
 // Strokes the current path as a neon tube: gradient between two complementary
 // colors, a double glow (one per color) and a bright thin core.
 export function neonStroke(c, a, b, w, x0, y0, x1, y1, glow = 1) {
@@ -36,13 +42,15 @@ export function neonStroke(c, a, b, w, x0, y0, x1, y1, glow = 1) {
   c.lineJoin = 'round';
   c.strokeStyle = g;
   c.lineWidth = w;
-  c.shadowColor = a;
-  c.shadowBlur = 22 * glow * view.blur;
-  c.stroke();
-  c.shadowColor = b;
-  c.shadowBlur = 10 * glow * view.blur;
-  c.stroke();
-  c.shadowBlur = 0;
+  if (!once(c) || !opaque(a) || !opaque(b)) {
+    c.shadowColor = a;
+    c.shadowBlur = 22 * glow * view.blur;
+    c.stroke();
+    c.shadowColor = b;
+    c.shadowBlur = 10 * glow * view.blur;
+    c.stroke();
+    c.shadowBlur = 0;
+  } else c.stroke();
   c.strokeStyle = 'rgba(255,255,255,0.75)';
   c.lineWidth = Math.max(1, w * 0.3);
   c.stroke();
@@ -81,13 +89,15 @@ export function neonTitle(c, text, x, y, size, a, b, spacing = 0) {
   c.lineJoin = 'round';
   c.strokeStyle = g;
   c.lineWidth = Math.max(2, size * 0.05);
-  c.shadowColor = a;
-  c.shadowBlur = 24 * view.blur;
-  c.strokeText(text, x, y);
-  c.shadowColor = b;
-  c.shadowBlur = 10 * view.blur;
-  c.strokeText(text, x, y);
-  c.shadowBlur = 0;
+  if (!once(c) || !opaque(a) || !opaque(b)) {
+    c.shadowColor = a;
+    c.shadowBlur = 24 * view.blur;
+    c.strokeText(text, x, y);
+    c.shadowColor = b;
+    c.shadowBlur = 10 * view.blur;
+    c.strokeText(text, x, y);
+    c.shadowBlur = 0;
+  } else c.strokeText(text, x, y);
   c.strokeStyle = 'rgba(255,255,255,0.8)';
   c.lineWidth = Math.max(1, size * 0.014);
   c.strokeText(text, x, y);
@@ -101,10 +111,12 @@ export function glowText(c, text, x, y, size, fill, glow, align = 'center', weig
   c.textAlign = align;
   c.textBaseline = 'middle';
   c.fillStyle = fill;
-  c.shadowColor = glow;
-  c.shadowBlur = 14 * view.blur;
-  c.fillText(text, x, y);
-  c.shadowBlur = 0;
+  if (!once(c) || !opaque(fill)) {
+    c.shadowColor = glow;
+    c.shadowBlur = 14 * view.blur;
+    c.fillText(text, x, y);
+    c.shadowBlur = 0;
+  }
   c.fillText(text, x, y);
   c.restore();
 }

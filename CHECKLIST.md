@@ -2,6 +2,34 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.8.3 (13/11/2026)
+
+### Fases bônus (mesa de pinball)
+- [ ] Entre numa fase bônus com um perk equipado: o botão do perk não aparece e o toque duplo não faz nada.
+- [ ] Nenhum bloco solta cápsula nem moeda.
+- [ ] Há 3 bumpers redondos no meio do campo: o disco bate, sai mais rápido e o bumper pisca com um "plim".
+- [ ] As letras B-Ô-N-U-S embaixo dos blocos acendem quando o disco bate. Com as cinco acesas: "BÔNUS! +3 NO POTE", elas piscam e apagam de novo.
+- [ ] No topo aparece "POTE N" e o combo (x2, x3...) sobe a cada batida na mesa; quando o disco toca a plataforma, o combo some. O pote para em 12 (CHEIO).
+- [ ] Limpe a fase: aparece "POTE +N MOEDAS" e o prêmio do bônus. Na tela de recompensa, o anúncio dobra tudo.
+- [ ] Deixe o disco cair com o pote cheio: FIM DO BÔNUS (O DISCO CAIU · FICA O POTE) e você recebe o pote. Com o pote vazio aparece SEM PRÊMIO.
+- [ ] Os textos dos cartões das três fases falam dos bumpers e das letras.
+
+### Modo dev
+- [ ] Abra o painel DEV: ele ocupa cerca de um terço da tela, é meio transparente e tem abas com ícones no topo (Jogo, Gráficos, Capítulo e fase, Breaker, Cápsulas), com uma seção por vez.
+- [ ] Arraste o painel pela barra de cima para outro canto; feche e abra o jogo de novo: ele volta no mesmo lugar e na mesma aba.
+- [ ] O botão – recolhe o painel num botão pequeno 🛠️, que abre de novo.
+
+### Menu e mapa
+- [ ] Menu inicial: o ícone do BREAKERS é só a curva do breaker ARCO.
+- [ ] Mapa, capítulo 8: a estrela BÔNUS · BARRICADA aparece ao lado da 8-3, dentro da tela, com o nome livre.
+- [ ] Mapa, capítulo 6: o coração de curtidas está na cor do tema. As luzinhas da CENSURA e da rádio da RESISTÊNCIA continuam vermelhas.
+- [ ] Mapa, capítulo 9: o banco AURUM é dourado em qualquer tema (teste no verde).
+
+### Correções
+- [ ] ONDA DE CHOQUE: dispare e mova a plataforma; o arco fica parado onde começou.
+- [ ] MEGA LASER: o brilho de carga começa apagado e acende.
+- [ ] Celular com o neon desligado: textos, botões e blocos com a mesma cara de antes.
+
 ## 1.8.2 (13/11/2026)
 
 ### Fases bônus

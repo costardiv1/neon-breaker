@@ -337,13 +337,14 @@ export const WORLDS = [
       text: 'Acerte o olho que tudo vê. Dizem que ele é grande demais para cair.' } },
 ];
 
-// Bonus stages: side streets on the map, in districts 2, 5 and 8. They open
-// after the district's 2nd stage, have no district mechanic, a twist of their
-// own and pay coins when cleared.
-// bonus stages: one chance and 40 s to clear the field for the prize
+// Bonus stages: side streets on the map, in chapters 2, 5 and 8. They open
+// after the chapter's 2nd stage, have no chapter mechanic but a twist of their
+// own, and give one chance and 40 s to clear the field for the prize. Their
+// field is a pinball table (see Game.makeTable): no capsules, no coins from
+// the bricks and no perks; the bumpers and letters fill a pot paid at the end.
 export const BONUS = [
   { w: 1, after: 1, kind: 'missiles', name: 'LAG', coins: 15, demo: 'cap:missile', slide: [0, 2, 4],
-    text: 'A plataforma dispara um míssil a cada 3 s. Você tem uma chance só e 40 s para limpar tudo e ganhar o prêmio.',
+    text: 'Um míssil sai da plataforma a cada 3 s. Uma chance só e 40 s para limpar tudo. Bumpers e letras enchem o pote de moedas.',
     rows: [
       '.3.3.3.3.',
       '333333333',
@@ -352,7 +353,7 @@ export const BONUS = [
       '.2.2.2.2.',
     ] },
   { w: 4, after: 1, kind: 'fork', name: 'FORK BOMB', coins: 20, demo: 'cap:multi', slide: [2, 4],
-    text: 'Cada bloco quebrado solta mais um disco (até 8). Você tem uma chance só e 40 s para limpar tudo e ganhar o prêmio.',
+    text: 'Cada bloco quebrado solta mais um disco (até 8). Uma chance só e 40 s para limpar tudo. Bumpers e letras enchem o pote.',
     rows: [
       '3.3.3.3.3',
       '333333333',
@@ -361,7 +362,7 @@ export const BONUS = [
       '..33333..',
     ] },
   { w: 7, after: 1, kind: 'bombs', name: 'BARRICADA', coins: 25, demo: 'cap:bomb', slide: [2, 4],
-    text: 'A cada duas batidas, uma explosão corre pela fileira e destrói os blocos dos lados. Você tem uma chance só e 40 s para limpar tudo e ganhar o prêmio.',
+    text: 'A cada duas batidas, uma explosão corre pela fileira. Uma chance só e 40 s para limpar tudo. Bumpers e letras enchem o pote.',
     rows: [
       'X3333333X',
       '333333333',
@@ -397,7 +398,7 @@ export function stageLabel(i) {
 }
 
 // Every district mechanic up to world w (bosses still use all of them).
-export function worldMechs(w) {
+function worldMechs(w) {
   return WORLDS.slice(0, w + 1).map((x) => x.mech).filter(Boolean);
 }
 
