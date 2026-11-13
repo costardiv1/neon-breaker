@@ -2,6 +2,13 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.7.1 (12/11/2026)
+
+- [ ] INFINITO: quebre todos os blocos (ou use LIMPAR BLOCOS no modo dev): fileiras novas entram rápido e o jogo segue.
+- [ ] INFINITO: espere aparecer a MURALHA (blocos riscados) e deixe ela descer até a linha tracejada: ela se desfaz e você não perde vida.
+- [ ] Campanha, fase 3-3 (CORTE DE GASTOS): deixe as muralhas chegarem na linha: elas se desfazem sem tirar vida; os blocos normais na linha continuam tirando.
+- [ ] Os blocos da REAÇÃO têm um X (no INFINITO, depois que a REAÇÃO entra; ou com o modo dev).
+
 ## 1.7 (12/11/2026)
 
 ### Mapa

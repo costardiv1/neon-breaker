@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.7** (12/11/2026)
+Versão atual publicada: **1.7.1** (12/11/2026)
 
 ## Objetivos
 
@@ -14,7 +14,18 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
+- [ ] INFINITO: tirar os cartões que aparecem a cada cápsula nova no meio da partida. Mostrar um cartão só, no começo da primeira partida do INFINITO, e colocar um botão "?" (no canto da tela ou na pausa) para quem quiser conhecer as cápsulas e mecânicas novas (12/11/2026)
+- [ ] INFINITO: começar com menos blocos na tela (hoje são 4 fileiras) (12/11/2026)
+- [ ] PERFURAR muito forte no INFINITO: diminuir o tempo ou limitar quantos blocos ele atravessa nesse modo (12/11/2026)
+- [ ] Mapa: voltar a iluminação de antes nos distritos liberados, mas destacar o distrito que está no meio da tela e apagar um pouco os outros liberados; os fechados continuam escuros. Manter a animação de acender. Pensar em algo para o trajeto no mapa (12/11/2026)
+
 ## Histórico
+
+### 1.7.1 (12/11/2026)
+
+- [x] Bug: INFINITO travava com o campo vazio.
+- [x] Bug: MURALHA e gota do VAZAMENTO tiravam vida na PRESSÃO.
+- [x] Bug: bloco da REAÇÃO sem o X.
 
 ### 1.7 (12/11/2026)
 

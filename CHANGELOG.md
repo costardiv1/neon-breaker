@@ -2,6 +2,14 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.7.1] · 12/11/2026 · Correções do INFINITO e da PRESSÃO
+
+### Corrigido
+
+- INFINITO travava sem blocos novos quando o jogador quebrava todos: agora as fileiras entram bem mais rápido com o campo vazio.
+- Com a PRESSÃO, a MURALHA e o bloco da gota do VAZAMENTO chegavam à linha de alerta e tiravam vida sem ter como quebrá-los (no INFINITO, para sempre; na campanha, nas fases 3-3, 3-4, 4-3, 5-3 e 6-4). Agora eles se desfazem ao chegar na linha.
+- O bloco da REAÇÃO ganhou o X que o cartão da mecânica descreve.
+
 ## [1.7] · 12/11/2026 · Tutoriais animados, mapa aceso e INFINITO revisto
 
 ### Adicionado

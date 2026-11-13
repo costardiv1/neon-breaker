@@ -1051,14 +1051,23 @@ export class Game {
       }
     }
     // PRESSÃO: every brick creeps down; touching the alert line costs a life
-    if (this.mechs.includes('descent') && !this.boss && this.bricks.length) {
+    // (INFINITO keeps going with an empty field, faster, so new rows come in)
+    if (this.mechs.includes('descent') && !this.boss && (this.bricks.length || this.endless)) {
       const E = this.endless;
-      const v = E ? Math.min(26, 10 + E.t * 0.04) : 6 + this.stage.s * 0.7;
+      const empty = E && !this.bricks.some((b) => !b.dead && counts(b));
+      const v = (E ? Math.min(26, 10 + E.t * 0.04) : 6 + this.stage.s * 0.7) * (empty ? 8 : 1);
       let low = 0, high = Infinity;
       for (const br of this.bricks) {
         if (br.dead) continue;
         br.y += v * dt;
-        low = Math.max(low, br.y + br.h); high = Math.min(high, br.y);
+        high = Math.min(high, br.y);
+        // bricks that cannot be broken (MURALHA, the VAZAMENTO drop) never cost a
+        // life: they crumble when they reach the line
+        if (!counts(br)) {
+          if (br.y + br.h >= this.dangerY) { br.dead = true; this.burst(br.x + br.w / 2, br.y + br.h / 2, 10, 0.7); }
+          continue;
+        }
+        low = Math.max(low, br.y + br.h);
       }
       if (E) E.rowY += v * dt;
       else { for (const q of this.beams) if (q.t === undefined) q.y += v * dt; for (const q of this.bars) if (q.t === undefined) q.y += v * dt; }
@@ -2328,12 +2337,15 @@ export class Game {
         c.fillStyle = rgba(col, 0.9);
         for (const fx of [0.22, 0.5, 0.78]) { c.beginPath(); c.arc(br.x + br.w * fx, yb, 1.8, 0, TAU); c.fill(); }
       }
-      if (br.kind === 'exp') {
+      if (br.kind === 'exp') {   // REAÇÃO: a pulsing glow and an X
         c.globalCompositeOperation = 'lighter';
         c.globalAlpha = 0.25 + 0.25 * Math.sin(this.t * 6 + br.col);
         drawSprite(c, s, br.x, br.y);
         c.globalAlpha = 1;
         c.globalCompositeOperation = 'source-over';
+        const cx = br.x + br.w / 2, cy = br.y + br.h / 2, d = Math.min(9, br.h * 0.3);
+        c.beginPath(); c.moveTo(cx - d, cy - d); c.lineTo(cx + d, cy + d); c.moveTo(cx + d, cy - d); c.lineTo(cx - d, cy + d);
+        neonStroke(c, WHITE, col, 2.6, cx - d, cy, cx + d, cy, 0.7);
       }
       if (br.flash > 0) {
         c.globalCompositeOperation = 'lighter';
