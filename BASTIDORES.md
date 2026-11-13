@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.7.2** (12/11/2026)
+Versão atual publicada: **1.8** (13/11/2026)
 
 ## Objetivos
 
@@ -16,6 +16,17 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 
 ## Histórico
+
+### 1.8 (13/11/2026)
+
+- [x] Mapa refeito: rua com curvas e voltas, parque, praça e um marco em cada distrito; caixa só no distrito em foco; miniatura do chefão.
+- [x] Mapa: liberados fora de foco mais apagados; distrito 1 em foco com o mapa no topo.
+- [x] Fases bônus nos distritos 2, 5 e 8: LAG, FORK BOMB e BARRICADA.
+- [x] Pausa e menu inicial com ícones.
+- [x] INFINITO: chefão a cada 2 min, em ordem, com o dobro de vida na segunda volta; contagem de 5 s; começo com poucos blocos; PERFURAR 3 s.
+- [x] Chefões soltam menos cápsulas.
+- [x] MEGA LASER trava menos; MURALHA some antes da linha; MÍSSIL atravessa a MURALHA; +1 VIDA mais frequente com 1 vida.
+- [x] Bugs: tela tremendo no FIM DE JOGO; partida duplicada no PLACAR; SENTINELA nunca aparecia no INFINITO.
 
 ### 1.7.2 (12/11/2026)
 

@@ -2,6 +2,34 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.8] · 13/11/2026 · Cidade nova, fases bônus e ícones
+
+### Adicionado
+
+- Fases bônus nos distritos 2, 5 e 8, numa rua que se bifurca no mapa: LAG (míssil a cada 1,5 s), FORK BOMB (cada bloco quebrado solta mais um disco) e BARRICADA (toda batida explode). Só cápsulas boas, o triplo de moedas e 40, 60 e 80 moedas por limpar (10 nas outras vezes).
+- Mapa refeito: rua com curvas e voltas, um parque e uma praça com chafariz em cada distrito e um marco próprio em cada um (caixa d'água, telão, gráfico da META, torre do relógio, placa </>, coração de curtidas, outdoor CENSURADO, torre de rádio e banco dourado).
+- Mapa: miniatura do chefão no lugar do ícone de olho.
+- INFINITO: contagem grande nos últimos 5 s antes do chefão.
+
+### Alterado
+
+- Pausa e menu inicial só com ícones, cada um com o nome pequeno embaixo; JOGAR e CONTINUAR são os maiores, e EFEITOS, MÚSICA e GUIA ficam numa fileira só.
+- Mapa: só o distrito em foco mostra a caixa de informações, num canto que não cobre fases; os liberados fora de foco ficam mais apagados; com o mapa no topo, o foco é o distrito 1.
+- INFINITO: chefão a cada 2 min (era 3 min 30 s), em ordem; depois do último eles voltam com o dobro de vida.
+- INFINITO: o começo tem poucos blocos por fileira e elas vão enchendo nos primeiros 3 minutos.
+- INFINITO: PERFURAR dura 3 s, sem limite de blocos.
+- Chefões soltam menos cápsulas: os blocos da luta voltaram aos 13% normais (eram 30%), cada acerto no chefão solta 20% (eram 35%) e LASER e MÍSSIL vêm 2 vezes mais (eram 3,5).
+- MEGA LASER trava a plataforma por menos tempo.
+- A MURALHA se desfaz um pouco antes da linha da PRESSÃO.
+- MÍSSIL atravessa a MURALHA.
+- +1 VIDA vem com o dobro da chance quando o jogador está com 1 vida.
+
+### Corrigido
+
+- A tela tremia sem parar no FIM DE JOGO.
+- Uma partida do INFINITO podia entrar duas vezes no PLACAR quando a vida acabava duas vezes no mesmo instante.
+- No INFINITO, o SENTINELA nunca aparecia como chefão (quando era sorteado, a luta não começava).
+
 ## [1.7.2] · 12/11/2026 · GUIA na pausa e mapa com foco
 
 ### Adicionado

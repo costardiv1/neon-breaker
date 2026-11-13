@@ -2,6 +2,43 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.8 (13/11/2026)
+
+### Mapa
+- [ ] A rua das fases faz curvas e voltas e não se cruza. Role o mapa inteiro.
+- [ ] Cada distrito tem um parque (árvores verdes), uma praça com chafariz (a água se mexe) e um marco: caixa d'água (1), telão com um bichinho de pixel (2), gráfico da META (3), torre do relógio com o ponteiro andando (4), placa </> piscando (5), coração batendo com contador (6), outdoor CENSURADO (7), torre de rádio com ondas (8) e banco dourado AU (9, com o distrito todo dourado).
+- [ ] O hexágono de cada chefão mostra a miniatura dele no lugar do olho.
+- [ ] Só o distrito em foco mostra a caixa com o nome e as mecânicas, num canto que não cobre nenhuma fase. Ela some e volta quando o foco muda de distrito.
+- [ ] Com o mapa no topo, o distrito 1 fica em foco. Os liberados fora de foco estão mais apagados que antes.
+- [ ] Nos distritos 2, 5 e 8 sai uma rua lateral até uma estrela dourada (BÔNUS). Ela fica tracejada até você passar da 2ª fase do distrito.
+
+### Fases bônus
+- [ ] Na primeira vez, um cartão explica a fase.
+- [ ] LAG (distrito 2): a plataforma solta um míssil a cada 1,5 s enquanto o disco está em jogo.
+- [ ] FORK BOMB (distrito 5): cada bloco quebrado solta mais um disco (até 20).
+- [ ] BARRICADA (distrito 8): toda batida do disco explode os blocos em volta.
+- [ ] Só caem cápsulas boas e caem mais moedas.
+- [ ] Limpe a fase: aparece "BÔNUS +40/60/80 MOEDAS", a tela de moedas e depois o mapa, com a estrela marcada. Na segunda vez o prêmio é 10.
+- [ ] Perca todas as vidas numa fase bônus: TENTAR DE NOVO recomeça a mesma fase bônus.
+
+### Pausa e menu
+- [ ] Menu inicial: BREAKERS, JOGAR (maior) e INFINITO são ícones com o nome pequeno embaixo; o INFINITO fica apagado até derrotar o SENTINELA.
+- [ ] Pausa: MAPA (ou RECOMEÇAR no INFINITO), CONTINUAR (maior) e MENU em cima; EFEITOS, MÚSICA e GUIA numa fileira embaixo. Desligar efeitos ou música risca o ícone.
+
+### INFINITO
+- [ ] O começo tem poucos blocos por fileira e elas vão enchendo com o tempo.
+- [ ] O primeiro chefão vem aos 2:00 e é o SENTINELA; depois vêm em ordem, um a cada 2 minutos.
+- [ ] Nos últimos 5 s antes do chefão aparece uma contagem grande na tela.
+- [ ] PERFURAR dura uns 3 s e atravessa quantos blocos der.
+
+### Jogo
+- [ ] Lute com o SENTINELA: caem bem menos cápsulas que antes.
+- [ ] MEGA LASER: a plataforma fica travada um pouco menos.
+- [ ] Com PRESSÃO (fase 3-3 ou INFINITO), a MURALHA se desfaz um pouco antes de chegar na linha tracejada.
+- [ ] MÍSSIL: ele passa pela MURALHA e acerta os blocos atrás dela.
+- [ ] Perca vidas até ficar com 1: o +1 VIDA aparece com mais frequência.
+- [ ] Perca a última vida: a tela de FIM DE JOGO fica parada (sem tremer) e a partida do INFINITO aparece uma vez só no PLACAR.
+
 ## 1.7.2 (12/11/2026)
 
 ### INFINITO

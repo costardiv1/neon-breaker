@@ -2,10 +2,11 @@ import { view, rgba, mix, roundRectPath, neonStroke, neonTitle, glowText, drawSp
 import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone, dropSprite, fmtTime, drawChipIcon } from './game.js';
 import { drawDemo, hasDemo } from './demo.js';
 import { SHAPES, PALETTES, EMBLEMS, drawPlatform, outAngle, paletteColors } from './platform.js';
-import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, districtMechs, worldStart, worldCount } from './levels.js';
+import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, districtMechs, worldStart, worldCount, BONUS, bonusIndex } from './levels.js';
 import { THEMES } from './themes.js';
 import { sfx, music, haptics } from './audio.js';
 import { createDevPanel } from './devpanel.js';
+import { createBoss } from './boss.js';
 import { ONLINE, submitRun, fetchTop, getName, setName, NAME_RE } from './online.js';
 
 // ---------- persistence ----------
@@ -19,7 +20,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.7.2';
+export const VERSION = '1.8';
 
 let H = 1280;
 let safeTop = 0;
@@ -41,6 +42,9 @@ if (store.get('scoreV', 1) < 3) { for (const k in sbest) sbest[k] *= 10; store.s
 // INFINITO: the leaderboard measures the time survived.
 let bestT = store.get('bestT', 0);
 let eruns = store.get('eruns', []);        // best endless runs on this device: { t, bosses, date }
+// bonus stages already cleared ({ district: true }): the first clear pays the full reward
+let bonusWon = store.get('bonus', {});
+const BONUS_AGAIN = 10;                    // coins for clearing a bonus stage again
 let devUI = null;                          // in-game dev panel (created further down)
 const REPO_URL = 'https://github.com/costardiv1/neon-breaker';
 const INSTA_URL = 'https://www.instagram.com/v.costardi';
@@ -211,6 +215,12 @@ const game = new Game({
       if (devUI) devUI.refresh();
       if (tut && game.index === 0) { fire('start'); return; }
       const st = game.stage;
+      if (st.bonus && !seen['bonus_' + st.w]) {
+        markSeen('bonus_' + st.w);
+        card = { kicker: `DISTRITO ${st.w + 1}  ·  FASE BÔNUS`, title: st.bonus.name, text: st.bonus.text, demo: st.bonus.demo };
+        showCard();
+        return;
+      }
       if (st.boss && !seen['boss_' + st.boss.type]) {
         markSeen('boss_' + st.boss.type);
         card = { kicker: (game.endless ? 'INFINITO' : `DISTRITO ${st.w + 1}`) + '  ·  CHEFÃO', title: st.boss.name, text: st.boss.text, focus: 'boss' };
@@ -247,6 +257,15 @@ const game = new Game({
       saveChips();
       return;
     }
+    if (e === 'bonusClear') {   // the coins of the bonus stage go with the ones caught in it
+      const n = bonusWon[data.w] ? BONUS_AGAIN : data.coins;
+      bonusWon[data.w] = true; store.set('bonus', bonusWon);
+      coins += n; game.stageCoins += n;
+      game.float('BÔNUS  +' + n + ' MOEDAS', W / 2, game.paddle.y - 200, 26);
+      saveChips();
+      return;
+    }
+    if (e === 'bonusDone') { setScene('map'); return; }
     if (e === 'reward') { reward = { n: data, back: 'play', done: false }; setScene('reward'); return; }
     if (e === 'worldClear') {
       saveChips();
@@ -263,7 +282,7 @@ game.plat = plat;
 game.wallet = () => coins;
 game.chipWallet = () => chips;
 game.setColor(col());
-window.__nb = { game, render: () => render(), go: (s) => setScene(s), crash: () => startCrash(), get scene() { return scene; } }; // debug handle
+window.__nb = { game, render: () => render(), go: (s) => setScene(s), crash: () => startCrash(), scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
 
 function applyOpts() {
   store.set('opts', opts);
@@ -418,7 +437,7 @@ function optionRows() {
 
 // Wipes progress, chips, coins and everything bought with them.
 function resetProgress() {
-  sbest = {}; bestT = 0; eruns = []; store.set('sbest', {}); store.set('bestT', 0); store.set('eruns', []); seen = {}; prog = 0; chips = 0; coins = 0; equip = null; equipP = null; seenShape = 0; store.set('seenShape', 0);
+  sbest = {}; bestT = 0; eruns = []; bonusWon = {}; store.set('bonus', {}); store.set('sbest', {}); store.set('bestT', 0); store.set('eruns', []); seen = {}; prog = 0; chips = 0; coins = 0; equip = null; equipP = null; seenShape = 0; store.set('seenShape', 0);
   for (const k in upg) upg[k] = 0;
   Object.assign(owned, { pal: [PALETTES.length - 1], emb: [0, 1], disc: [0], trail: [0] });
   Object.assign(plat, { shape: 0, pal: PALETTES.length - 1, emb: 1, disc: 0, trail: 0, dash: false, detail: true });
@@ -450,30 +469,149 @@ function optionButtons() {
 }
 
 // ---------- world map: an isometric neon city ----------
-// The route is a street that zigzags down through 10 districts. Each district's
-// boss stands at the gate in the fence that leads to the next one.
-const TW = 36, TH = 18, RUN = 12, J0 = 6;
+// The route is a street that winds down through the districts, with bends and
+// hairpins; it always moves down the screen, so it never crosses itself. Each
+// district's boss stands at the gate in the fence that leads to the next one,
+// and districts 2, 5 and 8 have a side street to a bonus stage.
+const TW = 36, TH = 18, J0 = 6;
 const isoXY = (i, j) => ({ x: W / 2 + (i - j) * TW, y: 70 + (i + j - J0) * TH });
-const DSEG = (w) => (WORLDS[w].soon ? 12 : worldCount(w) * 6);
+const MAP_Y0 = 80, DIST_H = 660, SOON_H = 300;
+// the bends of each district's street: [x, y] as fractions of the width and
+// of the district's height (every district starts and ends in the middle)
+const ROUTES = [
+  [[0.76, 0.1], [0.84, 0.24], [0.56, 0.33], [0.22, 0.42], [0.16, 0.58], [0.44, 0.67], [0.8, 0.76], [0.78, 0.9]],
+  [[0.26, 0.1], [0.16, 0.22], [0.38, 0.32], [0.76, 0.4], [0.85, 0.55], [0.62, 0.64], [0.28, 0.72], [0.22, 0.87]],
+  [[0.8, 0.08], [0.85, 0.18], [0.5, 0.25], [0.18, 0.32], [0.16, 0.44], [0.5, 0.51], [0.84, 0.58], [0.84, 0.7], [0.5, 0.77], [0.2, 0.84]],
+  [[0.3, 0.1], [0.16, 0.26], [0.3, 0.42], [0.68, 0.48], [0.85, 0.62], [0.72, 0.78], [0.42, 0.86]],
+  [[0.76, 0.1], [0.85, 0.24], [0.62, 0.34], [0.26, 0.4], [0.15, 0.54], [0.3, 0.68], [0.7, 0.75], [0.8, 0.89]],
+  [[0.22, 0.08], [0.15, 0.2], [0.44, 0.28], [0.8, 0.34], [0.86, 0.48], [0.56, 0.58], [0.25, 0.66], [0.2, 0.8], [0.42, 0.91]],
+  [[0.82, 0.1], [0.8, 0.26], [0.46, 0.32], [0.18, 0.4], [0.2, 0.56], [0.55, 0.62], [0.84, 0.7], [0.8, 0.86]],
+  [[0.25, 0.1], [0.17, 0.24], [0.48, 0.32], [0.8, 0.42], [0.82, 0.56], [0.5, 0.64], [0.2, 0.72], [0.24, 0.88]],
+  [[0.8, 0.1], [0.85, 0.24], [0.5, 0.3], [0.18, 0.38], [0.15, 0.54], [0.45, 0.6], [0.8, 0.68], [0.85, 0.82], [0.6, 0.92]],
+  [[0.5, 0.55]],
+];
+const NODE_F = [0.1, 0.3, 0.5, 0.7, 0.9];   // where the stages sit along a district's street
+const BONUS_F = 0.4;                          // where the side street to the bonus stage leaves it
+const bandTop = (w) => MAP_Y0 + w * DIST_H;
+const distH = (w) => (WORLDS[w].soon ? SOON_H : DIST_H);
+const bonusOpen = (b) => unlocked(bonusIndex(b) + 1);
+
+// centripetal Catmull-Rom through the points, resampled every `step` px
+function spline(pts, step) {
+  const n = pts.length;
+  const P = [[2 * pts[0][0] - pts[1][0], 2 * pts[0][1] - pts[1][1]], ...pts, [2 * pts[n - 1][0] - pts[n - 2][0], 2 * pts[n - 1][1] - pts[n - 2][1]]];
+  const raw = [];
+  const tj = (a, b) => Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1])) || 1e-4;
+  for (let s = 1; s < P.length - 2; s++) {
+    const p0 = P[s - 1], p1 = P[s], p2 = P[s + 1], p3 = P[s + 2];
+    const t1 = tj(p0, p1), t2 = t1 + tj(p1, p2), t3 = t2 + tj(p2, p3);
+    for (let q = 0; q < 24; q++) {
+      const t = t1 + ((t2 - t1) * q) / 24;
+      const L = (a, b, ta, tb) => [(a[0] * (tb - t) + b[0] * (t - ta)) / (tb - ta), (a[1] * (tb - t) + b[1] * (t - ta)) / (tb - ta)];
+      const A1 = L(p0, p1, 0, t1), A2 = L(p1, p2, t1, t2), A3 = L(p2, p3, t2, t3);
+      raw.push(L(L(A1, A2, 0, t2), L(A2, A3, t1, t3), t1, t2));
+    }
+  }
+  raw.push(pts[n - 1]);
+  const out = [{ x: raw[0][0], y: raw[0][1] }];
+  let acc = 0;
+  for (let q = 1; q < raw.length; q++) {
+    let ax = raw[q - 1][0], ay = raw[q - 1][1];
+    const bx = raw[q][0], by = raw[q][1];
+    let seg = Math.hypot(bx - ax, by - ay);
+    while (seg > 0 && acc + seg >= step) {
+      const u = (step - acc) / seg;
+      ax += (bx - ax) * u; ay += (by - ay) * u;
+      out.push({ x: ax, y: ay });
+      seg = Math.hypot(bx - ax, by - ay); acc = 0;
+    }
+    acc += seg;
+  }
+  const last = raw[raw.length - 1];
+  out.push({ x: last[0], y: last[1] });
+  return out;
+}
+
+// the street points near (x, y): distance to the closest one, and how far
+// above the closest street point that a building at (x, y) would cover
+function roadIndex(pts) {
+  const B = new Map();
+  for (const q of pts) { const k = Math.floor(q.y / 40); if (!B.has(k)) B.set(k, []); B.get(k).push(q); }
+  return B;
+}
+function roadNear(RI, x, y) {
+  let d = Infinity, gap = Infinity;
+  const k0 = Math.floor((y - 320) / 40), k1 = Math.floor((y + 80) / 40);
+  for (let k = k0; k <= k1; k++) {
+    const list = RI.get(k);
+    if (!list) continue;
+    for (const q of list) {
+      const dx = q.x - x, dy = q.y - y, r = q.r || 0;
+      const dd = Math.hypot(dx, dy) - r;
+      if (dd < d) d = dd;
+      if (q.y < y && Math.abs(dx) < 42 + r) gap = Math.min(gap, y - q.y - r);
+    }
+  }
+  return { d, gap };
+}
+
 let isoCache = null;
 function isoData() {
   if (isoCache) return isoCache;
-  const total = WORLDS.reduce((n, _, w) => n + DSEG(w), 0);
-  const path = [];
-  let i = 0, j = J0;
-  for (let t = 0; t < total; t++) {
-    path.push({ i, j, ...isoXY(i, j) });
-    if (Math.floor(t / RUN) % 2 === 0) i++; else j++;
-  }
-  const dist = [];
-  let t0 = 0;
-  WORLDS.forEach((wd, w) => { const n = DSEG(w); dist.push({ w, t0, t1: t0 + n, gate: t0 + n - 3 }); t0 += n; });
+  const pts = [];
+  WORLDS.forEach((wd, w) => {
+    const y0 = bandTop(w), h = distH(w);
+    if (!w) pts.push([W / 2, y0]);
+    for (const [fx, fy] of ROUTES[w]) pts.push([W * fx, y0 + h * fy]);
+    pts.push([W / 2, y0 + h]);
+  });
+  const path = spline(pts, 6);
+  const wOf = (y) => { let w = 0; while (w < WORLDS.length - 1 && y >= bandTop(w + 1)) w++; return w; };
+  path.forEach((q) => { q.w = wOf(q.y); });
+  const dist = WORLDS.map((_, w) => ({ w, t0: Infinity, t1: 0 }));
+  path.forEach((q, t) => { const d = dist[q.w]; d.t0 = Math.min(d.t0, t); d.t1 = Math.max(d.t1, t + 1); });
   const nodes = [];
   WORLDS.forEach((wd, w) => {
     if (wd.soon) return;
-    for (let k = 0; k < worldCount(w); k++) { const t = dist[w].t0 + 3 + 6 * k; nodes.push({ t, ...path[t], boss: k === worldCount(w) - 1, w }); }
+    const d = dist[w], len = d.t1 - d.t0 - 1;
+    for (let k = 0; k < worldCount(w); k++) {
+      const t = d.t0 + Math.round(NODE_F[k] * len);
+      nodes.push({ t, x: path[t].x, y: path[t].y, boss: k === worldCount(w) - 1, w });
+    }
   });
-  isoCache = { path, dist, nodes, total, height: path[total - 1].y + 260 };
+  // bonus stages: the side street leaves the main one and ends at the bonus,
+  // in the first spot that keeps clear of the main street
+  const RI = roadIndex(path);
+  const bonus = BONUS.map((b, bi) => {
+    const d = dist[b.w], t = d.t0 + Math.round(BONUS_F * (d.t1 - d.t0 - 1)), S = path[t];
+    let best = null;
+    const sides = S.x < W / 2 ? [-1, 1] : [1, -1];   // the nearer side first
+    for (const side of sides) {
+      for (const dy of [70, 110, 150, 190, 230, 40]) {
+        for (const fx of [0.13, 0.2, 0.27]) {
+          const Bx = side > 0 ? W * (1 - fx) : W * fx, By = S.y + dy;
+          const ctl = [[S.x, S.y], [S.x + (Bx - S.x) * 0.55, S.y + dy * 0.15], [Bx, By]];
+          const spur = [];
+          for (let q = 0; q <= 40; q++) {
+            const u = q / 40, a = (1 - u) * (1 - u), m = 2 * u * (1 - u), e = u * u;
+            spur.push({ x: a * ctl[0][0] + m * ctl[1][0] + e * ctl[2][0], y: a * ctl[0][1] + m * ctl[1][1] + e * ctl[2][1] });
+          }
+          const ok = roadNear(RI, Bx, By).d > 100 && spur.every((q, i) => i < 8 || roadNear(RI, q.x, q.y).d > 40)
+            && !nodes.some((nd) => Math.hypot(nd.x - Bx, nd.y - By) < 120);
+          if (ok) { best = { b, i: bi, t, x: Bx, y: By, spur }; break; }
+        }
+        if (best) break;
+      }
+      if (best) break;
+    }
+    if (!best) {
+      const Bx = S.x < W / 2 ? W * 0.85 : W * 0.15;
+      best = { b, i: bi, t, x: Bx, y: S.y + 90, spur: [{ x: S.x, y: S.y }, { x: Bx, y: S.y + 90 }] };
+    }
+    return best;
+  });
+  const end = path[path.length - 1];
+  isoCache = { path, dist, nodes, bonus, total: path.length, height: end.y + 300 };
   return isoCache;
 }
 const mapViewTop = () => safeTop + 130;
@@ -498,6 +636,11 @@ function mapButtons() {
     if (p.y < top + 24 || p.y > bot - 24) continue;
     const r = p.boss ? 46 : 38;
     list.push({ x: p.x - r, y: p.y - r, w: r * 2, h: r * 2, node: i, fn: unlocked(i) ? () => startGame(i) : null });
+  }
+  for (const B of isoData().bonus) {
+    const y = B.y + top - mapScroll;
+    if (y < top + 24 || y > bot - 24) continue;
+    list.push({ x: B.x - 40, y: y - 40, w: 80, h: 80, bonusNode: B.i, fn: bonusOpen(B.b) ? () => startBonus(B.b) : null });
   }
   return list;
 }
@@ -1437,15 +1580,88 @@ function drawMenuIcon(c, kind, x, y, k) {
     }
     c.closePath();
     neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'play') {
+    c.moveTo(x - 12, y - 21); c.lineTo(x + 20, y); c.lineTo(x - 12, y + 21); c.closePath();
+    c.lineJoin = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'pin') {
+    c.moveTo(x, y + 23);
+    c.bezierCurveTo(x - 5, y + 12, x - 17, y + 3, x - 17, y - 6);
+    c.arc(x, y - 6, 17, Math.PI, 0);
+    c.bezierCurveTo(x + 17, y + 3, x + 5, y + 12, x, y + 23);
+    c.moveTo(x + 6, y - 6); c.arc(x, y - 6, 6, 0, TAU);
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'restart') {
+    const a1 = Math.PI * 1.42, r = 18;
+    c.arc(x, y + 1, r, -Math.PI * 0.2, a1);
+    const ex = x + Math.cos(a1) * r, ey = y + 1 + Math.sin(a1) * r;
+    const tx = -Math.sin(a1), ty = Math.cos(a1);     // direction the arc runs
+    const nx = Math.cos(a1), ny = Math.sin(a1);       // outward
+    c.moveTo(ex + tx * 9 + nx * 0, ey + ty * 9);
+    c.lineTo(ex - tx * 1 + nx * 8, ey - ty * 1 + ny * 8);
+    c.moveTo(ex + tx * 9, ey + ty * 9);
+    c.lineTo(ex - tx * 1 - nx * 8, ey - ty * 1 - ny * 8);
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'home') {
+    c.moveTo(x - 23, y - 1); c.lineTo(x, y - 22); c.lineTo(x + 23, y - 1);
+    c.moveTo(x - 16, y - 7); c.lineTo(x - 16, y + 20); c.lineTo(x + 16, y + 20); c.lineTo(x + 16, y - 7);
+    c.moveTo(x - 5, y + 20); c.lineTo(x - 5, y + 7); c.lineTo(x + 5, y + 7); c.lineTo(x + 5, y + 20);
+    c.lineJoin = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'sfx' || kind === 'sfxOff') {
+    c.moveTo(x - 21, y - 7); c.lineTo(x - 11, y - 7); c.lineTo(x + 1, y - 18); c.lineTo(x + 1, y + 18); c.lineTo(x - 11, y + 7); c.lineTo(x - 21, y + 7); c.closePath();
+    if (kind === 'sfx') {
+      c.moveTo(x + 4 + Math.cos(-0.8) * 9, y + Math.sin(-0.8) * 9); c.arc(x + 4, y, 9, -0.8, 0.8);
+      c.moveTo(x + 4 + Math.cos(-0.8) * 17, y + Math.sin(-0.8) * 17); c.arc(x + 4, y, 17, -0.8, 0.8);
+    } else { c.moveTo(x + 8, y - 8); c.lineTo(x + 22, y + 8); c.moveTo(x + 22, y - 8); c.lineTo(x + 8, y + 8); }
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'music' || kind === 'musicOff') {
+    c.ellipse(x - 11, y + 14, 7, 5.5, -0.35, 0, TAU);
+    c.moveTo(x + 20, y + 8); c.ellipse(x + 13, y + 8, 7, 5.5, -0.35, 0, TAU);
+    c.moveTo(x - 4.5, y + 13); c.lineTo(x - 4.5, y - 16); c.lineTo(x + 19.5, y - 22); c.lineTo(x + 19.5, y + 7);
+    c.moveTo(x - 4.5, y - 8); c.lineTo(x + 19.5, y - 14);
+    if (kind === 'musicOff') { c.moveTo(x - 22, y - 20); c.lineTo(x + 22, y + 22); }
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'help') {
+    c.arc(x, y - 8, 12, Math.PI * 1.05, Math.PI * 2.3);
+    c.quadraticCurveTo(x, y - 1, x, y + 8);
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 3.4, x - 22, y, x + 22, y, 0.8);
+    c.beginPath(); c.arc(x, y + 18, 3, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+  } else if (kind === 'breakers') {
+    c.moveTo(x - 23, y + 16); c.quadraticCurveTo(x, y + 5, x + 23, y + 16);
+    c.moveTo(x + 9, y - 10); c.arc(x + 1, y - 10, 8, 0, TAU);
+    c.moveTo(x - 9, y - 4); c.lineTo(x - 15, y + 2);
+    c.moveTo(x - 6, y - 18); c.lineTo(x - 18, y - 12);
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'inf') {
+    for (let i = 0; i <= 64; i++) {
+      const t = (i / 64) * TAU, d = 1 + Math.sin(t) * Math.sin(t);
+      c[i ? 'lineTo' : 'moveTo'](x + (24 * Math.cos(t)) / d, y + (26 * Math.sin(t) * Math.cos(t)) / d);
+    }
+    c.closePath();
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
   }
 }
 function drawIconButton(c, b) {
   const k = col(), down = pressed === b, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-  roundRectPath(c, b.x, b.y, b.w, b.h, 18);
-  c.fillStyle = rgba(k, down ? 0.2 : 0.05); c.fill();
-  neonStroke(c, k, k, 2.2, b.x, b.y, b.x + b.w, b.y + b.h, 0.6);
-  drawMenuIcon(c, b.icon, cx, cy - 1, k);
+  if (b.off) c.globalAlpha = 0.4;
+  else if (b.dim) c.globalAlpha = 0.6;
+  roundRectPath(c, b.x, b.y, b.w, b.h, b.w > 120 ? 26 : 18);
+  c.fillStyle = rgba(k, down ? 0.2 : b.big ? 0.08 : 0.05); c.fill();
+  neonStroke(c, k, k, b.big ? 3.2 : 2.2, b.x, b.y, b.x + b.w, b.y + b.h, b.big ? 1 : 0.6);
+  // the icons are drawn for an 88 box; bigger boxes scale them up
+  const sc = b.w / 88;
+  c.save();
+  c.translate(cx, cy - 1); c.scale(sc, sc);
+  drawMenuIcon(c, b.icon, 0, 0, k);
+  c.restore();
   glowText(c, b.label, cx, b.y + b.h + 22, 12, rgba('#ffffff', 0.8), k, 'center', 700, 2);
+  c.globalAlpha = 1;
 }
 
 // ---------- dev mode gate (5 taps on the version, then the password) ----------
@@ -1520,7 +1736,7 @@ devUI = createDevPanel({
   gfxMobile: () => presetGfx(GFX_MOBILE), gfxPC: () => presetGfx(GFX_PC),
   getFreeze: () => freeze, setFreeze: (v) => { freeze = v; },
   addChips: (n) => { chips += n; saveChips(); }, addCoins: (n) => { coins += n; saveChips(); },
-  goStage: (i) => { if (game.endless) return; game.index = i; game.loadLevel(); },
+  goStage: (i) => { if (game.endless) return; game.bonus = null; game.index = i; game.loadLevel(); },
   endlessSkip: () => game.devEndlessSkip(), endlessBoss: () => game.devEndlessBoss(),
   testStory: () => startStory(Math.max(0, Math.min(STORY.length - 1, bossesBeaten() - 1))),
   testCrash: () => startCrash(), toMap: () => setScene('map'),
@@ -1534,14 +1750,17 @@ function layout() {
   const cx = W / 2, bw = 400, bh = 76;
   switch (scene) {
     case 'menu': {
-      // JOGAR and BREAKERS, then a row of square icon buttons as wide as them
-      const y = H * 0.47, s = 88, gap = (bw - 4 * s) / 3, iy = y + 196;
+      // BREAKERS · JOGAR (bigger) · INFINITO, then a row of smaller icon buttons;
+      // every icon has its name small underneath
+      const y = H * 0.47, s = 88, gap = (bw - 4 * s) / 3, iy = y + 180;
+      const big = 150, mid = 104, base = y + 95, gx = (bw - big - 2 * mid) / 2;
+      const lockedMsg = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
       const icons = [['pal', 'COR', () => setScene('colors')], ['gear', 'OPÇÕES', () => setScene('options')],
         ['trophy', 'PLACAR', openScores], ['star', 'CRÉDITOS', () => setScene('credits')]];
       return [
-        btn(cx, y, bw, 88, 'JOGAR', () => setScene('map'), { big: true, fs: 30 }),
-        btn(cx - bw / 4 - 6, y + 104, bw / 2 - 12, bh, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert(), fs: 17 }),
-        btn(cx + bw / 4 + 6, y + 104, bw / 2 - 12, bh, endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', endlessOpen() ? startEndless : () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; }, { fs: 17, off: !endlessOpen() }),
+        { x: cx - big / 2, y: base - big, w: big, h: big, label: 'JOGAR', fn: () => setScene('map'), icon: 'play', big: true },
+        { x: cx - big / 2 - gx - mid, y: base - mid, w: mid, h: mid, label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
+        { x: cx + big / 2 + gx, y: base - mid, w: mid, h: mid, label: 'INFINITO', fn: endlessOpen() ? startEndless : lockedMsg, icon: 'inf', off: !endlessOpen() },
         Object.assign(bellRect(), { label: '', fn: () => setScene('notif'), bell: true }),
         ...icons.map(([icon, label, fn], i) => ({ x: cx - bw / 2 + i * (s + gap), y: iy, w: s, h: s, label, fn, icon })),
       ];
@@ -1577,15 +1796,20 @@ function layout() {
       list.push(btn(cx, H - 120, bw, bh, 'VOLTAR', () => setScene('menu')));
       return list;
     }
-    case 'pause':
+    case 'pause': {
+      // CONTINUAR (bigger) between MAPA/RECOMEÇAR and MENU; EFEITOS, MÚSICA and GUIA below
+      const big = 150, mid = 104, s = 88, base = H * 0.44 + 150, gx = (bw - big - 2 * mid) / 2, iy = base + 70, g2 = 40;
+      const ix = (i) => cx - (3 * s + 2 * g2) / 2 + i * (s + g2);
       return [
-        btn(cx, H * 0.48, bw, bh, 'CONTINUAR', () => setScene('play'), { big: true }),
-        btn(cx, H * 0.48 + 100, bw, bh, game.endless ? 'RECOMEÇAR' : 'MAPA', () => (game.endless ? startEndless() : setScene('map'))),
-        btn(cx, H * 0.48 + 200, bw, bh, 'MENU', () => setScene('menu')),
-        btn(cx - 102, H * 0.48 + 300, 196, 64, 'EFEITOS: ' + (sfx.enabled ? 'SIM' : 'NÃO'), toggleSfx, { fs: 14, on: sfx.enabled }),
-        btn(cx + 102, H * 0.48 + 300, 196, 64, 'MÚSICA: ' + (sfx.musicOn ? 'SIM' : 'NÃO'), toggleMusic, { fs: 14, on: sfx.musicOn }),
-        btn(cx, H * 0.48 + 390, 400, 64, 'GUIA  ?', openGuide, { fs: 16, bang: game.endless && guideNews() }),
+        { x: cx - big / 2, y: base - big, w: big, h: big, label: 'CONTINUAR', fn: () => setScene('play'), icon: 'play', big: true },
+        { x: cx - big / 2 - gx - mid, y: base - mid, w: mid, h: mid, label: game.endless ? 'RECOMEÇAR' : 'MAPA',
+          fn: () => (game.endless ? startEndless() : setScene('map')), icon: game.endless ? 'restart' : 'pin' },
+        { x: cx + big / 2 + gx, y: base - mid, w: mid, h: mid, label: 'MENU', fn: () => setScene('menu'), icon: 'home' },
+        { x: ix(0), y: iy, w: s, h: s, label: 'EFEITOS', fn: toggleSfx, icon: sfx.enabled ? 'sfx' : 'sfxOff', dim: !sfx.enabled },
+        { x: ix(1), y: iy, w: s, h: s, label: 'MÚSICA', fn: toggleMusic, icon: sfx.musicOn ? 'music' : 'musicOff', dim: !sfx.musicOn },
+        { x: ix(2), y: iy, w: s, h: s, label: 'GUIA', fn: openGuide, icon: 'help', bang: game.endless && guideNews() },
       ];
+    }
     case 'guide': {
       const b = guideBox(), y = b.y + b.h / 2;
       return [
@@ -1601,7 +1825,7 @@ function layout() {
         btn(cx, H * 0.6 + 200, bw, bh, 'MENU', () => setScene('menu')),
       ];
       return [
-        btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', () => startGame(game.index), { big: true }),
+        btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', () => (game.bonus ? startBonus(game.bonus) : startGame(game.index)), { big: true }),
         btn(cx, H * 0.6 + 100, bw, bh, 'MAPA', () => setScene('map')),
       ];
     case 'story':
@@ -1656,7 +1880,7 @@ function startEndless() {
   if (!seen.endlessIntro) {   // one card, the first time only
     markSeen('endlessIntro');
     card = { kicker: 'MODO INFINITO', title: 'INFINITO', demo: 'descent',
-      text: 'Sobreviva o máximo que puder. Mecânicas novas entram com o tempo e um chefão vem a cada 3:30. Dúvidas? GUIA, na pausa.' };
+      text: 'Sobreviva o máximo que puder. Mecânicas novas entram com o tempo e um chefão vem a cada 2 minutos. Dúvidas? GUIA, na pausa.' };
     showCard();
   }
 }
@@ -1705,7 +1929,7 @@ function renderGuide(c, now) {
   glowText(c, (guide.i + 1) + ' / ' + guide.items.length, W / 2, b.y + b.h + 34, 14, rgba('#ffffff', 0.7), k, 'center', 600, 3);
 }
 
-function startGame(index = 0) {
+function startGame(index = 0, bonus = null) {
   game.plat = plat;
   game.setColor(col());
   applyOpts();
@@ -1713,14 +1937,15 @@ function startGame(index = 0) {
   game.passive = equipP && perkLvl(equipP) ? { type: equipP, lvl: perkLvl(equipP) } : null;
   newShape = null;
   reward = null;
-  const firstTime = index === 0 && !store.get('tutDone', false);
+  const firstTime = !bonus && index === 0 && !store.get('tutDone', false);
   tut = firstTime ? { fired: new Set(), shown: new Set() } : null;
   game.tutorial = firstTime;
   card = null;
   freeze = false;
   setScene('play');
-  game.newGame(index);
+  if (bonus) game.newBonus(bonus); else game.newGame(index);
 }
+const startBonus = (b) => startGame(0, b);
 
 // ---------- input ----------
 function toLogical(e) {
@@ -1959,11 +2184,11 @@ function rng(seed) {
   };
 }
 
-// district a tile belongs to (by depth along the route)
-function tileDistrict(D, i, j) {
-  const t = i + j - J0;
-  for (const d of D.dist) if (t < d.t1) return d.w;
-  return WORLDS.length - 1;
+// district a tile belongs to (by its height on the map)
+function tileDistrict(y) {
+  let w = 0;
+  while (w < WORLDS.length - 1 && y >= bandTop(w + 1)) w++;
+  return w;
 }
 const districtOpen = (w) => !WORLDS[w].soon && unlocked(worldStart(w));
 // The map lights each district up as it opens (closed ones stay dark).
@@ -1977,16 +2202,15 @@ function lightUpMap() {
   if (litD < 0) { litD = n; store.set('litD', litD); return; }
   if (n > litD) { lightAnim = { from: litD, to: n, t0: performance.now() / 1000 }; litD = n; store.set('litD', litD); }
 }
-const FOCUS_DIM = 0.36;    // open districts away from the middle of the screen
+const FOCUS_DIM = 0.5;     // open districts away from the one in focus
 const mapDim = {};          // current darkness of each district (eases toward its target)
 let mapFocus = -1, mapDimT = 0;
 function districtBand(D, w) {
-  const d = D.dist[w];
-  return [w ? D.path[D.dist[w - 1].gate].y : -300, w < D.dist.length - 1 ? D.path[d.gate].y : D.height + 300];
+  return [w ? bandTop(w) : -300, w < WORLDS.length - 1 ? bandTop(w) + distH(w) : D.height + 300];
 }
 function updateMapDim(D, now, cy) {
   const dt = Math.min(0.1, Math.max(0, now - mapDimT)); mapDimT = now;
-  // the open district closest to the middle of the screen
+  // the open district closest to the focus line
   let best = Infinity; mapFocus = -1;
   for (const d of D.dist) {
     if (!districtOpen(d.w)) continue;
@@ -2053,6 +2277,281 @@ const flatTile = (c, x, y, fill, stroke) => {
   c.beginPath(); c.moveTo(x, y - TH); c.lineTo(x + TW, y); c.lineTo(x, y + TH); c.lineTo(x - TW, y); c.closePath();
   c.fillStyle = fill; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = 1; c.stroke(); }
 };
+const mod5 = (v) => ((v % 5) + 5) % 5;
+const GOLD = '#ffd84a';
+const parkTint = (k) => mix(k, '#2bff88', 0.55);
+const goldTint = (k) => mix(k, GOLD, 0.65);
+
+// Parks, squares and one landmark per district, in the city blocks (4x4 tiles
+// between the side streets) that the route keeps clear of.
+function citySpots(RI) {
+  const spots = new Map();
+  const clear = (i, j, min) => { const { x, y } = isoXY(i, j); return roadNear(RI, x, y).d > min; };
+  for (let w = 0; w < WORLDS.length - 1; w++) {
+    const y0 = bandTop(w) + 60, y1 = bandTop(w) + DIST_H - 60;
+    const blocks = [];
+    for (let bi = -10; bi < 90; bi++) {
+      for (let bj = bi - 1; bj <= bi + 1; bj++) {
+        const c = isoXY(bi * 5 + 2.5, bj * 5 + 2.5);
+        if (c.y >= y0 && c.y <= y1) blocks.push({ bi, bj, c, used: false });
+      }
+    }
+    // a 2x2 at the front corner of the block (its front faces a side street)
+    const front = (b) => {
+      const i0 = b.bi * 5 + 3, j0 = b.bj * 5 + 3;
+      const tiles = [[i0, j0], [i0 + 1, j0], [i0, j0 + 1], [i0 + 1, j0 + 1]];
+      if (!tiles.every(([i, j]) => clear(i, j, 58))) return null;
+      const c = isoXY(i0 + 0.5, j0 + 0.5);
+      return { tiles, c, d: roadNear(RI, c.x, c.y).d };
+    };
+    const place = (kind) => {
+      let best = null;
+      for (const b of blocks) {
+        if (b.used) continue;
+        const f = front(b);
+        if (f && (!best || f.d < best.f.d)) best = { b, f };
+      }
+      if (!best) return;
+      best.b.used = true;
+      const { tiles, c } = best.f, last = tiles[3];
+      for (const [i, j] of tiles) spots.set(i + ',' + j, { kind, w, front: i === last[0] && j === last[1], cx: c.x, cy: c.y });
+    };
+    place('lm');
+    place('plaza');
+    // the park: the block with the most tiles away from the street
+    let park = null;
+    for (const b of blocks) {
+      if (b.used) continue;
+      const tiles = [];
+      for (let a = 1; a <= 4; a++) for (let e = 1; e <= 4; e++) if (clear(b.bi * 5 + a, b.bj * 5 + e, 46)) tiles.push([b.bi * 5 + a, b.bj * 5 + e]);
+      if (tiles.length >= 9 && (!park || tiles.length > park.tiles.length)) park = { b, tiles };
+    }
+    if (park) {
+      park.b.used = true;
+      const pond = park.tiles.length >= 14 && w % 2 === 0;
+      park.tiles.forEach(([i, j]) => spots.set(i + ',' + j, { kind: 'park', w, pond: pond && i === park.b.bi * 5 + 2 && j === park.b.bj * 5 + 2 }));
+    }
+  }
+  return spots;
+}
+
+function tree(c, x, y, G, R) {
+  c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - 9);
+  c.strokeStyle = rgba(G, 0.6); c.lineWidth = 2; c.stroke();
+  c.beginPath();
+  const s = 7 + R() * 4;
+  if (R() < 0.35) { c.moveTo(x - s, y - 7); c.lineTo(x, y - 9 - s * 2.4); c.lineTo(x + s, y - 7); c.closePath(); }
+  else c.arc(x, y - 9 - s * 0.9, s, 0, TAU);
+  const ga = c.globalAlpha; c.globalAlpha = 1; c.fillStyle = '#000'; c.fill(); c.globalAlpha = ga;
+  c.fillStyle = rgba(G, 0.18); c.fill();
+  c.strokeStyle = rgba(G, 0.85); c.lineWidth = 1.4; c.stroke();
+}
+
+// solid panel (billboards, screens): black fill, faint tint, neon edge
+function panel(c, x, y, w, h, k, a = 0.1) {
+  roundRectPath(c, x, y, w, h, 4);
+  const ga = c.globalAlpha; c.globalAlpha = 1; c.fillStyle = '#000'; c.fill(); c.globalAlpha = ga;
+  c.fillStyle = rgba(k, a); c.fill();
+  c.strokeStyle = rgba(k, 0.9); c.lineWidth = 1.8; c.stroke();
+}
+function posts(c, x, y, dx, h, k) {
+  c.beginPath(); c.moveTo(x - dx, y + 4); c.lineTo(x - dx, y - h); c.moveTo(x + dx, y + 4); c.lineTo(x + dx, y - h);
+  c.strokeStyle = rgba(k, 0.7); c.lineWidth = 2; c.stroke();
+}
+function heart(c, cx, cy, s) {
+  c.beginPath();
+  c.moveTo(cx, cy + s * 0.9);
+  c.bezierCurveTo(cx - s * 1.6, cy - s * 0.1, cx - s * 0.7, cy - s * 1.3, cx, cy - s * 0.45);
+  c.bezierCurveTo(cx + s * 0.7, cy - s * 1.3, cx + s * 1.6, cy - s * 0.1, cx, cy + s * 0.9);
+  c.closePath();
+}
+
+// Each district's landmark (static part, drawn once into the city layer).
+function landmark(c, w, x, y, k, R, beacons) {
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  switch (w) {
+    case 0: { // SUBÚRBIO: a water tank on stilts
+      const ty = y - 70;
+      c.beginPath();
+      for (const lx of [-22, -8, 8, 22]) { c.moveTo(x + lx, y + (Math.abs(lx) < 10 ? 8 : 0)); c.lineTo(x + lx * 0.75, ty); }
+      c.moveTo(x - 19, y - 22); c.lineTo(x + 19, y - 48); c.moveTo(x + 19, y - 22); c.lineTo(x - 19, y - 48);
+      c.strokeStyle = rgba(k, 0.65); c.lineWidth = 1.6; c.stroke();
+      c.beginPath(); c.moveTo(x - 26, ty); c.lineTo(x - 26, ty - 34); c.lineTo(x + 26, ty - 34); c.lineTo(x + 26, ty); c.ellipse(x, ty, 26, 9, 0, 0, Math.PI);
+      c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(k, 0.12); c.fill();
+      c.strokeStyle = rgba(k, 0.9); c.lineWidth = 1.8; c.stroke();
+      c.beginPath(); c.ellipse(x, ty - 34, 26, 9, 0, 0, TAU); c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(k, 0.2); c.fill(); c.stroke();
+      c.beginPath(); c.ellipse(x, ty - 17, 26, 9, 0, 0, Math.PI); c.strokeStyle = rgba(k, 0.35); c.lineWidth = 1.2; c.stroke();
+      c.beginPath(); c.moveTo(x - 26, ty - 34); c.lineTo(x, ty - 54); c.lineTo(x + 26, ty - 34); c.strokeStyle = rgba(k, 0.9); c.lineWidth = 1.8; c.stroke();
+      beacons.push({ x, y: ty - 56, ph: R() * TAU, w });
+      break;
+    }
+    case 1: // LAN HOUSE: a big screen on two posts
+      posts(c, x, y, 34, 60, k);
+      panel(c, x - 64, y - 136, 128, 78, k);
+      c.strokeStyle = rgba(k, 0.35); c.lineWidth = 1; c.strokeRect(x - 57, y - 129, 114, 54);
+      glowText(c, 'LAN HOUSE', x, y - 66, 9, '#ffffff', k, 'center', 700, 2);
+      break;
+    case 2: { // HORA EXTRA: an office with a sales chart on the roof
+      isoBox(c, x, y, 50, k, 1.3, R, [], w);
+      const by = y - 50 - TH * 0.6;
+      posts(c, x, by, 30, 22, k);
+      panel(c, x - 56, by - 92, 112, 70, k);
+      c.beginPath();
+      [16, 26, 38, 50].forEach((h, q) => { c.rect(x - 40 + q * 20, by - 28 - h, 12, h); });
+      c.fillStyle = rgba(k, 0.3); c.fill(); c.strokeStyle = rgba(k, 0.8); c.lineWidth = 1.2; c.stroke();
+      glowText(c, 'META', x - 46, by - 82, 9, '#ffffff', k, 'left', 700, 2);
+      break;
+    }
+    case 3: { // MADRUGADA: a clock tower
+      isoBox(c, x, y, 112, k, 0.85, R, [], w);
+      const top = y - 112;
+      c.beginPath(); c.moveTo(x - TW * 0.85, top); c.lineTo(x, top - 46); c.lineTo(x + TW * 0.85, top); c.moveTo(x, top + TH * 0.85); c.lineTo(x, top - 46);
+      c.strokeStyle = rgba(k, 0.9); c.lineWidth = 1.8; c.stroke();
+      c.beginPath(); c.arc(x, y - 84, 19, 0, TAU);
+      c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(k, 0.12); c.fill();
+      c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.stroke();
+      c.beginPath();
+      for (let q = 0; q < 12; q++) { const a = (q * TAU) / 12; c.moveTo(x + Math.cos(a) * 15, y - 84 + Math.sin(a) * 15); c.lineTo(x + Math.cos(a) * 17, y - 84 + Math.sin(a) * 17); }
+      c.strokeStyle = rgba('#ffffff', 0.7); c.lineWidth = 1.2; c.stroke();
+      beacons.push({ x, y: top - 48, ph: R() * TAU, w });
+      break;
+    }
+    case 4: // CÓDIGO-FONTE: a server building with a code sign on top
+      isoBox(c, x, y, 34, k, 1.5, R, [], w);
+      posts(c, x, y - 34 - TH * 0.4, 26, 30, k);
+      panel(c, x - 50, y - 120, 100, 50, k, 0.06);
+      break;
+    case 5: // VIRAL: a pole with a giant "like" heart (the heart itself is drawn live)
+      c.beginPath(); c.moveTo(x, y + 4); c.lineTo(x, y - 84);
+      c.strokeStyle = rgba(k, 0.75); c.lineWidth = 2.4; c.stroke();
+      c.beginPath(); c.ellipse(x, y + 4, 16, 7, 0, 0, TAU); c.strokeStyle = rgba(k, 0.5); c.lineWidth = 1.4; c.stroke();
+      break;
+    case 6: { // CENSURA: a billboard with its message blacked out
+      posts(c, x, y, 36, 62, k);
+      panel(c, x - 64, y - 132, 128, 72, k);
+      c.beginPath();
+      for (let q = 0; q < 4; q++) { const l = q % 2 ? 84 : 104; c.moveTo(x - 52, y - 118 + q * 15); c.lineTo(x - 52 + l, y - 118 + q * 15); }
+      c.strokeStyle = rgba('#ffffff', 0.55); c.lineWidth = 3; c.stroke();
+      c.fillStyle = '#000'; c.fillRect(x - 70, y - 106, 140, 18);
+      c.strokeStyle = rgba(k, 0.6); c.lineWidth = 1; c.strokeRect(x - 70, y - 106, 140, 18);
+      glowText(c, 'CENSURADO', x, y - 96, 9, '#ffffff', '#ff3864', 'center', 700, 3);
+      break;
+    }
+    case 7: { // RESISTÊNCIA: the pirate radio's lattice tower
+      const ay = y - 140;
+      c.beginPath(); c.moveTo(x - 24, y + 6); c.lineTo(x, ay); c.lineTo(x + 24, y + 6);
+      for (let q = 0; q < 7; q++) {
+        const f0 = q / 7, f1 = (q + 1) / 7;
+        c.moveTo(x - 24 * (1 - f0), y + 6 - (146 * f0)); c.lineTo(x + 24 * (1 - f1), y + 6 - (146 * f1));
+        c.moveTo(x - 24 * (1 - f1), y + 6 - (146 * f1)); c.lineTo(x + 24 * (1 - f1), y + 6 - (146 * f1));
+      }
+      c.strokeStyle = rgba(k, 0.8); c.lineWidth = 1.5; c.stroke();
+      c.beginPath(); c.moveTo(x, ay); c.lineTo(x, ay - 16); c.strokeStyle = rgba(k, 0.9); c.lineWidth = 2; c.stroke();
+      break;
+    }
+    case 8: { // TORRE AURUM: the gold bank
+      isoBox(c, x, y, 130, k, 1.25, R, [], w);
+      c.beginPath(); c.arc(x, y - 104, 15, 0, TAU);
+      c.fillStyle = '#000'; c.fill(); c.strokeStyle = GOLD; c.lineWidth = 2; c.stroke();
+      glowText(c, 'AU', x, y - 103, 12, GOLD, GOLD, 'center', 800, 1);
+      break;
+    }
+  }
+}
+
+// the moving part of each landmark (drawn every frame)
+const PIX = [
+  ['..XXXXX..', '.XXXXXXX.', 'XX.XXX.XX', 'XXXXXXXXX', '.X.X.X.X.', 'X.......X'],
+  ['..XXXXX..', '.XXXXXXX.', 'XX.XXX.XX', 'XXXXXXXXX', 'X.X...X.X', '.X.....X.'],
+];
+function landmarkLive(c, w, x, y, k, now) {
+  switch (w) {
+    case 1: { // a little pixel creature on the screen
+      const f = PIX[Math.floor(now * 1.6) % 2], s = 5, ox = x - 4.5 * s + Math.sin(now * 0.9) * 18, oy = y - 120;
+      c.fillStyle = k; c.shadowColor = k; c.shadowBlur = 8 * view.blur;
+      f.forEach((row, r) => { for (let q = 0; q < row.length; q++) if (row[q] === 'X') c.fillRect(ox + q * s, oy + r * s, s - 1, s - 1); });
+      c.shadowBlur = 0;
+      break;
+    }
+    case 2: { // the arrow going up on the chart
+      const by = y - 50 - TH * 0.6, a = 0.55 + 0.45 * Math.sin(now * 3);
+      c.beginPath(); c.moveTo(x - 40, by - 36); c.lineTo(x - 14, by - 52); c.lineTo(x + 4, by - 46); c.lineTo(x + 36, by - 80);
+      c.moveTo(x + 24, by - 79); c.lineTo(x + 36, by - 80); c.lineTo(x + 35, by - 68);
+      c.strokeStyle = rgba('#ffffff', a); c.lineWidth = 2.4; c.shadowColor = k; c.shadowBlur = 10 * view.blur; c.stroke(); c.shadowBlur = 0;
+      break;
+    }
+    case 3: { // the clock: always three in the morning, the minutes running
+      const cy = y - 84, m = now * 0.5;
+      c.beginPath(); c.moveTo(x, cy); c.lineTo(x + 9, cy);
+      c.moveTo(x, cy); c.lineTo(x + Math.cos(m - Math.PI / 2) * 14, cy + Math.sin(m - Math.PI / 2) * 14);
+      c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.lineCap = 'round'; c.stroke();
+      break;
+    }
+    case 4: { // the code sign flickers and the servers blink
+      const on = Math.sin(now * 23) > -0.85 || Math.sin(now * 3.1) > 0;
+      glowText(c, '</>', x, y - 94, 30, on ? '#ffffff' : rgba('#ffffff', 0.4), k, 'center', 800, 2);
+      for (let q = 0; q < 8; q++) {
+        if (Math.sin(now * 4 + q * 1.9) < 0.2) continue;
+        const u = 0.15 + (q % 4) * 0.2, L = [x - TW * 1.5, y], B = [x, y + TH * 1.5], hh = q < 4 ? 12 : 24;
+        c.fillStyle = q % 3 ? k : '#ffffff';
+        c.fillRect(L[0] + (B[0] - L[0]) * u - 1.5, L[1] + (B[1] - L[1]) * u - hh, 3, 3);
+      }
+      break;
+    }
+    case 5: { // the like heart beats and the counter keeps going up
+      const s = 24 * (1 + 0.08 * Math.max(0, Math.sin(now * 5))), cy = y - 110;
+      heart(c, x, cy, s);
+      c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba('#ff3864', 0.25); c.fill();
+      c.strokeStyle = '#ff3864'; c.lineWidth = 2.4; c.shadowColor = '#ff3864'; c.shadowBlur = 12 * view.blur; c.stroke(); c.shadowBlur = 0;
+      glowText(c, '+' + (100 + Math.floor(now * 9) % 900), x + 34, cy - 30, 11, '#ffffff', k, 'left', 700, 1);
+      break;
+    }
+    case 6: // a recording light next to the blacked out billboard
+      if (Math.sin(now * 3) > 0) { c.beginPath(); c.arc(x + 56, y - 124, 3.5, 0, TAU); c.fillStyle = '#ff3864'; c.shadowColor = '#ff3864'; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0; }
+      break;
+    case 7: { // radio waves from the top of the tower
+      const ay = y - 152;
+      for (let q = 0; q < 3; q++) {
+        const f = (now * 0.7 + q / 3) % 1, r = 8 + f * 46;
+        c.beginPath(); c.arc(x, ay, r, -Math.PI * 0.85, -Math.PI * 0.15);
+        c.moveTo(x + Math.cos(Math.PI * 0.15) * r, ay + Math.sin(Math.PI * 0.15) * r); c.arc(x, ay, r, Math.PI * 0.15, Math.PI * 0.85);
+        c.strokeStyle = rgba(k, 0.8 * (1 - f)); c.lineWidth = 2; c.stroke();
+      }
+      c.beginPath(); c.arc(x, ay, 3, 0, TAU); c.fillStyle = Math.sin(now * 4) > 0 ? '#ff3864' : rgba('#ff3864', 0.4); c.fill();
+      break;
+    }
+    case 8: { // the gold emblem shines
+      c.beginPath(); c.arc(x, y - 104, 15 + 2 * Math.sin(now * 2), 0, TAU);
+      c.strokeStyle = rgba(GOLD, 0.35 + 0.35 * Math.sin(now * 2)); c.lineWidth = 3; c.shadowColor = GOLD; c.shadowBlur = 14 * view.blur; c.stroke(); c.shadowBlur = 0;
+      break;
+    }
+  }
+}
+
+// a square: paving, a fountain in the middle and a lamp at each corner
+function plaza(c, x, y, k, lamps) {
+  c.beginPath(); c.ellipse(x, y + 2, 32, 15, 0, 0, TAU);
+  const ga = c.globalAlpha; c.globalAlpha = 1; c.fillStyle = '#000'; c.fill(); c.globalAlpha = ga;
+  c.fillStyle = rgba(k, 0.18); c.fill(); c.strokeStyle = rgba(k, 0.9); c.lineWidth = 1.8; c.stroke();
+  c.beginPath(); c.ellipse(x, y, 22, 10, 0, 0, TAU); c.strokeStyle = rgba(k, 0.45); c.lineWidth = 1; c.stroke();
+  c.beginPath(); c.moveTo(x - 4, y); c.lineTo(x - 3, y - 12); c.lineTo(x + 3, y - 12); c.lineTo(x + 4, y);
+  c.strokeStyle = rgba(k, 0.8); c.lineWidth = 1.4; c.stroke();
+  if (!lamps) return;
+  for (const [dx, dy] of [[-TW * 1.7, 0], [TW * 1.7, 0], [0, -TH * 1.7], [0, TH * 1.7]]) {
+    c.beginPath(); c.moveTo(x + dx, y + dy); c.lineTo(x + dx, y + dy - 24); c.strokeStyle = rgba(k, 0.6); c.lineWidth = 1.4; c.stroke();
+    c.beginPath(); c.arc(x + dx, y + dy - 26, 3, 0, TAU); c.fillStyle = '#ffffff'; c.shadowColor = k; c.shadowBlur = 10; c.fill(); c.shadowBlur = 0;
+  }
+}
+function fountainLive(c, x, y, now, alpha) {
+  c.fillStyle = '#ffffff';
+  for (let q = 0; q < 10; q++) {
+    const f = (now * 0.9 + q / 10) % 1, a = (q * TAU) / 10;
+    const px = x + Math.cos(a) * 20 * f, py = y - 12 + Math.sin(a) * 9 * f - Math.sin(f * Math.PI) * 18;
+    c.globalAlpha = alpha * (1 - f) * 0.9;
+    c.beginPath(); c.arc(px, py, 1.8, 0, TAU); c.fill();
+  }
+  c.globalAlpha = 1;
+}
 
 let isoLayerCache = null;
 function isoLayer() {
@@ -2068,30 +2567,69 @@ function isoLayer() {
     return x;
   };
   const c = mk(), cb = mk();   // c: ground, cb: buildings
-  const road = new Set(D.path.map((q) => q.i + ',' + q.j));
-  const front = new Set();
-  for (const q of D.path) for (const [a, b] of [[1, 0], [0, 1], [1, 1]]) front.add((q.i + a) + ',' + (q.j + b));
+  // the streets (and the stages on them) keep the buildings away
+  const pts = D.path.slice();
+  for (const B of D.bonus) pts.push(...B.spur, { x: B.x, y: B.y, r: 30 });
+  for (const n of D.nodes) pts.push({ x: n.x, y: n.y, r: n.boss ? 30 : 22 });
+  const RI = roadIndex(pts);
+  const spots = citySpots(RI);
   const end = D.path[D.total - 1];
-  const beacons = [], streets = [];
+  const beacons = [], streets = [], live = [];
   const R = rng(9001);
-  const maxSum = D.total + J0 + 6;
+  const maxSum = Math.ceil((D.height - 70) / TH) + J0 + 2;
   for (let sum = 0; sum <= maxSum; sum++) {
     for (let d = -10; d <= 10; d++) {
       if ((sum + d) % 2) continue;
       const i = (sum + d) / 2, j = (sum - d) / 2, key2 = i + ',' + j;
       const { x, y } = isoXY(i, j);
-      const w = tileDistrict(D, i, j);
+      const w = tileDistrict(y);
       c.globalAlpha = cb.globalAlpha = districtOpen(w) ? 1 : 0.38;
-      const nearTower = Math.abs(i - end.i) <= 2 && Math.abs(j - end.j) <= 2;
-      const street = ((i % 5) + 5) % 5 === 0 || ((j % 5) + 5) % 5 === 0;
-      if (road.has(key2)) { flatTile(c, x, y, rgba(k, 0.08), rgba(k, 0.22)); continue; }
-      if (street || nearTower) { flatTile(c, x, y, rgba(k, 0.03), rgba(k, 0.1)); continue; }
-      if (front.has(key2)) { if (R() < 0.5) isoBox(cb, x, y, 6 + R() * 8, k, 0.6, R, beacons, w); else flatTile(c, x, y, rgba(k, 0.02), rgba(k, 0.08)); continue; }
-      if (R() < 0.12) { flatTile(c, x, y, rgba(k, 0.02), rgba(k, 0.08)); continue; }
+      const kk = w === 8 ? goldTint(k) : k;
+      const sp = spots.get(key2);
+      if (sp) {
+        if (sp.kind === 'park') {
+          const G = parkTint(k);
+          flatTile(c, x, y, rgba(G, 0.09), rgba(G, 0.2));
+          if (sp.pond) {
+            c.beginPath(); c.ellipse(x, y, 26, 12, 0, 0, TAU); c.fillStyle = rgba(k, 0.16); c.fill(); c.strokeStyle = rgba(k, 0.7); c.lineWidth = 1.4; c.stroke();
+            c.beginPath(); c.moveTo(x - 10, y - 3); c.lineTo(x + 6, y - 3); c.strokeStyle = rgba('#ffffff', 0.4); c.stroke();
+          } else for (let q = R() < 0.4 ? 2 : 1; q > 0; q--) tree(cb, x + (R() - 0.5) * 34, y + (R() - 0.5) * 14, G, R);
+        } else {
+          flatTile(c, x, y, rgba(kk, sp.kind === 'plaza' ? 0.07 : 0.04), rgba(kk, sp.kind === 'plaza' ? 0.3 : 0.16));
+          if (sp.kind === 'plaza') { c.beginPath(); c.moveTo(x - TW * 0.5, y); c.lineTo(x, y - TH * 0.5); c.lineTo(x + TW * 0.5, y); c.lineTo(x, y + TH * 0.5); c.closePath(); c.strokeStyle = rgba(kk, 0.18); c.lineWidth = 1; c.stroke(); }
+          if (sp.front) {
+            if (sp.kind === 'plaza') { plaza(cb, sp.cx, sp.cy, kk, true); live.push({ kind: 'fountain', w, x: sp.cx, y: sp.cy }); }
+            else { landmark(cb, w, sp.cx, sp.cy, kk, R, beacons); live.push({ kind: 'lm', w, x: sp.cx, y: sp.cy }); }
+          }
+        }
+        continue;
+      }
+      const nearTower = Math.abs(x - end.x) < 120 && y > end.y - 30 && y < end.y + 130;
+      const street = mod5(i) === 0 || mod5(j) === 0;
+      const rn = roadNear(RI, x, y), lim = rn.gap - 32;
+      if (rn.d < 34 || street || nearTower) { flatTile(c, x, y, rgba(kk, 0.03), rgba(kk, 0.1)); continue; }
+      if (rn.d < 56 || lim < 40) {
+        if (R() < 0.5 && lim >= 8) isoBox(cb, x, y, Math.min(lim, 6 + R() * 8), kk, 0.6, R, beacons, w);
+        else flatTile(c, x, y, rgba(kk, 0.02), rgba(kk, 0.08));
+        continue;
+      }
+      if (R() < 0.12) { flatTile(c, x, y, rgba(kk, 0.02), rgba(kk, 0.08)); continue; }
       const hmin = 14 + w * 7, hmax = 42 + w * 13;
-      isoBox(cb, x, y, hmin + R() * (hmax - hmin) * (R() < 0.15 ? 1.6 : 1), k, 0.78, R, beacons, w);
+      isoBox(cb, x, y, Math.min(lim, hmin + R() * (hmax - hmin) * (R() < 0.15 ? 1.6 : 1)), kk, 0.78, R, beacons, w);
     }
   }
+  // the streets: a dark lane with a neon edge and a dashed middle line
+  c.globalAlpha = 1;
+  const road = (list, wd) => {
+    c.beginPath(); c.moveTo(list[0].x, list[0].y); for (const q of list) c.lineTo(q.x, q.y);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    c.strokeStyle = rgba(k, 0.32); c.lineWidth = wd + 4; c.stroke();
+    c.strokeStyle = '#000'; c.lineWidth = wd; c.stroke();
+    c.strokeStyle = rgba(k, 0.07); c.stroke();
+    c.save(); c.setLineDash([10, 14]); c.strokeStyle = rgba(k, 0.22); c.lineWidth = 1.5; c.stroke(); c.restore();
+  };
+  for (const B of D.bonus) road(B.spur, 30);
+  road(D.path, 40);
   // AURUM tower at the end of the road: the system's pyramid
   cb.globalAlpha = districtOpen(WORLDS.length - 1) ? 1 : 0.5;
   const tx = end.x, ty = end.y + TH * 2;
@@ -2102,19 +2640,19 @@ function isoLayer() {
   cb.moveTo(tx, top + TH * 1.5); cb.lineTo(tx, top - 110);
   cb.strokeStyle = rgba(k, 0.9); cb.lineWidth = 2; cb.stroke();
   c.globalAlpha = cb.globalAlpha = 1;
-  // streets for the light-cars
+  // side streets for the light-cars
   for (let s5 = -40; s5 <= 200; s5 += 5) {
     for (const axis of ['i', 'j']) {
-      const pts = [];
+      const sp = [];
       for (let o = -12; o <= 200; o++) {
         const i = axis === 'i' ? s5 : o, j = axis === 'i' ? o : s5;
         if (Math.abs(i - j) > 10 || i + j < 0 || i + j > maxSum) continue;
-        pts.push(isoXY(i, j));
+        sp.push(isoXY(i, j));
       }
-      if (pts.length > 3) streets.push({ a: pts[0], b: pts[pts.length - 1], L: Math.hypot(pts[pts.length - 1].x - pts[0].x, pts[pts.length - 1].y - pts[0].y) });
+      if (sp.length > 3) streets.push({ a: sp[0], b: sp[sp.length - 1], L: Math.hypot(sp[sp.length - 1].x - sp[0].x, sp[sp.length - 1].y - sp[0].y) });
     }
   }
-  isoLayerCache = { key, img: c.canvas, bld: cb.canvas, res, beacons, streets };
+  isoLayerCache = { key, img: c.canvas, bld: cb.canvas, res, beacons, streets, live };
   return isoLayerCache;
 }
 
@@ -2187,36 +2725,94 @@ function drawMechIcon(c, m, x, y, s, color) {
   c.restore();
 }
 
-function pathPoly(c, D, t0, t1) {
+function pathPoly(c, D, t0, t1, list = D.path) {
   c.beginPath();
-  c.moveTo(D.path[t0].x, D.path[t0].y);
-  for (let t = t0 + 1; t <= t1; t++) c.lineTo(D.path[t].x, D.path[t].y);
+  c.moveTo(list[t0].x, list[t0].y);
+  for (let t = t0 + 1; t <= t1; t++) c.lineTo(list[t].x, list[t].y);
 }
 
 // a neon fence across the street at a district gate
 function drawFence(c, D, d, now, k) {
-  const g = D.path[d.gate], alongI = Math.floor(d.gate / RUN) % 2 === 0;
+  const g = d.t1;
+  if (g <= 3 || g >= D.path.length - 4) return;
+  const P = D.path[g], A0 = D.path[g - 3], B0 = D.path[g + 3];
+  let tx = B0.x - A0.x, ty = B0.y - A0.y;
+  const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
+  // the fence runs along the city grid, on the axis most across the street
+  const ax = [[TW, TH], [-TW, TH]].map(([u, v]) => { const m = Math.hypot(u, v); return [u / m, v / m]; });
+  const [nx, ny] = Math.abs(ax[0][0] * tx + ax[0][1] * ty) < Math.abs(ax[1][0] * tx + ax[1][1] * ty) ? ax[0] : ax[1];
   const boss = worldStart(d.w) + worldCount(d.w) - 1;
   const open = !WORLDS[d.w].soon && prog > boss;
-  const pt = (o) => (alongI ? isoXY(g.i, g.j + o) : isoXY(g.i + o, g.j));
-  const segs = [[-5, -1.4], [1.4, 5]];
+  const pt = (o) => ({ x: P.x + nx * o, y: P.y + ny * o });
   c.save();
-  for (const [a, b] of segs) {
+  for (const [a, b] of [[-118, -30], [30, 118]]) {
     const A = pt(a), B = pt(b);
     c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(B.x, B.y); c.moveTo(A.x, A.y - 26); c.lineTo(B.x, B.y - 26);
     neonStroke(c, k, k, 2, A.x, A.y, B.x, B.y, 0.7);
     c.beginPath();
-    for (let o = a; o <= b + 0.01; o += 1) { const P = pt(o); c.moveTo(P.x, P.y); c.lineTo(P.x, P.y - 26); }
+    for (let o = a; o <= b + 0.01; o += 22) { const Q = pt(o); c.moveTo(Q.x, Q.y); c.lineTo(Q.x, Q.y - 26); }
     c.strokeStyle = rgba(k, 0.45); c.lineWidth = 1.2; c.stroke();
-    // light curtain
     c.beginPath(); c.moveTo(A.x, A.y); c.lineTo(B.x, B.y); c.lineTo(B.x, B.y - 26); c.lineTo(A.x, A.y - 26); c.closePath();
     c.fillStyle = rgba(k, 0.07 + 0.04 * Math.sin(now * 3)); c.fill();
   }
   if (!open) {
-    const A = pt(-1.4), B = pt(1.4);
+    const A = pt(-30), B = pt(30);
     c.setLineDash([5, 5]); c.lineDashOffset = -now * 30;
     for (const hh of [6, 14, 22]) { c.beginPath(); c.moveTo(A.x, A.y - hh); c.lineTo(B.x, B.y - hh); c.strokeStyle = rgba(k, 0.75); c.lineWidth = 1.6; c.stroke(); }
   }
+  c.restore();
+}
+
+// The info of the district in focus, in a corner of the view where it covers
+// no stage; it fades out and back in when the focus moves to another district.
+const mapPanel = { w: -1, a: 0, spot: -1, t: 0 };
+function districtPanel(c, D, now, k, vh) {
+  const dt = Math.min(0.1, Math.max(0, now - mapPanel.t)); mapPanel.t = now;
+  if (mapPanel.w !== mapFocus) { mapPanel.a -= dt * 6; if (mapPanel.a <= 0) { mapPanel.a = 0; mapPanel.w = mapFocus; mapPanel.spot = -1; } }
+  else mapPanel.a = Math.min(1, mapPanel.a + dt * 4);
+  const w = mapPanel.w;
+  if (w < 0 || mapPanel.a <= 0.01) return;
+  const wd = WORLDS[w], ms = districtMechs(w), n = ms.length;
+  c.font = `700 22px "Orbitron", sans-serif`;
+  const nameW = Math.max(c.measureText(wd.name).width, 150);
+  const marks = [...D.nodes.map((nd) => ({ x: nd.x, y: nd.y, r: (nd.boss ? 36 : 28) + 8 })), ...D.bonus.map((B) => ({ x: B.x, y: B.y, r: 46 }))];
+  const layout = (spot, PER, SLOT) => {
+    const right = spot % 2 === 0, ROWS = n ? Math.ceil(n / PER) : 0;
+    const pw = Math.max(nameW, PER * SLOT) + 28, ph = n ? 122 + (ROWS - 1) * 50 : 66;
+    const py = spot < 2 ? mapScroll + 16 : mapScroll + vh - ph - 16;
+    return { spot, PER, SLOT, right, x: right ? W - 14 - pw : 14, y: py, w: pw, h: ph };
+  };
+  const clear = (b) => !marks.some((m) => m.x + m.r > b.x && m.x - m.r < b.x + b.w && m.y + m.r + 26 > b.y && m.y - m.r < b.y + b.h);
+  const tryAt = (spot) => {
+    for (let per = n; per >= Math.min(2, n); per--) {
+      for (const slot of per <= 3 ? [86, 64] : [60, 56]) { const b = layout(spot, per, slot); if (clear(b)) return b; }
+    }
+    return null;
+  };
+  let P = mapPanel.spot >= 0 ? tryAt(mapPanel.spot) : null;
+  for (let s = 0; s < 4 && !P; s++) P = tryAt(s);
+  if (!P) P = layout(0, Math.min(n, 3), 56);
+  mapPanel.spot = P.spot;
+  c.save();
+  c.globalAlpha = mapPanel.a;
+  roundRectPath(c, P.x, P.y, P.w, P.h, 12);
+  c.fillStyle = 'rgba(0,0,0,0.78)'; c.fill();
+  c.strokeStyle = rgba(k, 0.35); c.lineWidth = 1.2; c.stroke();
+  const x = P.right ? P.x + P.w - 14 : P.x + 14, y = P.y + 46, al = P.right ? 'right' : 'left';
+  glowText(c, 'DISTRITO ' + (w + 1), x, y - 26, 12, rgba(k, 0.9), k, al, 700, 4);
+  glowText(c, wd.name, x, y + 2, 22, '#ffffff', k, al, 700, 3);
+  const S = P.SLOT, small = S < 80;
+  ms.forEach((m, q) => {
+    const mm = ms[n - 1 - q];   // always newest to oldest, left to right (then the next row)
+    const r2 = Math.floor(q / P.PER), cl = q % P.PER, cnt = Math.min(P.PER, n - r2 * P.PER);
+    const ix = P.right ? x - S / 2 + 4 - (cnt - 1 - cl) * S : x + S / 2 - 4 + cl * S, iy = y + 42 + r2 * 50;
+    const isNew = mm === wd.mech;
+    c.beginPath(); c.arc(ix, iy, small ? 15 : 17, 0, TAU);
+    c.fillStyle = rgba(k, isNew ? 0.2 : 0.06); c.fill();
+    c.strokeStyle = rgba(k, isNew ? 0.95 : 0.5); c.lineWidth = isNew ? 2 : 1.4; c.stroke();
+    drawMechIcon(c, mm, ix, iy, 9, '#ffffff');
+    glowText(c, MECHS[mm].name, ix, iy + 29, small ? 7.5 : 9, rgba('#ffffff', isNew ? 0.9 : 0.6), k, 'center', 600, small ? 0 : 0.5);
+  });
   c.restore();
 }
 
@@ -2253,8 +2849,10 @@ function renderMap(c, now) {
   c.translate(0, mapScroll - top);
   blit(L.bld);
   c.translate(0, top - mapScroll);
+  // the district in focus: the one in the middle of the view (the first one
+  // when the map is at the top)
+  updateMapDim(D, now, mapScroll + vh * 0.5 * clampN(mapScroll / 300, 0, 1));
   // closed districts stay dark; one that just opened lights up
-  updateMapDim(D, now, mapScroll + vh / 2);
   D.dist.forEach((d) => {
     const dk = mapDim[d.w] || 0;
     if (dk <= 0.01) return;
@@ -2265,12 +2863,19 @@ function renderMap(c, now) {
     g.addColorStop(1 - e, `rgba(0,0,0,${dk})`); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.fillRect(0, yA - 50, W, yB - yA + 100);
   });
-  // beacons
+  // beacons, landmarks and fountains
   for (const b of L.beacons) {
     if (!vis(b.y) || Math.sin(now * 2.4 + b.ph) < 0.45) continue;
-    c.globalAlpha = districtOpen(b.w) ? 1 : 0.4;
+    c.globalAlpha = districtOpen(b.w) ? 1 - (mapDim[b.w] || 0) * 0.8 : 0.4;
     c.beginPath(); c.arc(b.x, b.y, 2.6, 0, TAU);
     c.fillStyle = '#ffffff'; c.shadowColor = k; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
+  }
+  for (const o of L.live) {
+    if (!vis(o.y - 80)) continue;
+    const a = districtOpen(o.w) ? 1 - (mapDim[o.w] || 0) * 0.85 : 0.25;
+    c.globalAlpha = a;
+    if (o.kind === 'fountain') fountainLive(c, o.x, o.y, now, a);
+    else landmarkLive(c, o.w, o.x, o.y, o.w === 8 ? goldTint(k) : k, now);
   }
   c.globalAlpha = 1;
   // route along the main street
@@ -2290,53 +2895,25 @@ function renderMap(c, now) {
       c.restore();
     }
   }
+  // side streets to the bonus stages
+  for (const B of D.bonus) {
+    if (!vis(B.y) && !vis(B.spur[0].y)) continue;
+    const open = bonusOpen(B.b), focusR = B.b.w === mapFocus;
+    c.globalAlpha = 1 - (mapDim[B.b.w] || 0) * 0.9;
+    pathPoly(c, D, 0, B.spur.length - 1, B.spur);
+    if (open) {
+      neonStroke(c, k, k, focusR ? 4 : 3, 0, 0, W, 0, focusR ? 1.2 : 0.8);
+      c.save(); c.setLineDash([14, 120]); c.lineDashOffset = -((now * 90) % 134);
+      pathPoly(c, D, 0, B.spur.length - 1, B.spur); c.strokeStyle = GOLD; c.lineWidth = 3; c.shadowColor = GOLD; c.shadowBlur = 12 * view.blur; c.stroke();
+      c.restore();
+    } else { c.save(); c.setLineDash([7, 9]); c.strokeStyle = rgba(k, 0.55); c.lineWidth = 2.2; c.stroke(); c.restore(); }
+  }
   c.globalAlpha = 1;
   // the rest of the road, still locked
   c.save(); c.setLineDash([4, 12]); pathPoly(c, D, N[N.length - 1].t, D.total - 1);
   c.strokeStyle = rgba(k, 0.3); c.lineWidth = 2; c.stroke(); c.restore();
-  // fences + district names
-  for (const d of D.dist) {
-    if (d.w < WORLDS.length - 1 && vis(D.path[d.gate].y)) drawFence(c, D, d, now, k);
-    const s0 = D.path[d.t0];
-    if (!vis(s0.y)) continue;
-    const right = s0.x < W / 2, x = right ? W - 26 : 26, y = s0.y + 18;
-    const wd = WORLDS[d.w], open = districtOpen(d.w);
-    const ms = districtMechs(d.w), n = ms.length;
-    c.font = `700 22px "Orbitron", sans-serif`;
-    const nameW = Math.max(c.measureText(wd.name).width, 150);
-    // try the widest layout first, then fewer icons per row, until no stage node is covered
-    const panel = (PER, SLOT) => {
-      const ROWS = n ? Math.ceil(n / PER) : 0, pw = Math.max(nameW, PER * SLOT) + 28;
-      const ph = wd.soon ? 78 : n ? 122 + (ROWS - 1) * 50 : 66;
-      return { PER, SLOT, x: right ? x - pw + 12 : x - 12, y: y - 46, w: pw, h: ph };
-    };
-    const clear = (b) => !D.nodes.some((nd) => {
-      const r = (nd.boss ? 36 : 28) + 8;
-      return nd.x + r > b.x && nd.x - r < b.x + b.w && nd.y + r + 26 > b.y && nd.y - r < b.y + b.h;
-    });
-    let P = null;
-    for (let per = n; per >= Math.min(2, n) && !P; per--) {
-      for (const slot of per <= 3 ? [86, 64] : [60, 56]) { const b = panel(per, slot); if (clear(b)) { P = b; break; } }
-    }
-    if (!P) P = panel(Math.min(n, 2), 56);
-    c.fillStyle = 'rgba(0,0,0,0.72)';
-    c.fillRect(P.x, P.y, P.w, P.h);
-    glowText(c, 'DISTRITO ' + (d.w + 1), x, y - 26, 12, rgba(k, 0.9), k, right ? 'right' : 'left', 700, 4);
-    glowText(c, wd.name, x, y + 2, 22, open ? '#ffffff' : rgba('#ffffff', 0.55), k, right ? 'right' : 'left', 700, 3);
-    if (wd.soon) glowText(c, 'EM BREVE', x, y + 24, 11, rgba(k, 0.75), k, right ? 'right' : 'left', 500, 4);
-    const S = P.SLOT, small = S < 80;
-    ms.forEach((m, q) => {
-      const mm = ms[n - 1 - q];   // always newest to oldest, left to right (then the next row)
-      const r2 = Math.floor(q / P.PER), cl = q % P.PER, cnt = Math.min(P.PER, n - r2 * P.PER);
-      const ix = right ? x - S / 2 + 4 - (cnt - 1 - cl) * S : x + S / 2 - 4 + cl * S, iy = y + 42 + r2 * 50;
-      const isNew = mm === wd.mech;
-      c.beginPath(); c.arc(ix, iy, small ? 15 : 17, 0, TAU);
-      c.fillStyle = rgba(k, isNew ? 0.2 : 0.06); c.fill();
-      c.strokeStyle = rgba(k, isNew ? 0.95 : 0.5); c.lineWidth = isNew ? 2 : 1.4; c.stroke();
-      drawMechIcon(c, mm, ix, iy, 9, open ? '#ffffff' : rgba('#ffffff', 0.6));
-      glowText(c, MECHS[mm].name, ix, iy + 29, small ? 7.5 : 9, rgba('#ffffff', isNew ? 0.9 : 0.6), k, 'center', 600, small ? 0 : 0.5);
-    });
-  }
+  // fences at the gates
+  for (const d of D.dist) if (d.w < WORLDS.length - 1 && vis(D.path[Math.min(d.t1, D.total - 1)].y)) drawFence(c, D, d, now, k);
   // the eye on top of the tower
   const end = D.path[D.total - 1], ey = end.y + TH * 2 - 230 - 62;
   if (vis(ey)) {
@@ -2344,7 +2921,13 @@ function renderMap(c, now) {
     c.beginPath(); c.moveTo(end.x - 16, ey); c.quadraticCurveTo(end.x, ey - 12 * o, end.x + 16, ey); c.quadraticCurveTo(end.x, ey + 12 * o, end.x - 16, ey);
     c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.stroke();
     c.beginPath(); c.arc(end.x, ey, 4 * o + 1, 0, TAU); c.fillStyle = '#ffffff'; c.shadowColor = k; c.shadowBlur = 16 * view.blur; c.fill(); c.shadowBlur = 0;
+    const last = WORLDS[WORLDS.length - 1];
+    if (last.soon) {
+      glowText(c, 'DISTRITO ' + WORLDS.length + '  ·  ' + last.name, end.x, ey - 92, 14, rgba('#ffffff', 0.75), k, 'center', 700, 4);
+      glowText(c, 'EM BREVE', end.x, ey - 70, 11, rgba(k, 0.8), k, 'center', 500, 5);
+    }
   }
+  districtPanel(c, D, now, k, vh);
   c.restore();
   // soft fade at the edges of the scroll view
   for (const [y0, y1] of [[top, top + 40], [top + vh, top + vh - 40]]) {
@@ -2358,12 +2941,47 @@ function renderMap(c, now) {
   neonTitle(c, 'CIDADE', W / 2, safeTop + 84, 52, k, k, 14);
 }
 
+// Boss miniatures for the map: each boss drawn by its own code on a scratch
+// game, cropped and kept (one per boss and color).
+const thumbs = {};
+function bossThumb(w) {
+  const k = col(), key = w + k + view.res;
+  if (thumbs[key] !== undefined) return thumbs[key];
+  let out = null;
+  try {
+    const g = Object.create(game);
+    Object.assign(g, { bricks: [], balls: [], drops: [], shots: [], rings: [], particles: [], floats: [], effects: {}, wells: [], portals: [], bars: [], beams: [], rows: [],
+      missiles: [], bolts: [], blasts: [], coins: [], alive: 0, t: 0, mt: 0, top: 120, H: 1400, col: k, paddle: { x: W / 2, y: 1200, hw: BASE_HW }, emit() {}, ring() {}, burst() {}, float() {} });
+    const b = createBoss(WORLDS[w].boss.type, g);
+    if (b.move) b.move(0.2);
+    const S = 0.6, cv = document.createElement('canvas');
+    cv.width = Math.round(W * S); cv.height = Math.round(900 * S);
+    const x = cv.getContext('2d');
+    x.scale(S, S);
+    b.render(x);
+    const d = x.getImageData(0, 0, cv.width, cv.height).data;
+    let x0 = cv.width, y0 = cv.height, x1 = 0, y1 = 0;
+    for (let yy = 0; yy < cv.height; yy += 2) for (let xx = 0; xx < cv.width; xx += 2) {
+      if (d[(yy * cv.width + xx) * 4 + 3] > 50) { if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
+    }
+    if (x1 > x0 && y1 > y0) {
+      const t = document.createElement('canvas');
+      t.width = x1 - x0 + 4; t.height = y1 - y0 + 4;
+      t.getContext('2d').drawImage(cv, x0 - 2, y0 - 2, t.width, t.height, 0, 0, t.width, t.height);
+      out = t;
+    }
+  } catch (e) { out = null; }
+  thumbs[key] = out;
+  return out;
+}
+
 function drawNode(c, b, now) {
   const k = col(), i = b.node;
   const p = nodePos(i);
   const done = i < prog, open = unlocked(i), next = i === prog && open;
   const r = p.boss ? 36 : 28;
-  c.globalAlpha = (open ? 1 : 0.5) * (1 - (mapDim[isoData().nodes[i].w] || 0) * 0.6);
+  const w = isoData().nodes[i].w;
+  c.globalAlpha = (open ? 1 : 0.5) * (1 - (mapDim[w] || 0) * 0.6);
   const shape = () => {
     c.beginPath();
     if (p.boss) for (let q = 0; q < 6; q++) { const a = (q * TAU) / 6 + Math.PI / 6; c[q ? 'lineTo' : 'moveTo'](p.x + Math.cos(a) * r, p.y + Math.sin(a) * r); }
@@ -2376,10 +2994,14 @@ function drawNode(c, b, now) {
   if (open) { shape(); neonStroke(c, k, k, next ? 3.5 : 2.5, p.x - r, p.y, p.x + r, p.y, next ? 1 + 0.4 * Math.sin(now * 5) : 0.6); }
   else { c.save(); c.setLineDash([5, 6]); shape(); c.strokeStyle = rgba(k, 0.8); c.lineWidth = 2; c.stroke(); c.restore(); }
   if (next) { c.beginPath(); c.arc(p.x, p.y, r + 10 + 4 * Math.sin(now * 5), 0, TAU); c.strokeStyle = rgba(k, 0.45); c.lineWidth = 1.5; c.stroke(); }
-  if (p.boss) {
-    c.beginPath(); c.moveTo(p.x - 16, p.y); c.quadraticCurveTo(p.x, p.y - 13, p.x + 16, p.y); c.quadraticCurveTo(p.x, p.y + 13, p.x - 16, p.y);
-    c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.stroke();
-    c.beginPath(); c.arc(p.x, p.y, 4, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+  if (p.boss) {   // a miniature of the boss
+    const t = bossThumb(w);
+    if (t) {
+      const s = Math.min(52 / t.width, 40 / t.height);
+      const ga = c.globalAlpha; c.globalAlpha = ga * (open ? 1 : 0.45);
+      c.drawImage(t, p.x - (t.width * s) / 2, p.y - (t.height * s) / 2, t.width * s, t.height * s);
+      c.globalAlpha = ga;
+    }
   } else {
     glowText(c, stageLabel(i), p.x, p.y + 1, 14, '#ffffff', k, 'center', 700, 1);
   }
@@ -2394,6 +3016,33 @@ function drawNode(c, b, now) {
     c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(p.x - tw / 2, p.y + r + 6, tw, 18);
     glowText(c, t, p.x, p.y + r + 16, 12, rgba('#ffffff', 0.85), k, 'center', 700, 1);
   }
+  c.globalAlpha = 1;
+}
+
+// a bonus stage on the map: a gold star with a coin
+function drawBonusNode(c, b, now) {
+  const k = col(), B = isoData().bonus[b.bonusNode], def = B.b;
+  const x = B.x, y = B.y + mapViewTop() - mapScroll;
+  const open = bonusOpen(def), done = !!bonusWon[def.w];
+  c.globalAlpha = (open ? 1 : 0.5) * (1 - (mapDim[def.w] || 0) * 0.6);
+  const star = (R0, R1) => {
+    c.beginPath();
+    for (let q = 0; q < 10; q++) { const a = -Math.PI / 2 + (q * Math.PI) / 5, r = q % 2 ? R1 : R0; c[q ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + 3 + Math.sin(a) * r); }
+    c.closePath();
+  };
+  star(36, 18); c.fillStyle = '#000'; c.fill();
+  star(36, 18); c.fillStyle = rgba(GOLD, done ? 0.3 : pressed === b ? 0.35 : 0.1); c.fill();
+  if (open) { star(36, 18); neonStroke(c, GOLD, GOLD, 2.6, x - 36, y, x + 36, y, done ? 0.6 : 0.9 + 0.4 * Math.sin(now * 4)); }
+  else { c.save(); c.setLineDash([5, 6]); star(36, 18); c.strokeStyle = rgba(GOLD, 0.8); c.lineWidth = 2; c.stroke(); c.restore(); }
+  drawSprite(c, coinSprite(), x - 8.5, y - 5.5, 0.62);
+  if (done) {
+    c.beginPath(); c.moveTo(x + 18, y - 26); c.lineTo(x + 24, y - 20); c.lineTo(x + 36, y - 34);
+    c.strokeStyle = '#ffffff'; c.lineWidth = 2.5; c.stroke();
+  }
+  c.font = `700 11px "Orbitron", sans-serif`;
+  const t = 'BÔNUS  ·  ' + def.name, tw = c.measureText(t).width + 24;
+  c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(x - tw / 2, y + 40, tw, 18);
+  glowText(c, t, x, y + 50, 11, open ? '#ffffff' : rgba('#ffffff', 0.6), GOLD, 'center', 700, 2);
   c.globalAlpha = 1;
 }
 
@@ -2502,7 +3151,7 @@ function render() {
     if (bestT > 0) glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
     if (menuMsg && now - menuMsg.t < 2) {
       ctx.globalAlpha = Math.min(1, (2 - (now - menuMsg.t)) * 2);
-      glowText(ctx, menuMsg.text, W / 2, H * 0.47 + 166, 14, '#ffffff', k, 'center', 700, 3);
+      glowText(ctx, menuMsg.text, W / 2, H * 0.47 + 152, 14, '#ffffff', k, 'center', 700, 3);
       ctx.globalAlpha = 1;
     }
     drawPlatform(ctx, plat, W / 2, H - 150, BASE_HW, now, k);
@@ -2553,7 +3202,7 @@ function render() {
         glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + fmtTime(bestT), W / 2, H * 0.42 + 92, 18, rgba(k, 0.9), k, 'center', 500, 5);
       } else {
         glowText(ctx, String(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
-        if (sbest[game.index]) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
+        if (sbest[game.index] && !game.bonus) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
       }
     } else if (scene === 'world') {
       dim(ctx, 0.7);
@@ -2579,6 +3228,7 @@ function render() {
 
   for (const b of buttons) {
     if (b.node !== undefined) drawNode(ctx, b, now);
+    else if (b.bonusNode !== undefined) drawBonusNode(ctx, b, now);
     else if (b.theme !== undefined) drawColorTile(ctx, b);
     else if (b.bell) drawBell(ctx, b);
     else if (b.icon) drawIconButton(ctx, b);
@@ -2603,7 +3253,11 @@ function frame(now) {
   if (now - fpsT >= 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
   while (acc >= STEP) {
     if (scene === 'play' && !freeze) game.update(STEP);
-    else if (scene === 'menu') updateDemo(STEP);
+    else {
+      // the screen shake still fades while the game is stopped (game over, pause...)
+      if (game.shake > 0) game.shake = Math.max(0, game.shake - STEP * 3);
+      if (scene === 'menu') updateDemo(STEP);
+    }
     acc -= STEP;
   }
   render();

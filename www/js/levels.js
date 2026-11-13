@@ -337,6 +337,52 @@ export const WORLDS = [
       text: 'Acerte o olho que tudo vê. Dizem que ele é grande demais para cair.' } },
 ];
 
+// Bonus stages: side streets on the map, in districts 2, 5 and 8. They open
+// after the district's 2nd stage, have no district mechanic, a twist of their
+// own and pay coins when cleared.
+export const BONUS = [
+  { w: 1, after: 1, kind: 'missiles', name: 'LAG', coins: 40, demo: 'cap:missile',
+    text: 'A plataforma dispara mísseis sem parar. Limpe tudo e ganhe moedas.',
+    rows: [
+      '333333333',
+      '2.2.2.2.2',
+      '222222222',
+      '.1.1.1.1.',
+      '111111111',
+      '222222222',
+      '.3.3.3.3.',
+      '111111111',
+    ] },
+  { w: 4, after: 1, kind: 'fork', name: 'FORK BOMB', coins: 60, demo: 'cap:multi',
+    text: 'Cada bloco quebrado solta mais um disco. Limpe tudo e ganhe moedas.',
+    rows: [
+      '2.2.2.2.2',
+      '111111111',
+      '222222222',
+      '1.1.1.1.1',
+      '222222222',
+      '111111111',
+      '222222222',
+      '1.1.1.1.1',
+      '111111111',
+    ] },
+  { w: 7, after: 1, kind: 'bombs', name: 'BARRICADA', coins: 80, demo: 'cap:bomb',
+    text: 'O disco é uma bomba: toda batida explode os blocos em volta. Limpe tudo e ganhe moedas.',
+    rows: [
+      'X3333333X',
+      '.4.4.4.4.',
+      '333333333',
+      'X.3.3.3.X',
+      '444444444',
+      '333333333',
+      '..33333..',
+    ] },
+];
+export const bonusIndex = (b) => worldStart(b.w) + b.after;   // the stage it opens after
+export function getBonus(b) {
+  return { w: b.w, s: -1, world: WORLDS[b.w], mech: null, mechs: [], rows: b.rows, name: b.name, bonus: b };
+}
+
 // Stages per world = its stages + the boss.
 export const worldCount = (w) => (WORLDS[w].soon ? 0 : WORLDS[w].stages.length + 1);
 export function worldStart(w) {

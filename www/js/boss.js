@@ -82,7 +82,7 @@ class Boss {
       this.g.emit('chip', 5);
       this.g.ring(this.cx, this.cy, 120);
       this.g.burst(this.cx, this.cy, 14, 1.2);
-      if (Math.random() < 0.35) this.g.spawnDrop(this.cx, this.cy + 40);
+      if (Math.random() < 0.2) this.g.spawnDrop(this.cx, this.cy + 40);
     }
     if (this.hp <= 0) {
       if (this.lives === 2) { this.lives = 1; this.hp = this.hpMax; this.enterFury(); }
