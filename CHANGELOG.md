@@ -2,6 +2,27 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.7] · 12/11/2026 · Tutoriais animados, mapa aceso e INFINITO revisto
+
+### Adicionado
+
+- Tutoriais com texto curto e uma animação em cada cartão: tutorial inicial, mecânicas novas, perks (no tutorial e na aba PERKS) e cápsulas.
+- O mapa deixa escuros os distritos fechados e acende cada um quando ele é liberado.
+- INFINITO: pontos da partida embaixo do relógio, na tela de fim de jogo e na aba AQUI do placar.
+- INFINITO: cartão na primeira vez que cai uma cápsula que o jogador ainda não conhece.
+- Chips ganhos na fase, embaixo das moedas, nas telas de fase limpa e de distrito concluído; chips da conta ao lado das moedas durante a partida.
+- Arquivo CHECKLIST.md com o que testar em cada versão.
+
+### Alterado
+
+- INFINITO dá bem menos moedas: 30% da chance normal nos blocos e 10 por chefão.
+- Sorteio das cápsulas com memória: a que acabou de cair fica menos provável, nunca 3 ruins seguidas, MULTI não cai com 4 discos ou mais em campo; MULTI e PLATAFORMA + um pouco mais raras e PLATAFORMA + em dobro só em 20% das vezes.
+
+### Corrigido
+
+- Quando a barra de status do celular aparecia ou sumia no meio da fase, a moldura mudava de lugar e os blocos não: a primeira fileira encostava na borda.
+- A caixa de alguns distritos no mapa (4, 6 e 8) ficava em cima das fases.
+
 ## [1.6.1] · 12/11/2026 · Pontos x10, botões limpos e bola de demolição
 
 ### Alterado

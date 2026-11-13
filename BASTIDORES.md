@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.6.1** (12/11/2026)
+Versão atual publicada: **1.7** (12/11/2026)
 
 ## Objetivos
 
@@ -14,10 +14,20 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
-- [ ] Reduzir o texto de TODOS os tutoriais (principalmente os dos perks) e explicar com uma imagem ou animação (12/11/2026)
-- [ ] A cada atualização, criar uma checklist do que testar nas novidades, para otimizar o tempo de teste (12/11/2026)
-
 ## Histórico
+
+### 1.7 (12/11/2026)
+
+- [x] Tutoriais com texto curto e uma animação em cada cartão (tutorial inicial, mecânicas, perks e cápsulas).
+- [x] Checklist de testes a cada versão (CHECKLIST.md).
+- [x] INFINITO com bem menos moedas (30% nos blocos, 10 por chefão).
+- [x] INFINITO mostra os pontos além do relógio.
+- [x] Bug: caixa do distrito em cima das fases no mapa.
+- [x] Mapa: distritos fechados escuros, que acendem quando liberados.
+- [x] Chips ao lado das moedas na partida e embaixo delas no fim da fase.
+- [x] Bug: blocos encostando na borda quando a barra de status do celular aparece ou some.
+- [x] Sorteio das cápsulas com memória; MULTI limitado e MULTI e PLATAFORMA + mais raras.
+- [x] INFINITO: cartão da primeira vez que cai uma cápsula desconhecida.
 
 ### 1.6.1 (12/11/2026)
 

@@ -8,24 +8,24 @@
 // Every district has 4 stages and a boss.
 
 export const MECHS = {
-  slide:    { name: 'DESLIZE',   text: 'As fileiras de blocos deslizam de um lado para o outro.' },
-  gravity:  { name: 'GRAVIDADE', text: 'Núcleos de gravidade puxam e curvam o disco.' },
-  walls:    { name: 'MURALHA',   text: 'Blocos riscados são indestrutíveis.' },
-  portals:  { name: 'PORTAIS',   text: 'Entre num portal e saia pelo outro.' },
-  blast:    { name: 'REAÇÃO',    text: 'Blocos com X explodem e atingem os vizinhos.' },
-  phase:    { name: 'FASE',      text: 'Blocos tracejados estão fora de fase: o disco atravessa.' },
-  descent:  { name: 'PRESSÃO',   text: 'Os blocos descem. Se tocarem a linha de alerta, você perde uma vida.' },
-  viral:    { name: 'CONTÁGIO',  text: 'Blocos com o símbolo de vírus criam blocos novos ao redor. Destrua-os primeiro.' },
-  censor:   { name: 'VAZAMENTO', text: 'Tarjas pretas deslizam sobre os blocos e rebatem o disco. Acerte o bloco com a gota para derrubar todas por alguns segundos.' },
-  armor:    { name: 'BLINDAGEM', text: 'Blocos com placa embaixo são blindados por baixo: acerte por cima ou pelos lados.' },
-  alarm:    { name: 'SEGURANÇA', text: 'Feixes de segurança ligam e desligam. Ligados, rebatem o disco.' },
+  slide:    { name: 'DESLIZE',   text: 'As fileiras deslizam de um lado para o outro.' },
+  gravity:  { name: 'GRAVIDADE', text: 'Núcleos puxam e curvam o disco.' },
+  walls:    { name: 'MURALHA',   text: 'Blocos riscados não quebram.' },
+  portals:  { name: 'PORTAIS',   text: 'Entra num portal, sai pelo outro.' },
+  blast:    { name: 'REAÇÃO',    text: 'Blocos com X explodem os vizinhos.' },
+  phase:    { name: 'FASE',      text: 'O disco atravessa os blocos tracejados.' },
+  descent:  { name: 'PRESSÃO',   text: 'Os blocos descem. Não deixe tocarem a linha.' },
+  viral:    { name: 'CONTÁGIO',  text: 'O vírus cria blocos em volta. Quebre ele primeiro.' },
+  censor:   { name: 'VAZAMENTO', text: 'Tarjas rebatem o disco. Acerte a gota para derrubá-las.' },
+  armor:    { name: 'BLINDAGEM', text: 'A placa protege por baixo. Acerte por cima ou pelo lado.' },
+  alarm:    { name: 'SEGURANÇA', text: 'Feixes ligados rebatem o disco.' },
 };
 
 export const WORLDS = [
   {
     name: 'SUBÚRBIO', mech: 'slide', music: 'w1', bossMusic: 'boss1', border: 'flow',
     boss: { type: 'sentinel', name: 'SENTINELA',
-      text: 'Acerte o núcleo embaixo do casco quando a íris abrir.' },
+      text: 'Acerte o núcleo quando a íris abrir.' },
     stages: [
       { name: 'QUINTAL', mech: null, rows: [
         '..22222..',
@@ -92,7 +92,7 @@ export const WORLDS = [
     // Working for the corporation: the pressure never stops.
     name: 'HORA EXTRA', mech: 'descent', music: 'w3', bossMusic: 'boss3', border: 'scan',
     boss: { type: 'supervisor', name: 'O SUPERVISOR',
-      text: 'Acerte o olho no topo da pirâmide quando ele abrir.' },
+      text: 'Acerte o olho quando ele abrir.' },
     stages: [
       { name: 'EXPEDIENTE', also: ['slide'], rows: [
         '222222222',
@@ -125,7 +125,7 @@ export const WORLDS = [
     // Nights spent coding the game, after the overtime.
     name: 'MADRUGADA', mech: 'phase', music: 'w4', bossMusic: 'boss4', border: 'beat',
     boss: { type: 'clock', name: 'O RELÓGIO DE PONTO',
-      text: 'Acerte o centro do relógio passando entre os ponteiros.' },
+      text: 'Passe entre os ponteiros e acerte o centro.' },
     stages: [
       { name: 'INSÔNIA', rows: [
         '..22222..',
@@ -160,7 +160,7 @@ export const WORLDS = [
     // The game takes shape: everything connects.
     name: 'CÓDIGO-FONTE', mech: 'portals', music: 'w5', bossMusic: 'boss5', border: 'flow',
     boss: { type: 'patent', name: 'A PATENTE',
-      text: 'Acerte a fechadura embaixo do cadeado quando ela abrir.' },
+      text: 'Acerte a fechadura quando ela abrir.' },
     stages: [
       { name: 'HELLO WORLD', also: ['slide'], portals: [[0.14, 0.4, 0.86, 0.4]], rows: [
         '.2222222.',
@@ -194,7 +194,7 @@ export const WORLDS = [
     // The game gets out: one share, then a thousand.
     name: 'VIRAL', mech: 'viral', music: 'w6', bossMusic: 'boss6', border: 'beat',
     boss: { type: 'algorithm', name: 'O ALGORITMO',
-      text: 'Acerte o núcleo passando entre os satélites que giram em volta.' },
+      text: 'Passe entre os satélites e acerte o núcleo.' },
     stages: [
       { name: 'PRIMEIRO SHARE', also: ['slide'], rows: [
         '..22222..',
@@ -229,7 +229,7 @@ export const WORLDS = [
     // The system answers: the game is taken down, piece by piece.
     name: 'CENSURA', mech: 'censor', music: 'w7', bossMusic: 'boss7', border: 'scan',
     boss: { type: 'censor', name: 'O CENSOR',
-      text: 'Acerte a lente quando a tarja do meio abrir.' },
+      text: 'Acerte a lente quando a tarja abrir.' },
     stages: [
       { name: 'FORA DO AR', also: ['slide'], bars: 1, rows: [
         '222222222',
@@ -265,7 +265,7 @@ export const WORLDS = [
     // Not alone anymore: code arrives from everywhere, and the system armors up.
     name: 'RESISTÊNCIA', mech: 'armor', music: 'w8', bossMusic: 'boss8', border: 'flow',
     boss: { type: 'armored', name: 'O BLINDADO',
-      text: 'O escudo gira para encarar o disco. Acerte o núcleo pelo lado aberto.' },
+      text: 'O escudo segue o disco. Acerte pelo lado aberto.' },
     stages: [
       { name: 'MUTIRÃO', also: ['descent'], rows: [
         '..22222..',
@@ -300,7 +300,7 @@ export const WORLDS = [
     // The golden tower at the end of the street, where O SISTEMA lives.
     name: 'TORRE AURUM', mech: 'alarm', music: 'w9', bossMusic: 'boss9', border: 'scan',
     boss: { type: 'council', name: 'O CONSELHO',
-      text: 'Três cadeiras e um só dono. Acerte a que tem a coroa.' },
+      text: 'Três cadeiras, um dono. Acerte a da coroa.' },
     stages: [
       { name: 'SAGUÃO', beams: [[0.1, 0.9, 0.12, 0]], rows: [
         '.3333333.',

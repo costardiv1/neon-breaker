@@ -22,6 +22,8 @@ const COIN_COL = '#ffd84a';
 const CORE_R = 20;
 const MISSILE_R = 125;
 const COIN_CHANCE = 0.07;   // coins: rare drops, caught with the platform, spent on cosmetics
+const ENDLESS_COIN = 0.3;   // INFINITO: the bricks never end, so coins drop much less
+const MULTI_MAX = 4;        // MULTI stops dropping with this many discs in play
 const COIN_R = 13;
 const PHASE_T = 2.8;   // FASE: seconds each group stays solid / out of phase
 const PORTAL_R = 24;
@@ -37,19 +39,19 @@ const BORDER_BASE = { flow: [3, 0.8], beat: [2.5, 0.5], scan: [2.5, 0.55] };
 // Capsules. d = the district that introduces it: each district brings one good
 // and one bad capsule, and keeps the ones from the districts before it.
 export const POWERS = {
-  wide:    { good: true,  d: 1, w: 2.6, label: 'PLATAFORMA +' },
-  multi:   { good: true,  d: 1, w: 3,   label: 'MULTI' },
-  laser:   { good: true,  d: 2, w: 2.2, label: 'LASER' },
-  life:    { good: true,  d: 3, w: 0.6, label: '+1 VIDA' },
-  missile: { good: true,  d: 4, w: 2,   label: 'MÍSSIL' },
-  pierce:  { good: true,  d: 5, w: 1.6, label: 'PERFURAR' },
-  mega:    { good: true,  d: 6, w: 1.8, label: 'MEGA DISCO' },
-  bomb:    { good: true,  d: 6, w: 1.6, label: 'BOMBA' },
-  shrink:  { good: false, d: 1, w: 2,   label: 'PLATAFORMA -' },
-  fast:    { good: false, d: 2, w: 2,   label: 'RÁPIDO' },
-  mini:    { good: false, d: 3, w: 1.8, label: 'MINI DISCO' },
-  dark:    { good: false, d: 4, w: 1.6, label: 'APAGÃO' },
-  invert:  { good: false, d: 5, w: 1.5, label: 'INVERTIDO' },
+  wide:    { good: true,  d: 1, w: 2.3, label: 'PLATAFORMA +', tip: 'Plataforma maior.' },
+  multi:   { good: true,  d: 1, w: 2.4, label: 'MULTI', tip: 'Cada disco vira três.' },
+  laser:   { good: true,  d: 2, w: 2.2, label: 'LASER', tip: 'A plataforma dispara lasers.' },
+  life:    { good: true,  d: 3, w: 0.6, label: '+1 VIDA', tip: 'Uma vida a mais.' },
+  missile: { good: true,  d: 4, w: 2,   label: 'MÍSSIL', tip: 'Um míssil busca o alvo e explode.' },
+  pierce:  { good: true,  d: 5, w: 1.6, label: 'PERFURAR', tip: 'O disco atravessa tudo por 8 s.' },
+  mega:    { good: true,  d: 6, w: 1.8, label: 'MEGA DISCO', tip: 'Disco maior, com dano dobrado.' },
+  bomb:    { good: true,  d: 6, w: 1.6, label: 'BOMBA', tip: 'O próximo bloco acertado explode.' },
+  shrink:  { good: false, d: 1, w: 1.7, label: 'PLATAFORMA -', tip: 'Plataforma menor.' },
+  fast:    { good: false, d: 2, w: 2,   label: 'RÁPIDO', tip: 'Disco mais rápido por 10 s.' },
+  mini:    { good: false, d: 3, w: 1.8, label: 'MINI DISCO', tip: 'Disco menor e mais fraco.' },
+  dark:    { good: false, d: 4, w: 1.6, label: 'APAGÃO', tip: 'O campo apaga por 8 s.' },
+  invert:  { good: false, d: 5, w: 1.5, label: 'INVERTIDO', tip: 'Controles espelhados por 8 s.' },
 };
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -65,12 +67,12 @@ const ENDLESS_BOSS = 210;
 // Active perks (bought/evolved in BREAKERS > PERKS). One is equipped; it
 // charges by breaking bricks and fires with a double tap or the HUD button.
 export const ABILITIES = {
-  shield:    { name: 'ESCUDO', desc: 'Uma barreira de energia embaixo da plataforma rebate o disco.', lv: ['7 s', '9 s', '11 s'], cost: [55, 125, 240] },
-  shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda sai de onde a plataforma está, danifica os blocos mais próximos e desvia o disco que estiver perto dela.', lv: ['4 blocos', '6 blocos', '8 blocos, dano 2'], cost: [70, 155, 280] },
-  slow:      { name: 'CÂMERA LENTA', desc: 'O tempo desacelera e o disco anda na metade da velocidade.', lv: ['5,5 s', '7 s', '8,5 s'], cost: [155, 310, 530] },
-  magnet:    { name: 'ÍMÃ', desc: 'Puxa o disco para a plataforma e o segura a cada toque. Solte para mirar e lançar.', lv: ['9 s', '12 s', '15 s'], cost: [55, 125, 240] },
-  megalaser: { name: 'MEGA LASER', desc: 'Carrega 0,5 s no centro da plataforma e dispara um feixe que destrói tudo em linha reta. A plataforma fica travada enquanto dispara.', lv: ['feixe fino', 'feixe médio', 'feixe largo'], cost: [85, 170, 310] },
-  bolt:      { name: 'RELÂMPAGO', desc: 'Um raio sai do disco e salta de bloco em bloco, danificando cada um. Também acerta o chefão.', lv: ['5 blocos', '7 blocos', '9 blocos, dano 2'], cost: [180, 365, 630] },
+  shield:    { name: 'ESCUDO', desc: 'Uma barreira embaixo da plataforma rebate o disco.', lv: ['7 s', '9 s', '11 s'], cost: [55, 125, 240] },
+  shock:     { name: 'ONDA DE CHOQUE', desc: 'Uma onda acerta os blocos mais perto e afasta o disco.', lv: ['4 blocos', '6 blocos', '8 blocos, dano 2'], cost: [70, 155, 280] },
+  slow:      { name: 'CÂMERA LENTA', desc: 'O disco anda na metade da velocidade.', lv: ['5,5 s', '7 s', '8,5 s'], cost: [155, 310, 530] },
+  magnet:    { name: 'ÍMÃ', desc: 'Segura o disco na plataforma. Solte para lançar.', lv: ['9 s', '12 s', '15 s'], cost: [55, 125, 240] },
+  megalaser: { name: 'MEGA LASER', desc: 'Um feixe destrói tudo em linha reta. A plataforma trava.', lv: ['feixe fino', 'feixe médio', 'feixe largo'], cost: [85, 170, 310] },
+  bolt:      { name: 'RELÂMPAGO', desc: 'Um raio pula de bloco em bloco. Acerta o chefão.', lv: ['5 blocos', '7 blocos', '9 blocos, dano 2'], cost: [180, 365, 630] },
 };
 // Passive perks: always on while equipped (one at a time, besides the active one).
 export const PASSIVES = {
@@ -78,8 +80,8 @@ export const PASSIVES = {
   grana:   { name: 'GRANA', desc: 'Mais moedas caem dos blocos.', lv: ['+30%', '+60%', 'o dobro'], cost: [110, 225, 420] },
   recarga: { name: 'RECARGA', desc: 'O perk ativo carrega mais rápido.', lv: ['+25%', '+50%', '+80%'], cost: [140, 280, 505] },
   sorte:   { name: 'SORTE', desc: 'Caem menos cápsulas de desvantagem.', lv: ['-30%', '-55%', '-75%'], cost: [125, 250, 450] },
-  vida:    { name: 'VIDA EXTRA', desc: 'Ganha 1 vida no começo de cada fase, até um limite.', lv: ['até 4 vidas', 'até 5 vidas', 'até 6 vidas'], cost: [210, 420, 730] },
-  pesado:  { name: 'DISCO PESADO', desc: 'Depois de cada lançamento, os primeiros acertos dão dano dobrado.', lv: ['1º acerto', '2 acertos', '3 acertos'], cost: [170, 335, 590] },
+  vida:    { name: 'VIDA EXTRA', desc: 'Ganha 1 vida no começo de cada fase.', lv: ['até 4 vidas', 'até 5 vidas', 'até 6 vidas'], cost: [210, 420, 730] },
+  pesado:  { name: 'DISCO PESADO', desc: 'Os primeiros acertos após lançar dão dano dobrado.', lv: ['1º acerto', '2 acertos', '3 acertos'], cost: [170, 335, 590] },
 };
 const GRANA_MUL = [1, 1.3, 1.6, 2];
 const RECARGA_MUL = [1, 1.25, 1.5, 1.8];
@@ -326,6 +328,24 @@ export function dropSprite(type, col) {
         break;
     }
   }));
+}
+
+// A chip: a square die with pins on every side.
+export function drawChipIcon(c, x, y, s, color) {
+  const h = s * 0.42;
+  c.save();
+  c.strokeStyle = color; c.lineWidth = Math.max(1.2, s * 0.1); c.lineCap = 'round';
+  c.strokeRect(x - h, y - h, h * 2, h * 2);
+  c.beginPath();
+  for (const q of [-0.45, 0.45]) {
+    c.moveTo(x + q * h, y - h); c.lineTo(x + q * h, y - h - s * 0.2);
+    c.moveTo(x + q * h, y + h); c.lineTo(x + q * h, y + h + s * 0.2);
+    c.moveTo(x - h, y + q * h); c.lineTo(x - h - s * 0.2, y + q * h);
+    c.moveTo(x + h, y + q * h); c.lineTo(x + h + s * 0.2, y + q * h);
+  }
+  c.stroke();
+  c.fillStyle = color; c.fillRect(x - h * 0.4, y - h * 0.4, h * 0.8, h * 0.8);
+  c.restore();
 }
 
 export function drawAbilityIcon(c, type, x, y, s, color) {
@@ -579,14 +599,31 @@ export class Game {
   get shape() { return SHAPES[this.plat.shape]; }
   get world() { return this.stage.world; }
   palette() { return paletteColors(this.plat.pal, this.col); }
-  emit(name, data) { if (this.hooks.onEvent) this.hooks.onEvent(name, data); }
+  emit(name, data) {
+    if (name === 'chip') this.stageChips = (this.stageChips || 0) + data;
+    if (this.hooks.onEvent) this.hooks.onEvent(name, data);
+  }
 
   setLayout(H, top) {
+    const dy = this.bricks && this.top !== undefined ? top - this.top : 0;
     this.H = H;
     this.top = top;
+    if (dy) this.shiftField(dy);
     this.grid = null;
     this.bp = sampleBorder(top, this.bottom);
     if (this.paddle) this.paddle.y = H - PADDLE_OFF;
+  }
+
+  // Everything placed from the top of the field moves down (or up) by dy.
+  shiftField(dy) {
+    const move = (list) => { for (const o of list || []) if (o && typeof o.y === 'number') o.y += dy; };
+    move(this.bricks); move(this.drops); move(this.coins); move(this.bolts); move(this.missiles); move(this.shots);
+    move(this.bars); move(this.beams); move(this.rings); move(this.particles); move(this.floats);
+    for (const w of this.wells || []) { w.y += dy; w.by += dy; }
+    for (const q of this.portals || []) { q.a.y += dy; q.b.y += dy; }
+    for (const b of this.balls || []) if (!b.held) { b.y += dy; for (const pt of b.path || []) pt.y += dy; }
+    if (this.endless) this.endless.rowY += dy;
+    this.grid = null;
   }
 
   setColor(col) { this.col = col; this.grid = null; }
@@ -611,6 +648,7 @@ export class Game {
     this.floats = [];
     this.paddle = { x: W / 2, tx: W / 2, y: this.H - PADDLE_OFF, hw: BASE_HW, lastX: W / 2, speed: 0 };
     this.energy = 0;
+    this.recent = [];   // last capsules that fell (see spawnDrop)
     this.loadLevel();
   }
 
@@ -671,6 +709,7 @@ export class Game {
     this.breaks = 0;
     this.clearT = 0;
     this.stageCoins = 0;     // coins caught in this stage (the ad doubles them)
+    this.stageChips = 0;     // chips earned in this stage
     this.offered = false;
     this.rewardHold = false;
     // +1% disc speed per district on top of the per-stage ramp
@@ -1548,7 +1587,7 @@ export class Game {
       vibrate(8);
       if (this.combo >= 3) this.float('x' + this.combo, cx, cy, 24);
       if (br.kind === 'exp') this.blasts.push({ br, t: 0.12 });
-      if (!this.tutorial && Math.random() < COIN_CHANCE * GRANA_MUL[this.pLvl('grana')]) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
+      if (!this.tutorial && Math.random() < COIN_CHANCE * GRANA_MUL[this.pLvl('grana')] * (this.endless ? ENDLESS_COIN : 1)) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
       if (this.tutorial && this.breaks === 3) this.spawnDrop(cx, cy, 'wide');
       else if (!this.tutorial && Math.random() < (this.boss ? Math.max(this.dropChance, 0.3) : this.dropChance)) this.spawnDrop(cx, cy);
     } else {
@@ -1587,15 +1626,21 @@ export class Game {
     if (!type) {
       // in boss fights lasers and missiles are much more likely
       const luck = SORTE_MUL[this.pLvl('sorte')];
-      const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 3.5 : v.w) * (v.good ? 1 : luck);
-      const pool = Object.entries(POWERS).filter(([k, v]) => (this.endless || v.d <= this.stage.w + 1) && !(k === 'life' && this.lives >= 6));
+      const recent = this.recent || (this.recent = []);
+      const badRun = recent.length >= 2 && recent.slice(-2).every((q) => !POWERS[q].good);
+      const seenN = (k) => recent.filter((q) => q === k).length;
+      const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 3.5 : v.w) * (v.good ? 1 : badRun ? 0 : luck) * Math.pow(0.25, seenN(k));
+      const pool = Object.entries(POWERS).filter(([k, v]) => (this.endless || v.d <= this.stage.w + 1) && !(k === 'life' && this.lives >= 6)
+        && !(k === 'multi' && this.balls.length >= MULTI_MAX));
       const total = pool.reduce((s, [k, v]) => s + wt(k, v), 0);
       let roll = Math.random() * total;
       for (const [k, v] of pool) { roll -= wt(k, v); if (roll <= 0) { type = k; break; } }
     }
     if (!type) return;
+    if (!forced) { this.recent.push(type); if (this.recent.length > 4) this.recent.shift(); }
     // platform +/- sometimes comes doubled
-    const n = !forced && (type === 'wide' || type === 'shrink') && Math.random() < 0.3 ? 2 : 1;
+    const n = !forced && (type === 'wide' || type === 'shrink') && Math.random() < 0.2 ? 2 : 1;
+    this.emit('capsule', type);
     this.drops.push({ x, y, type, n, t: 0, got: false });
     this.emit('drop');
   }
@@ -1686,7 +1731,7 @@ export class Game {
     this.balls = [];
     this.drops = []; this.bolts = []; this.missiles = []; this.shots = [];
     this.collectCoins();
-    const bonus = 20 + 5 * this.stage.w;   // bosses pay in coins too
+    const bonus = this.endless ? 10 : 20 + 5 * this.stage.w;   // bosses pay in coins too (less in INFINITO)
     this.stageCoins += bonus;
     this.emit('coin', bonus);
     this.float('+' + bonus + ' MOEDAS', boss.cx, boss.cy + 110, 26);
@@ -2472,14 +2517,21 @@ export class Game {
     const hy = this.top - 62;
     const E = this.endless;
     glowText(c, E ? fmtTime(E.t) : String(this.score), W / 2, hy, 36, WHITE, col, 'center', 700, 3);
-    const sub = E ? 'INFINITO  ·  ' + (this.boss ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
+    const sub = E ? this.score + ' PONTOS  ·  ' + (this.boss ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
       : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
     glowText(c, sub, W / 2, hy + 36, 13, rgba(col, 0.85), col, 'center', 500, 4);
     const ds = discSprite(col, BALL_R, this.plat.disc || 0);
     for (let i = 0; i < Math.min(this.lives, 6); i++) drawSprite(c, ds, 30 + i * 30, hy - 9, 0.55);
     if (this.wallet) {
       drawSprite(c, coinSprite(), 30, hy + 18, 0.62);
-      glowText(c, String(this.wallet()), 54, hy + 27, 15, WHITE, COIN_COL, 'left', 700, 1);
+      const cs = String(this.wallet());
+      glowText(c, cs, 54, hy + 27, 15, WHITE, COIN_COL, 'left', 700, 1);
+      if (this.chipWallet) {
+        c.font = `700 15px "Orbitron", sans-serif`;
+        const x = 54 + c.measureText(cs).width + cs.length * 1 + 22;
+        drawChipIcon(c, x, hy + 27, 15, col);
+        glowText(c, String(this.chipWallet()), x + 14, hy + 27, 15, WHITE, col, 'left', 700, 1);
+      }
     }
     c.beginPath();
     c.moveTo(W - 56, hy - 14); c.lineTo(W - 56, hy + 14);

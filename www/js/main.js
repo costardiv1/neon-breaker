@@ -1,5 +1,6 @@
 import { view, rgba, mix, roundRectPath, neonStroke, neonTitle, glowText, drawSprite, TAU, drawVirus } from './render.js';
-import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone, dropSprite, fmtTime } from './game.js';
+import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone, dropSprite, fmtTime, drawChipIcon } from './game.js';
+import { drawDemo, hasDemo } from './demo.js';
 import { SHAPES, PALETTES, EMBLEMS, drawPlatform, outAngle, paletteColors } from './platform.js';
 import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, districtMechs, worldStart, worldCount } from './levels.js';
 import { THEMES } from './themes.js';
@@ -18,7 +19,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.6.1';
+export const VERSION = '1.7';
 
 let H = 1280;
 let safeTop = 0;
@@ -120,20 +121,20 @@ const perkLvl = (k) => (devAll() ? 3 : upg[k]);
 
 // ---------- tutorial ----------
 const TUT = [
-  { on: 'start', title: 'BEM-VINDO', focus: 'void',
-    text: 'Destrua todos os blocos. Não deixe o disco cair.' },
-  { on: 'start', title: 'MOVER', focus: 'paddle',
-    text: 'Toque ou arraste o dedo para mover a plataforma.' },
-  { on: 'start', title: 'LANÇAR', focus: 'ball',
-    text: 'Solte o dedo para lançar o disco.' },
-  { on: 'brick', title: 'BLOCOS', focus: 'brick',
-    text: 'Blocos mais claros aguentam mais batidas.' },
-  { on: 'paddle', title: 'ÂNGULO', focus: 'paddle',
-    text: 'Bater nas pontas da plataforma inclina o disco.' },
-  { on: 'drop', title: 'CÁPSULAS', focus: 'drop',
-    text: 'Cápsulas redondas ajudam. As que piscam atrapalham.' },
+  { on: 'start', title: 'BEM-VINDO', focus: 'void', demo: 'welcome',
+    text: 'Quebre os blocos. Não deixe o disco cair.' },
+  { on: 'start', title: 'MOVER', focus: 'paddle', demo: 'move',
+    text: 'Arraste o dedo para mover.' },
+  { on: 'start', title: 'LANÇAR', focus: 'ball', demo: 'launch',
+    text: 'Solte o dedo para lançar.' },
+  { on: 'brick', title: 'BLOCOS', focus: 'brick', demo: 'bricks',
+    text: 'Os mais claros aguentam mais batidas.' },
+  { on: 'paddle', title: 'ÂNGULO', focus: 'paddle', demo: 'angle',
+    text: 'As pontas inclinam o disco.' },
+  { on: 'drop', title: 'CÁPSULAS', focus: 'drop', demo: 'caps',
+    text: 'As redondas ajudam. As que piscam atrapalham.' },
   { on: 'clear', title: 'DISTRITOS', focus: null,
-    text: 'Fase limpa! Cada distrito traz uma mecânica nova e um chefão no fim.' },
+    text: 'Cada distrito tem uma mecânica nova e um chefão.' },
 ];
 let tut = null;
 let card = null;
@@ -182,7 +183,7 @@ function finishEndless(t) {
   newBest = t > bestT;
   if (newBest) { bestT = t; store.set('bestT', bestT); }
   if (t > 0) {
-    eruns.push({ t, bosses: E.bosses, date: Date.now() });
+    eruns.push({ t, bosses: E.bosses, score: game.score, date: Date.now() });
     eruns.sort((a, b) => b.t - a.t);
     eruns = eruns.slice(0, 10);
     store.set('eruns', eruns);
@@ -191,6 +192,12 @@ function finishEndless(t) {
   }
 }
 const endlessOpen = () => bossesBeaten() >= 1 || devAll();
+// capsules the campaign already showed (they arrive district by district)
+function capKnown(type) {
+  let reach = 0;
+  for (let w = 0; w < WORLDS.length; w++) if (!WORLDS[w].soon && prog >= worldStart(w)) reach = w;
+  return POWERS[type].d <= reach + 1;
+}
 
 const game = new Game({
   onGameOver(score) {
@@ -210,15 +217,24 @@ const game = new Game({
         showCard();
       } else if (st.mech && !seen[st.mech]) {
         markSeen(st.mech);
-        const caps = Object.values(POWERS).filter((v) => v.d === st.w + 1).map((v) => v.label);
-        const news = st.w > 0 && caps.length ? ' Cápsulas novas: ' + caps.join(' e ') + '.' : '';
-        card = { kicker: `DISTRITO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text + news, focus: 'mech' };
+        const caps = st.w > 0 ? Object.keys(POWERS).filter((q) => POWERS[q].d === st.w + 1) : [];
+        card = { kicker: `DISTRITO ${st.w + 1}  ·  NOVA MECÂNICA`, title: MECHS[st.mech].name, text: MECHS[st.mech].text, focus: 'mech', demo: st.mech, caps };
         showCard();
       }
       return;
     }
     if (e === 'endlessMech') {
-      if (!seen[data]) { markSeen(data); card = { kicker: 'INFINITO  ·  NOVA MECÂNICA', title: MECHS[data].name, text: MECHS[data].text, focus: 'mech' }; showCard(); }
+      if (!seen[data]) { markSeen(data); card = { kicker: 'INFINITO  ·  NOVA MECÂNICA', title: MECHS[data].name, text: MECHS[data].text, focus: 'mech', demo: data }; showCard(); }
+      return;
+    }
+    // INFINITO has every capsule from the start: the first time one the player
+    // never met falls, a card shows what it does
+    if (e === 'capsule') {
+      const kk = 'cap_' + data;
+      if (!seen[kk]) {
+        markSeen(kk);
+        if (game.endless && !capKnown(data)) { card = { kicker: 'INFINITO  ·  CÁPSULA NOVA', title: POWERS[data].label, text: POWERS[data].tip, focus: 'drop', demo: 'cap:' + data }; showCard(); }
+      }
       return;
     }
     if (e === 'chip') { chips += data; return; }
@@ -250,6 +266,7 @@ const game = new Game({
 });
 game.plat = plat;
 game.wallet = () => coins;
+game.chipWallet = () => chips;
 game.setColor(col());
 window.__nb = { game, render: () => render(), go: (s) => setScene(s), crash: () => startCrash(), get scene() { return scene; } }; // debug handle
 
@@ -469,6 +486,7 @@ const mapViewH = () => H - 150 - mapViewTop();
 let mapScroll = 0;
 const clampScroll = (v) => clampN(v, 0, Math.max(0, isoData().height - mapViewH()));
 function focusMap() {
+  lightUpMap();
   const D = isoData(), n = D.nodes[Math.min(prog, D.nodes.length - 1)];
   mapScroll = clampScroll(n.y - mapViewH() * 0.45);
 }
@@ -548,15 +566,24 @@ function renderPerks(c, now) {
   else { c.strokeStyle = rgba(k, lvl ? 0.6 : 0.3); c.lineWidth = 2; c.stroke(); }
   glowText(c, isPassive(key) ? 'PERK PASSIVO' : 'PERK ATIVO', cx, cd.y + 34, 12, rgba(k, 0.85), k, 'center', 700, 4);
   if (eq) glowText(c, 'EQUIPADO', cx, cd.y + 56, 11, '#ffffff', k, 'center', 700, 3);
-  // icon in a ring
-  const iy = cd.y + Math.min(150, cd.h * 0.26), R = 58;
-  c.beginPath(); c.arc(cx, iy, R, 0, TAU);
-  c.fillStyle = rgba(k, lvl ? 0.14 : 0.04); c.fill();
-  if (lvl) neonStroke(c, k, k, 2.6, cx - R, iy, cx + R, iy, 0.8);
-  else { c.strokeStyle = rgba(k, 0.35); c.lineWidth = 2; c.stroke(); }
-  drawAbilityIcon(c, key, cx, iy, 26, lvl ? '#ffffff' : rgba(k, 0.6));
+  const dh = Math.min(200, cd.h - 400);
+  let y;
+  if (dh >= 110) {   // the perk in action, with its icon in the corner
+    drawDemo(c, key, cd.x + 24, cd.y + 72, cd.w - 48, dh, now, k);
+    c.beginPath(); c.arc(cd.x + 52, cd.y + 100, 20, 0, TAU); c.fillStyle = 'rgba(0,0,0,0.75)'; c.fill();
+    c.strokeStyle = rgba(k, lvl ? 0.9 : 0.4); c.lineWidth = 1.6; c.stroke();
+    drawAbilityIcon(c, key, cd.x + 52, cd.y + 100, 10, lvl ? '#ffffff' : rgba(k, 0.7));
+    y = cd.y + 72 + dh + 40;
+  } else {           // short screens: just the icon in a ring
+    const iy = cd.y + Math.min(150, cd.h * 0.26), R = 58;
+    c.beginPath(); c.arc(cx, iy, R, 0, TAU);
+    c.fillStyle = rgba(k, lvl ? 0.14 : 0.04); c.fill();
+    if (lvl) neonStroke(c, k, k, 2.6, cx - R, iy, cx + R, iy, 0.8);
+    else { c.strokeStyle = rgba(k, 0.35); c.lineWidth = 2; c.stroke(); }
+    drawAbilityIcon(c, key, cx, iy, 26, lvl ? '#ffffff' : rgba(k, 0.6));
+    y = iy + R + 46;
+  }
   // name and level pips
-  let y = iy + R + 46;
   glowText(c, info.name, cx, y, 25, lvl ? '#ffffff' : rgba('#ffffff', 0.7), k, 'center', 700, 4);
   y += 34;
   for (let q = 0; q < 3; q++) {
@@ -670,32 +697,36 @@ function drawNote(c, b) {
 
 // ---------- tutorial: how perks work (after the first boss) ----------
 const PERK_TUT = [
-  { title: 'PERKS', text: 'Os chips que você junta compram perks para a sua plataforma, no menu BREAKERS.' },
-  { title: 'CHIPS', text: '1 por bloco, 10 por fase, 5 por acerto no chefão e 60 por chefão derrotado.' },
-  { title: 'ATIVOS', text: 'Equipe 1 perk ativo. Ele carrega quebrando blocos; toque 2x na tela ou use o botão para disparar.' },
-  { title: 'PASSIVOS', text: 'Equipe também 1 perk passivo. Ele vale o tempo todo, sem precisar disparar.' },
-  { title: 'EVOLUA', text: 'Cada perk tem 3 níveis. Quando der para comprar algo, um ! aparece no botão BREAKERS.' },
+  { title: 'PERKS', demo: 'ptPerks', text: 'Chips compram perks no menu BREAKERS.' },
+  { title: 'CHIPS', demo: 'ptChips', text: '1 por bloco, 10 por fase, 60 por chefão.' },
+  { title: 'ATIVOS', demo: 'ptActive', text: 'Carrega quebrando blocos. Toque 2× para usar.' },
+  { title: 'PASSIVOS', demo: 'ptPassive', text: 'Vale o tempo todo, sem disparar.' },
+  { title: 'EVOLUA', demo: 'ptLevels', text: '3 níveis por perk. O ! avisa quando dá para comprar.' },
 ];
 let perkTut = 0;
 function startPerkTut() { perkTut = 0; markSeen('perkTut'); setScene('perktut'); }
-function renderPerkTut(c) {
-  const k = col(), pg = PERK_TUT[perkTut];
+const demoH = () => Math.round(Math.min(190, H * 0.14));
+function perkTutBox() {
+  ctx.font = `500 25px ${BODY_FONT}`;
+  const lines = wrap(ctx, PERK_TUT[perkTut].text, 520), h = 200 + demoH() + 24 + lines.length * 36 + 100;
+  return { x: W / 2 - 300, y: H * 0.5 - h / 2, w: 600, h, lines };
+}
+function renderPerkTut(c, now) {
+  const k = col(), pg = PERK_TUT[perkTut], b = perkTutBox(), { x, y, h, lines } = b;
   game.render(c, false);
   dim(c, 0.8);
-  c.font = `500 25px ${BODY_FONT}`;
-  const lines = wrap(c, pg.text, 520), h = 200 + lines.length * 36 + 100, x = W / 2 - 300, y = H * 0.5 - h / 2;
   roundRectPath(c, x, y, 600, h, 26);
   c.fillStyle = 'rgba(0,0,0,0.9)'; c.fill();
   neonStroke(c, k, k, 2.6, x, y, x + 600, y + h, 0.9);
   glowText(c, `TUTORIAL  ·  PERKS  ${perkTut + 1}/${PERK_TUT.length}`, W / 2, y + 44, 14, rgba(k, 0.9), k, 'center', 500, 6);
   neonTitle(c, pg.title, W / 2, y + 100, 38, k, k, 6);
-  c.save(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = 'rgba(255,255,255,0.92)';
-  lines.forEach((ln, i) => c.fillText(ln, W / 2, y + 166 + i * 36));
+  drawDemo(c, pg.demo, x + 50, y + 136, 500, demoH(), now, k);
+  c.save(); c.font = `500 25px ${BODY_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = 'rgba(255,255,255,0.92)';
+  lines.forEach((ln, i) => c.fillText(ln, W / 2, y + 166 + demoH() + 24 + i * 36));
   c.restore();
 }
 function perkTutButtons() {
-  ctx.font = `500 25px ${BODY_FONT}`;
-  const lines = wrap(ctx, PERK_TUT[perkTut].text, 520), h = 200 + lines.length * 36 + 100, by = H * 0.5 + h / 2 - 62, cx = W / 2;
+  const b = perkTutBox(), by = b.y + b.h - 62, cx = W / 2;
   if (perkTut < PERK_TUT.length - 1) return [btn(cx, by, 340, 70, 'CONTINUAR', () => { perkTut++; }, { big: true })];
   return [
     btn(cx - 140, by, 250, 70, 'DEPOIS', () => setScene('world'), { fs: 16 }),
@@ -862,6 +893,15 @@ function finishAd() {
   if (reward && !reward.done) { coins += reward.n; reward.done = true; saveChips(); sfx.coin(); }
   ad = null;
   setScene(reward && reward.back === 'world' ? 'world' : 'reward');
+}
+function renderChipsWon(c, y, k) {
+  const n = game.stageChips || 0;
+  if (!n) return;
+  const text = '+' + n + ' CHIPS';
+  c.font = '700 18px "Orbitron", "Segoe UI", Roboto, Arial, sans-serif';
+  const w = c.measureText(text).width + text.length * 2, x0 = W / 2 - (w + 32) / 2;
+  drawChipIcon(c, x0 + 10, y, 17, k);
+  glowText(c, text, x0 + 32, y, 18, '#ffffff', k, 'left', 700, 2);
 }
 function renderCoinsWon(c, y, k) {
   const text = '+' + (reward.done ? reward.n * 2 : reward.n) + ' MOEDAS' + (reward.done ? '  ·  DOBRADAS!' : '');
@@ -1335,7 +1375,7 @@ function renderScores(c, now) {
       if (!eruns.length) center('NENHUMA PARTIDA NO INFINITO AINDA', top + 80);
       eruns.slice(0, maxRows - 1).forEach((r, i) => {
         const d = new Date(r.date), dd = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
-        row(i + 1, '#' + (i + 1), dd + '   ·   ' + r.bosses + (r.bosses === 1 ? ' chefão' : ' chefões'), fmtTime(r.t), false);
+        row(i + 1, '#' + (i + 1), dd + '  ·  ' + (r.score !== undefined ? r.score + ' pts  ·  ' : '') + r.bosses + (r.bosses === 1 ? ' chefão' : ' chefões'), fmtTime(r.t), false);
       });
       center('Tempo sobrevivido no modo INFINITO.', H - 250, 14, 0.55);
     } else if (!ONLINE) {
@@ -1872,6 +1912,27 @@ function tileDistrict(D, i, j) {
   return WORLDS.length - 1;
 }
 const districtOpen = (w) => !WORLDS[w].soon && unlocked(worldStart(w));
+// The map lights each district up as it opens (closed ones stay dark).
+const DARK = 0.6;
+const openCount = () => WORLDS.filter((_, w) => districtOpen(w)).length;
+let litD = store.get('litD', -1);   // districts already shown lit
+let lightAnim = null;
+function lightUpMap() {
+  if (devAll()) return;
+  const n = openCount();
+  if (litD < 0) { litD = n; store.set('litD', litD); return; }
+  if (n > litD) { lightAnim = { from: litD, to: n, t0: performance.now() / 1000 }; litD = n; store.set('litD', litD); }
+}
+function districtDark(w, now) {
+  if (!districtOpen(w)) return DARK;
+  if (lightAnim && w >= lightAnim.from && w < lightAnim.to) {
+    const f = clampN((now - lightAnim.t0 - 0.6) / 1.6, 0, 1);
+    if (f >= 1) return 0;
+    const flick = f > 0 && Math.sin(now * 37) > 0.4 ? 0.25 : 0;   // a neon tube switching on
+    return Math.max(0, DARK * (1 - f) - flick);
+  }
+  return 0;
+}
 
 // one isometric box (footprint inset f) with floors, optional neon band
 function isoBox(c, x, y, h, k, f, R, beacons, w) {
@@ -2121,6 +2182,17 @@ function renderMap(c, now) {
   c.translate(0, mapScroll - top);
   blit(L.bld);
   c.translate(0, top - mapScroll);
+  // closed districts stay dark; one that just opened lights up
+  D.dist.forEach((d) => {
+    const dk = districtDark(d.w, now);
+    if (dk <= 0.01) return;
+    const yA = d.w ? D.path[D.dist[d.w - 1].gate].y : -300, yB = d.w < D.dist.length - 1 ? D.path[d.gate].y : D.height + 300;
+    if (yB < mapScroll - 100 || yA > mapScroll + vh + 100) return;
+    const g = c.createLinearGradient(0, yA - 50, 0, yB + 50), e = Math.min(0.45, 100 / (yB - yA + 100));
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(e, `rgba(0,0,0,${dk})`);
+    g.addColorStop(1 - e, `rgba(0,0,0,${dk})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.fillRect(0, yA - 50, W, yB - yA + 100);
+  });
   // beacons
   for (const b of L.beacons) {
     if (!vis(b.y) || Math.sin(now * 2.4 + b.ph) < 0.45) continue;
@@ -2154,28 +2226,40 @@ function renderMap(c, now) {
     if (!vis(s0.y)) continue;
     const right = s0.x < W / 2, x = right ? W - 26 : 26, y = s0.y + 18;
     const wd = WORLDS[d.w], open = districtOpen(d.w);
-    const ms = districtMechs(d.w), SLOT = ms.length > 7 ? 40 : ms.length > 5 ? 50 : ms.length > 3 ? 62 : 86;
-    // 8+ mechanics: two rows of up to 5 icons, so the panel stays clear of the stage nodes
-    const PER = ms.length > 7 ? 5 : ms.length, ROWS = Math.ceil(ms.length / Math.max(1, PER));
+    const ms = districtMechs(d.w), n = ms.length;
     c.font = `700 22px "Orbitron", sans-serif`;
-    const tw = Math.max(c.measureText(wd.name).width, 150, PER * SLOT) + 28;
+    const nameW = Math.max(c.measureText(wd.name).width, 150);
+    // try the widest layout first, then fewer icons per row, until no stage node is covered
+    const panel = (PER, SLOT) => {
+      const ROWS = n ? Math.ceil(n / PER) : 0, pw = Math.max(nameW, PER * SLOT) + 28;
+      const ph = wd.soon ? 78 : n ? 122 + (ROWS - 1) * 50 : 66;
+      return { PER, SLOT, x: right ? x - pw + 12 : x - 12, y: y - 46, w: pw, h: ph };
+    };
+    const clear = (b) => !D.nodes.some((nd) => {
+      const r = (nd.boss ? 36 : 28) + 8;
+      return nd.x + r > b.x && nd.x - r < b.x + b.w && nd.y + r + 26 > b.y && nd.y - r < b.y + b.h;
+    });
+    let P = null;
+    for (let per = n; per >= Math.min(2, n) && !P; per--) {
+      for (const slot of per <= 3 ? [86, 64] : [60, 56]) { const b = panel(per, slot); if (clear(b)) { P = b; break; } }
+    }
+    if (!P) P = panel(Math.min(n, 2), 56);
     c.fillStyle = 'rgba(0,0,0,0.72)';
-    c.fillRect(right ? x - tw + 12 : x - 12, y - 46, tw, wd.soon ? 78 : ms.length ? 122 + (ROWS - 1) * 42 : 66);
+    c.fillRect(P.x, P.y, P.w, P.h);
     glowText(c, 'DISTRITO ' + (d.w + 1), x, y - 26, 12, rgba(k, 0.9), k, right ? 'right' : 'left', 700, 4);
     glowText(c, wd.name, x, y + 2, 22, open ? '#ffffff' : rgba('#ffffff', 0.55), k, right ? 'right' : 'left', 700, 3);
     if (wd.soon) glowText(c, 'EM BREVE', x, y + 24, 11, rgba(k, 0.75), k, right ? 'right' : 'left', 500, 4);
+    const S = P.SLOT, small = S < 80;
     ms.forEach((m, q) => {
-      const mm = ms[ms.length - 1 - q];   // always newest to oldest, left to right (then the next row)
-      const row = Math.floor(q / PER), col = q % PER, cnt = Math.min(PER, ms.length - row * PER);
-      const ix = right ? x - SLOT / 2 + 4 - (cnt - 1 - col) * SLOT : x + SLOT / 2 - 4 + col * SLOT, iy = y + 42 + row * 42;
+      const mm = ms[n - 1 - q];   // always newest to oldest, left to right (then the next row)
+      const r2 = Math.floor(q / P.PER), cl = q % P.PER, cnt = Math.min(P.PER, n - r2 * P.PER);
+      const ix = right ? x - S / 2 + 4 - (cnt - 1 - cl) * S : x + S / 2 - 4 + cl * S, iy = y + 42 + r2 * 50;
       const isNew = mm === wd.mech;
-      c.beginPath(); c.arc(ix, iy, ms.length > 3 ? 15 : 17, 0, TAU);
+      c.beginPath(); c.arc(ix, iy, small ? 15 : 17, 0, TAU);
       c.fillStyle = rgba(k, isNew ? 0.2 : 0.06); c.fill();
       c.strokeStyle = rgba(k, isNew ? 0.95 : 0.5); c.lineWidth = isNew ? 2 : 1.4; c.stroke();
       drawMechIcon(c, mm, ix, iy, 9, open ? '#ffffff' : rgba('#ffffff', 0.6));
-      // with 8+ icons the names would overlap: only the new mechanic keeps its name
-      if (ms.length > 7) { if (isNew) glowText(c, MECHS[mm].name, right ? x + 4 : x - 4, y + 42 + (ROWS - 1) * 42 + 29, 9, rgba('#ffffff', 0.9), k, right ? 'right' : 'left', 600, 1); }
-      else glowText(c, MECHS[mm].name, ix, iy + 29, ms.length > 3 ? 7.5 : 9, rgba('#ffffff', isNew ? 0.9 : 0.6), k, 'center', 600, ms.length > 3 ? 0 : 0.5);
+      glowText(c, MECHS[mm].name, ix, iy + 29, small ? 7.5 : 9, rgba('#ffffff', isNew ? 0.9 : 0.6), k, 'center', 600, small ? 0 : 0.5);
     });
   }
   // the eye on top of the tower
@@ -2241,10 +2325,11 @@ function drawNode(c, b, now) {
 function cardBox() {
   ctx.font = `500 25px ${BODY_FONT}`;
   const lines = wrap(ctx, card ? card.text : '', 520);
-  const h = 190 + lines.length * 36 + 90;
+  const demo = card && hasDemo(card.demo) ? demoH() + 24 : 0, caps = card && card.caps && card.caps.length ? 64 : 0;
+  const h = 190 + demo + lines.length * 36 + caps + 90;
   const f = focusPoint();
   const y = f && f.y > H * 0.5 ? game.top + 70 : Math.min(H * 0.42, H - h - 40);
-  return { x: W / 2 - 300, y, w: 600, h, lines };
+  return { x: W / 2 - 300, y, w: 600, h, lines, demo };
 }
 
 function focusPoint() {
@@ -2254,7 +2339,7 @@ function focusPoint() {
     case 'paddle': return { x: p.x, y: p.y + 15, r: p.hw + 34 };
     case 'ball': { const b = game.balls[0]; return b ? { x: b.x, y: b.y, r: 44 } : null; }
     case 'brick': { const b = game.bricks.find((q) => q.kind !== 'wall'); return b ? { x: b.x + b.w / 2, y: b.y + b.h / 2, r: 56 } : null; }
-    case 'drop': { const d = game.drops[0]; return d ? { x: d.x, y: d.y, r: 52 } : null; }
+    case 'drop': { const d = game.drops[game.drops.length - 1]; return d ? { x: d.x, y: d.y, r: 52 } : null; }
     case 'void': return { x: W / 2, y: game.bottom, r: 0, line: true };
     case 'boss': return game.boss ? { x: game.boss.cx, y: game.boss.cy, r: 80 } : null;
     case 'mech': {
@@ -2287,13 +2372,25 @@ function renderCard(c, now) {
   neonStroke(c, k, k, 2.6, box.x, box.y, box.x + box.w, box.y + box.h, 0.9);
   glowText(c, card.kicker, W / 2, box.y + 44, 14, rgba(k, 0.9), k, 'center', 500, 6);
   neonTitle(c, card.title, W / 2, box.y + 100, 38, k, k, 6);
+  if (box.demo) drawDemo(c, card.demo, box.x + 50, box.y + 136, box.w - 100, demoH(), now, k);
   c.save();
   c.font = `500 25px ${BODY_FONT}`;
   c.textAlign = 'center';
   c.textBaseline = 'middle';
   c.fillStyle = 'rgba(255,255,255,0.92)';
-  box.lines.forEach((ln, i) => c.fillText(ln, W / 2, box.y + 162 + i * 36));
+  box.lines.forEach((ln, i) => c.fillText(ln, W / 2, box.y + 162 + box.demo + i * 36));
   c.restore();
+  if (card.caps && card.caps.length) {   // the capsules that arrive in this district
+    const cy = box.y + 162 + box.demo + box.lines.length * 36 + 22, n = card.caps.length, gap = 230;
+    glowText(c, 'CÁPSULAS NOVAS', W / 2, cy - 14, 11, rgba(k, 0.85), k, 'center', 600, 4);
+    card.caps.forEach((q, i) => {
+      const x = W / 2 + (i - (n - 1) / 2) * gap;
+      c.font = `700 13px "Orbitron", sans-serif`;
+      const gw = 52 + 12 + c.measureText(POWERS[q].label).width + POWERS[q].label.length, x0 = x - gw / 2;
+      drawSprite(c, dropSprite(q, k), x0, cy + 14 - 13);
+      glowText(c, POWERS[q].label, x0 + 64, cy + 14, 13, '#ffffff', k, 'left', 700, 1);
+    });
+  }
 }
 
 function renderDev(c) {
@@ -2350,7 +2447,7 @@ function render() {
     neonTitle(ctx, 'NOVIDADES', W / 2, safeTop + 105, 46, k, k, 12);
     if (!notes().length) glowText(ctx, 'NADA NOVO POR ENQUANTO', W / 2, safeTop + 260, 17, rgba('#ffffff', 0.7), k, 'center', 500, 3);
   } else if (scene === 'perktut') {
-    renderPerkTut(ctx);
+    renderPerkTut(ctx, now);
   } else if (scene === 'colors') {
     neonTitle(ctx, 'COR', W / 2, safeTop + 120, 64, k, k, 18);
   } else if (scene === 'credits') {
@@ -2377,7 +2474,8 @@ function render() {
       neonTitle(ctx, 'FIM DE JOGO', W / 2, H * 0.3, 60, k, k, 12);
       if (game.endless) {
         glowText(ctx, fmtTime(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
-        glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + fmtTime(bestT), W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
+        glowText(ctx, game.score + ' PONTOS', W / 2, H * 0.42 + 50, 20, '#ffffff', k, 'center', 600, 3);
+        glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + fmtTime(bestT), W / 2, H * 0.42 + 92, 18, rgba(k, 0.9), k, 'center', 500, 5);
       } else {
         glowText(ctx, String(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
         if (sbest[game.index]) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
@@ -2387,14 +2485,16 @@ function render() {
       glowText(ctx, `DISTRITO ${game.stage.w + 1}  ·  ${game.world.name}`, W / 2, H * 0.28, 22, rgba(k, 0.9), k, 'center', 700, 8);
       neonTitle(ctx, 'CONCLUÍDO', W / 2, H * 0.34, 62, k, k, 10);
       glowText(ctx, String(lastScore), W / 2, H * 0.45, 52, '#ffffff', k, 'center', 700, 3);
-      if (game.index + 1 >= TOTAL_STAGES) glowText(ctx, 'NOVOS DISTRITOS EM BREVE', W / 2, H * 0.52, 16, rgba(k, 0.9), k, 'center', 500, 5);
-      if (newShape) glowText(ctx, 'NOVO FORMATO DE PLATAFORMA: ' + newShape, W / 2, H * 0.555, 15, '#ffffff', k, 'center', 700, 3);
+      if (game.index + 1 >= TOTAL_STAGES) glowText(ctx, 'NOVOS DISTRITOS EM BREVE', W / 2, H * 0.545, 16, rgba(k, 0.9), k, 'center', 500, 5);
+      if (newShape) glowText(ctx, 'NOVO FORMATO DE PLATAFORMA: ' + newShape, W / 2, H * 0.575, 15, '#ffffff', k, 'center', 700, 3);
       if (reward) renderCoinsWon(ctx, H * 0.49, k);
+      renderChipsWon(ctx, reward ? H * 0.49 + 38 : H * 0.49, k);
     } else if (scene === 'reward') {
       dim(ctx, 0.72);
       neonTitle(ctx, 'LIMPO', W / 2, H * 0.32, 66, k, k, 10);
       if (reward) renderCoinsWon(ctx, H * 0.43, k);
-      if (reward && !reward.done) glowText(ctx, 'ASSISTA A UM ANÚNCIO PARA DOBRAR', W / 2, H * 0.49, 15, rgba(k, 0.9), k, 'center', 500, 4);
+      renderChipsWon(ctx, H * 0.43 + 38, k);
+      if (reward && !reward.done) glowText(ctx, 'ASSISTA A UM ANÚNCIO PARA DOBRAR AS MOEDAS', W / 2, H * 0.49 + 18, 15, rgba(k, 0.9), k, 'center', 500, 4);
     } else if (scene === 'card' && card) {
       renderCard(ctx, now);
     }
