@@ -2,6 +2,17 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9.5 (16/11/2026)
+
+### PERFURAR
+- [ ] Com PERFURAR, o disco atravessa e quebra blocos comuns, de várias vidas e explosivos.
+- [ ] Muralhas (que não quebram), blocos blindados e vazamentos rebatem o disco mesmo com PERFURAR.
+- [ ] Nos chefões, a armadura e os escudos rebatem o disco mesmo com PERFURAR (o ponto fraco continua tirando vida).
+- [ ] Na BARRICADA, o disco continua atravessando os blocos a fase inteira.
+
+### Mapa
+- [ ] No mapa, a torre do capítulo 10 aparece inteira, sem nenhum prédio desenhado por cima dela.
+
 ## 1.9.4 (16/11/2026)
 
 ### O ACIONISTA (chefão final)

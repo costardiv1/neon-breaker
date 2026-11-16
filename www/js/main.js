@@ -20,7 +20,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.9.4';
+export const VERSION = '1.9.5';
 
 let H = 1280;
 let safeTop = 0;
@@ -2714,7 +2714,22 @@ function isoLayer() {
   const beacons = [], streets = [], live = [];
   const R = rng(9001);
   const maxSum = Math.ceil((D.height - 70) / TH) + J0 + 2;
+  // AURUM tower at the end of the road: the system's pyramid. It is drawn in
+  // depth order with the buildings, so the ones in front of it cover its base
+  const tx = end.x, ty = end.y + TH * 2;
+  let towerDone = false;
+  const drawTower = () => {
+    towerDone = true;
+    cb.globalAlpha = districtOpen(WORLDS.length - 1) ? 1 : 0.5;
+    isoBox(cb, tx, ty, 230, k, 1.5, rng(3), [], WORLDS.length - 1);
+    const top = ty - 230;
+    cb.beginPath();
+    cb.moveTo(tx - TW * 1.5, top); cb.lineTo(tx, top - 110); cb.lineTo(tx + TW * 1.5, top);
+    cb.moveTo(tx, top + TH * 1.5); cb.lineTo(tx, top - 110);
+    cb.strokeStyle = rgba(k, 0.9); cb.lineWidth = 2; cb.stroke();
+  };
   for (let sum = 0; sum <= maxSum; sum++) {
+    if (!towerDone && isoXY(sum / 2, sum / 2).y > ty) drawTower();
     for (let d = -10; d <= 10; d++) {
       if ((sum + d) % 2) continue;
       const i = (sum + d) / 2, j = (sum - d) / 2, key2 = i + ',' + j;
@@ -2742,7 +2757,9 @@ function isoLayer() {
       if (i === LEAD.bi && j === LEAD.bj) { isoBox(cb, x, y, LEAD.h, k, 0.78, rng(41), beacons, w); continue; }
       const nearTower = Math.abs(x - end.x) < 120 && y > end.y - 30 && y < end.y + 130;
       const street = mod5(i) === 0 || mod5(j) === 0;
-      const rn = roadNear(RI, x, y), lim = rn.gap - 32;
+      // buildings just in front of the tower stay short, so its base shows
+      const towerLim = y > ty && Math.abs(x - tx) < TW * 2.5 ? y - ty - TH * 2.5 : Infinity;
+      const rn = roadNear(RI, x, y), lim = Math.min(rn.gap - 32, towerLim);
       if (rn.d < 34 || street || nearTower) { flatTile(c, x, y, rgba(k, 0.03), rgba(k, 0.1)); continue; }
       if (rn.d < 56 || lim < 40) {
         if (R() < 0.5 && lim >= 8) isoBox(cb, x, y, Math.min(lim, 6 + R() * 8), k, 0.6, R, beacons, w);
@@ -2766,15 +2783,7 @@ function isoLayer() {
   };
   for (const B of D.bonus) road(B.spur, 30);
   road(D.lead.concat(D.path), 40);
-  // AURUM tower at the end of the road: the system's pyramid
-  cb.globalAlpha = districtOpen(WORLDS.length - 1) ? 1 : 0.5;
-  const tx = end.x, ty = end.y + TH * 2;
-  isoBox(cb, tx, ty, 230, k, 1.5, rng(3), [], WORLDS.length - 1);
-  const top = ty - 230;
-  cb.beginPath();
-  cb.moveTo(tx - TW * 1.5, top); cb.lineTo(tx, top - 110); cb.lineTo(tx + TW * 1.5, top);
-  cb.moveTo(tx, top + TH * 1.5); cb.lineTo(tx, top - 110);
-  cb.strokeStyle = rgba(k, 0.9); cb.lineWidth = 2; cb.stroke();
+  if (!towerDone) drawTower();
   c.globalAlpha = cb.globalAlpha = 1;
   // side streets for the light-cars
   for (let s5 = -40; s5 <= 200; s5 += 5) {

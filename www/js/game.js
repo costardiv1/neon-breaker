@@ -1823,8 +1823,9 @@ export class Game {
 
   brickHit(b, pierce) {
     for (const br of this.bricks) {
-      if (br.dead || br.out || (pierce && br.kind === 'wall')) continue;
-      const bounce = !pierce || br.kind === 'leak';
+      if (br.dead || br.out) continue;
+      // PERFURAR only goes through plain breakable bricks: walls, armor and leaks still stop the disc
+      const bounce = !pierce || br.kind === 'wall' || br.kind === 'leak' || br.armor;
       if (bounce) {
         if (!collideRect(b, br.x, br.y, br.w, br.h)) continue;
         this.fixAngle(b);

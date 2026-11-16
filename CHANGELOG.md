@@ -2,6 +2,16 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9.5] · 16/11/2026 · PERFURAR na medida e a torre no lugar
+
+### Alterado
+
+- PERFURAR agora atravessa só os blocos que quebram (comuns, de várias vidas e explosivos). Muralhas, blocos blindados, vazamentos e as armaduras e escudos dos chefões voltam a rebater o disco.
+
+### Corrigido
+
+- No mapa, a torre do capítulo 10 aparecia por cima de um dos prédios da frente. Agora ela é desenhada na ordem certa, e os prédios logo à frente ficam mais baixos para mostrar a base.
+
 ## [1.9.4] · 16/11/2026 · O ACIONISTA, o chefão final atrás da mesa
 
 ### Adicionado
