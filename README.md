@@ -7,7 +7,7 @@
 **Um quebra-blocos minimalista em neon, feito para o celular.**
 Rebata o disco, atravesse os capítulos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.9.3-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.9.4-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -40,7 +40,7 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 
 ## Destaques
 
-- **10 capítulos, 50 fases e 10 chefões**, cada um com dois estágios de vida e MODO FÚRIA, até o chefão final: O SISTEMA, um executivo de pixels do mercado financeiro que, derrotado, quebra a bolsa e sai correndo.
+- **10 capítulos, 50 fases e 10 chefões**, cada um com dois estágios de vida e MODO FÚRIA, até o chefão final: O ACIONISTA, um executivo atrás da mesa que, derrotado, quebra a bolsa e sai correndo.
 - **Fases bônus de chuva de moedas** nos capítulos 2, 5 e 8: um escudo segura o disco, e um combo faz chover mais moedas.
 - **NEON FIGHTERS**: quem zera o jogo ganha a primeira fase do próximo, uma nave vista de cima (as asas do breaker ARCO) contra hordas e uma nave-mãe.
 - **A história em capítulos**: a cada chefão derrotado, um terminal digita um trecho do diário de quem está derrubando o sistema.
@@ -72,7 +72,7 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 | 7 | CENSURA | VAZAMENTO: tarjas rebatem o disco até você acertar o vazamento | O CENSOR | ✅ |
 | 8 | RESISTÊNCIA | BLINDAGEM: blocos blindados por baixo | O BLINDADO | ✅ |
 | 9 | TORRE AURUM | SEGURANÇA: feixes que ligam, desligam e rebatem o disco | O CONSELHO | ✅ |
-| 10 | O SISTEMA | ATUALIZAÇÃO: a mecânica da fase troca a cada 15 s | O SISTEMA | ✅ |
+| 10 | O SISTEMA | ATUALIZAÇÃO: a mecânica da fase troca a cada 15 s | O ACIONISTA | ✅ |
 
 <div align="center">
 <table>
@@ -106,14 +106,14 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 <td align="center"><img src="docs/img/19_censor.png" width="180"><br><sub><b>O CENSOR</b><br>a lente atrás da tarja</sub></td>
 <td align="center"><img src="docs/img/22_blindado.png" width="180"><br><sub><b>O BLINDADO</b><br>o escudo encara o disco</sub></td>
 <td align="center"><img src="docs/img/23_conselho.png" width="180"><br><sub><b>O CONSELHO</b><br>só a coroa leva dano</sub></td>
-<td align="center"><img src="docs/img/29_sistema.png" width="180"><br><sub><b>O SISTEMA</b><br>acerte a boca quando ela abrir</sub></td>
+<td align="center"><img src="docs/img/29_sistema.png" width="180"><br><sub><b>O ACIONISTA</b><br>acerte a boca quando ele se inclinar</sub></td>
 </tr>
 </table>
 </div>
 
 ## NEON FIGHTERS
 
-Depois de derrubar O SISTEMA, o terminal carrega a primeira fase do próximo jogo: uma nave vista de cima, com as asas na curva do breaker ARCO e as cores e o emblema do seu breaker. O tiro é automático e você arrasta para desviar de 2 min 30 de hordas até a nave-mãe, A COLMEIA. Depois disso, o botão FIGHTERS fica no menu inicial.
+Depois de derrubar O ACIONISTA, o terminal carrega a primeira fase do próximo jogo: uma nave vista de cima, com as asas na curva do breaker ARCO e as cores e o emblema do seu breaker. O tiro é automático e você arrasta para desviar de 2 min 30 de hordas até a nave-mãe, A COLMEIA. Depois disso, o botão FIGHTERS fica no menu inicial.
 
 <div align="center"><img src="docs/img/30_fighters.png" width="220"></div>
 
@@ -191,7 +191,7 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 ## Documentação
 
 - 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, capítulos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.9.3.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.9.4.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>

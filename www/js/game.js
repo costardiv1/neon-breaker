@@ -894,6 +894,7 @@ export class Game {
     }
     const k = 1 - U.t / UPD_WARN, bw = 480, x = W / 2 - bw / 2, by = y + 8;
     const next = this.updNext;
+    roundRectPath(c, x - 10, y - 18, bw + 20, 44, 10); c.fillStyle = 'rgba(0,0,0,0.78)'; c.fill();   // readable over the boss
     if (this.mechIcon) this.mechIcon(c, next, x + 12, y - 5, 10, WHITE);
     glowText(c, 'BAIXANDO ATUALIZAÇÃO: ' + MECHS[next].name, x + 30, y - 2, 12, WHITE, col, 'left', 700, 3);
     glowText(c, Math.floor(k * 100) + '%', x + bw, y - 2, 12, WHITE, col, 'right', 700, 3);

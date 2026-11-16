@@ -2,6 +2,17 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9.4 (16/11/2026)
+
+### O ACIONISTA (chefão final)
+- [ ] No mapa e na barra de vida, o chefão do capítulo 10 se chama O ACIONISTA, e o cartão dele fala da mesa.
+- [ ] Ele fica atrás de uma mesa larga (com a plaquinha O ACIONISTA), de cabelo penteado, olhos de cifrão, terno, gravata e punhos na mesa. Os olhos seguem o disco.
+- [ ] A mesa e o corpo rebatem o disco. Quando ele se inclina por cima da mesa, a boca abre com dentes e uma luz: acertar a boca tira vida.
+- [ ] Murro na mesa: a tela treme e velas pulam da mesa e caem como blocos. Acertada antes, a vela estoura (VENDIDO!).
+- [ ] Balões de frases de mercado, lasers em zigue-zague e a respiração que puxa o disco continuam.
+- [ ] Na fúria, o cabelo se desmancha, ele sua e solta atualizações. A barra BAIXANDO ATUALIZAÇÃO tem fundo escuro e dá para ler.
+- [ ] Ao derrotá-lo: o gráfico despenca, a mesa racha ao meio, ele encolhe e o bonequinho foge. Depois vem a tela DERROTADO e o falso travamento.
+
 ## 1.9.3 (16/11/2026)
 
 ### Fonte

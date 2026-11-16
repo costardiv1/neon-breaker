@@ -336,8 +336,8 @@ export const WORLDS = [
   {
     // The top of the tower: the system itself, which keeps updating the rules.
     name: 'O SISTEMA', final: true, mech: 'update', music: 'w10', bossMusic: 'boss10', border: 'scan',
-    boss: { type: 'system', name: 'O SISTEMA',
-      text: 'O executivo sorridente do mercado. Acerte a boca quando ela abrir; as promessas dele caem como velas de gráfico e viram blocos.' },
+    boss: { type: 'system', name: 'O ACIONISTA',
+      text: 'O dono de tudo, atrás da mesa. Quando ele se inclina para falar, acerte a boca; as promessas e os murros na mesa viram velas de gráfico que caem como blocos.' },
     stages: [
       { name: 'FIREWALL', pool: ['portals', 'gravity', 'slide'], rows: [
         'X4444444X',

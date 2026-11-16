@@ -2,6 +2,19 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9.4] · 16/11/2026 · O ACIONISTA, o chefão final atrás da mesa
+
+### Adicionado
+
+- Chefão final novo, O ACIONISTA: um executivo grande atrás de uma mesa larga que ocupa o topo da tela, com cabelo penteado, olhos de cifrão, terno com ombros largos, gravata e os punhos na mesa. A mesa rebate o disco. Quando ele se inclina por cima dela para falar, a cabeça vem para a frente e a boca aberta é o ponto fraco.
+- O ACIONISTA dá murros na mesa: a tela treme e velas de gráfico pulam dela e caem como blocos (acertar a vela antes faz ela estourar: VENDIDO!). Na fúria, o cabelo se desmancha e ele sua.
+
+### Alterado
+
+- O rosto de pixels saiu. As frases de mercado, as velas, os lasers em linha de gráfico, a respiração que puxa o disco e o bonequinho que foge no final continuam. No crash, a mesa racha ao meio antes de ele encolher e sair correndo.
+- O capítulo 10 continua se chamando O SISTEMA; o chefão agora é O ACIONISTA.
+- A barra BAIXANDO ATUALIZAÇÃO ganhou um fundo escuro, para dar para ler por cima do chefão.
+
 ## [1.9.3] · 16/11/2026 · Pendências: fonte embutida, documentação nova e moedas do final
 
 ### Adicionado

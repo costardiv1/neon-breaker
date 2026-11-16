@@ -1582,103 +1582,72 @@ class Council extends Boss {
   }
 }
 
-// ---------- CHAPTER 10 (FINAL): O SISTEMA ----------
-// The market's smiling executive: a pixel face in a suit, with dollar signs
-// for eyes. The mouth, a notch at the bottom of the face between the cheeks,
-// is the weak point: it opens to talk, and its market talk falls as
-// candlesticks that become bricks (a hit pops the balloon first). The eyes
-// fire lasers shaped like a chart line, and a deep breath pulls the discs in
-// and spits them back out. Every hit knocks pixels off; in fury it glitches
-// and pushes updates that swap the field's mechanic. Beaten, the market
-// crashes and the executive shrinks into a little man who runs away.
-const FPX = 14;
-const FACE = [
-  '.....#######.....',
-  '...###########...',
-  '..#############..',
-  '.###############.',
-  '#################',
-  '#################',
-  '#################',
-  '#################',
-  '#################',
-  '.####.......####.',
-  '..###.......###..',
-  '...##.......##...',
-];
-const FACE_EYES = [[4, 5, 6], [10, 11, 12]];   // eye columns, on rows 4 and 5
+// ---------- CHAPTER 10 (FINAL): O ACIONISTA ----------
+// The face of the system: a big executive behind a long desk that fills the
+// top of the field. The desk bounces the disc; when he leans over it to talk,
+// his head comes in front of the desk and the open mouth is the weak point.
+// He slams the desk (candlesticks jump off it and fall as bricks), his market
+// talk falls as candlesticks too (a hit pops the balloon first), the eyes fire
+// lasers shaped like a chart line, and a deep breath pulls the disc in and
+// spits it back out. In fury he loses his cool and pushes updates that swap
+// the field's mechanic. Beaten, the market crashes, the desk breaks in two and
+// he shrinks into a little man who runs away.
 const FACE_TALK = ['COMPRE!', 'O MERCADO SE AUTORREGULA', 'LUCRO RECORDE', 'VOLATILIDADE É OPORTUNIDADE', 'RISCO ZERO', 'INVISTA EM VOCÊ', 'SÓ SOBE!', 'CONFIE NO MERCADO'];
 const FACE_FURY = ['VENDAM TUDO!', 'É SÓ UMA CORREÇÃO', 'NÃO ENTREM EM PÂNICO', 'CIRCUIT BREAKER!', 'RESGATE JÁ!'];
-const FACE_DEATH = 6.5;   // seconds of the market crash, before the ending
-const MOUTH_Y = 75, MOUTH_R = 32;   // the weak point, in the notch (it sticks out under the chin)
-const NOTCH = [5, 11];               // the mouth's columns, on rows 9 to 11
+const FACE_DEATH = 6.5;            // seconds of the market crash, before the ending
+const DESK_X0 = 56, DESK_X1 = W - 56, DESK_H = 34;
+const HEAD_W = 124, HEAD_H = 116, MOUTH_R = 30;
+const smoothstep = (k) => k * k * (3 - 2 * k);
 
-class Face extends Boss {
+class Shareholder extends Boss {
   constructor(g) {
-    super(g, 'O SISTEMA');
+    super(g, 'O ACIONISTA');
     this.hpMax = 6;
     this.hp = this.hpMax;
     this.coreR = MOUTH_R;
     this.cx = W / 2;
-    this.y0 = g.top + 200;   // the middle of the face
     this.ph = 0;
-    this.open = 0;
+    this.lean = 0;      // 0 sitting back, 1 leaning over the desk
+    this.open = 0;      // the mouth
     this.cycle = 0;
     this.balloons = [];
     this.inhale = 0;
     this.shock = 0;
     this.talk = 0;
     this.look = 0;
-    // the face's pixels, and the order they fall off in
-    this.cells = [];
-    FACE.forEach((row, r) => { for (let q = 0; q < row.length; q++) if (row[q] === '#') this.cells.push([q, r]); });
-    const feat = (q, r) => (r >= 1 && r <= 5 && (FACE_EYES[0].includes(q) || FACE_EYES[1].includes(q)));
-    let seed = 77;
-    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-    this.order = this.cells.filter(([q, r]) => !feat(q, r)).map((cl) => ({ cl, k: rnd() })).sort((a, b) => a.k - b.k).map((o) => o.cl[0] + ',' + o.cl[1]);
-    this.gone = 0;
+    this.punch = 0;
   }
 
-  get cy() { return this.y0 + MOUTH_Y; }
-  get bandY() { return this.g.top + 200 + 84 + 130; }
-  get coreOpen() { return this.open > 0.6 && this.inhale <= 0; }
-  // how many pixels are gone: more with every hit, all of them at the end
-  get lostCells() {
-    const taken = (this.lives === 2 ? 0 : this.hpMax) + (this.hpMax - this.hp);
-    const f = this.dead ? 0.55 + 0.45 * Math.min(1, (FACE_DEATH - this.deathT) / 1.4) : (taken / (2 * this.hpMax)) * 0.55;
-    return Math.floor(f * this.order.length);
-  }
+  get deskY() { return this.g.top + 270; }
+  get leanE() { return smoothstep(Math.max(0, Math.min(1, this.lean))); }
+  get hs() { return 1 + 0.15 * this.leanE; }                       // the head grows a bit when it comes forward
+  get headY() { const y0 = this.g.top + 136; return y0 + (this.deskY + 42 - y0) * this.leanE; }
+  get torsoY() { return this.g.top + 196 + 40 * this.leanE; }       // where the shoulders start
+  get mouthY() { return this.headY + 38 * this.hs; }
+  get cy() { return this.lean > 0.5 ? this.mouthY : this.headY; }  // the weak point (or the head): rings, missiles
+  get bandY() { return this.g.top + 450; }
+  get coreOpen() { return this.lean > 0.8 && this.open > 0.6 && this.inhale <= 0; }
+  fists() { const d = 30 * Math.sin(Math.PI * this.punch); return [-1, 1].map((s) => ({ x: this.cx + s * 172, y: this.deskY - 14 - d })); }
 
   move(dt) {
     this.ph += dt * (this.fury ? 0.5 : 0.3);
-    this.cx = W / 2 + 140 * Math.sin(this.ph);
-    this.y0 = this.g.top + 200 + 10 * Math.sin(this.t * 1.3);
-    const openT = this.fury ? 2.6 : 3, closedT = this.fury ? 1.8 : 2.4;
-    this.cycle = (this.cycle + dt) % (openT + closedT);
-    const target = (this.cycle >= closedT && !this.charge) || this.inhale > 0 ? 1 : 0;
-    this.open += (target - this.open) * Math.min(1, dt * 8);
+    this.cx = W / 2 + 120 * Math.sin(this.ph);
+    const upT = this.fury ? 1.9 : 2.6, leanT = this.fury ? 2.6 : 3;
+    this.cycle = (this.cycle + dt) % (upT + leanT);
+    const want = (this.cycle >= upT && !this.charge) || this.inhale > 0 ? 1 : 0;
+    this.lean += (want - this.lean) * Math.min(1, dt * 5);
+    this.open += ((this.lean > 0.7 ? 1 : 0) - this.open) * Math.min(1, dt * 8);
     this.shock = Math.max(0, this.shock - dt);
     this.talk = Math.max(0, this.talk - dt);
+    this.punch = Math.max(0, this.punch - dt * 2.5);
     const b = this.freeBalls()[0];
     if (b) this.look += (clamp((b.x - this.cx) / 220, -1, 1) - this.look) * Math.min(1, dt * 6);
   }
 
   damage(n, force, minor) {
-    const n0 = this.lostCells;
     const ok = super.damage(n, force, minor);
-    if (!ok) return ok;
-    if (!minor) this.shock = 0.7;
-    this.shed(n0, this.lostCells);
+    if (ok && !minor) this.shock = 0.7;
     return ok;
-  }
-
-  // the pixels between n0 and n1 fly off the face
-  shed(n0, n1) {
-    for (let i = n0; i < n1; i++) {
-      const [q, r] = this.order[i].split(',').map(Number);
-      const x = this.cx + (q - 8) * FPX, y = this.y0 + (r - 6) * FPX;
-      for (let k = 0; k < 3; k++) this.g.particles.push({ x, y, vx: (Math.random() - 0.5) * 260, vy: -60 + Math.random() * 280, life: 0.9, max: 0.9, col: k ? this.g.col : '#ffffff', sq: true });
-    }
   }
 
   enterFury() {
@@ -1697,13 +1666,11 @@ class Face extends Boss {
   }
 
   update(dt) {
-    if (this.dead) {   // the market crash: the face falls apart, then the little man runs
-      const n0 = this.lostCells;
+    if (this.dead) {   // the market crash
       this.t += dt;
       this.deathT -= dt;
-      this.shed(n0, this.lostCells);
       const k = FACE_DEATH - this.deathT;
-      if (k < 1.6 && Math.random() < dt * 10) this.g.burst(this.cx + (Math.random() - 0.5) * 240, this.y0 + (Math.random() - 0.5) * 160, 8, 1.2);
+      if (k < 1.6 && Math.random() < dt * 10) this.g.burst(this.cx + (Math.random() - 0.5) * 300, this.deskY + (Math.random() - 0.5) * 160, 8, 1.2);
       this.g.shake = Math.max(this.g.shake, k < 1.4 ? 0.5 : 0);
       return;
     }
@@ -1716,11 +1683,11 @@ class Face extends Boss {
     if (this.inhale > 0) {
       this.inhale -= dt;
       for (const b of this.freeBalls()) {
-        const dx = this.cx - b.x, dy = this.cy - b.y, d = Math.hypot(dx, dy) || 1;
-        if (d < MOUTH_R + b.r + 6) {
+        const dx = this.cx - b.x, dy = this.mouthY - b.y, d = Math.hypot(dx, dy) || 1;
+        if (d < MOUTH_R + b.r + 6 && this.lean > 0.7) {
           b.cap = { t: 0.6 };
           this.inhale = 0;
-          g.float('ENGOLIDO', this.cx, this.cy + 70, 22);
+          g.float('ENGOLIDO', this.cx, this.mouthY + 70, 22);
           sfx.capture();
           break;
         }
@@ -1730,7 +1697,7 @@ class Face extends Boss {
         b.vx = (b.vx / s) * b.s; b.vy = (b.vy / s) * b.s;
       }
     }
-    // speech balloons: they hang beside the face, then fall and become bricks
+    // speech balloons and candlesticks: they hang, then fall and become bricks
     for (const L of this.balloons) {
       if (L.t > 0) {
         L.t -= dt;
@@ -1739,12 +1706,12 @@ class Face extends Boss {
       }
       L.vy += 900 * dt;
       L.y += L.vy * dt;
-      if (L.y + L.h >= this.bandY) { L.dead = true; this.drop(L); }
+      if (L.vy > 0 && L.y + L.h >= this.bandY) { L.dead = true; this.drop(L); }
     }
     this.balloons = this.balloons.filter((L) => !L.dead);
   }
 
-  // a balloon hit the bricks' band: up to 3 bricks under it
+  // a candlestick hit the bricks' band: up to 3 bricks under it
   drop(L) {
     const g = this.g, BWd = (W - 64 - 8 * 8) / 9, cols = [];
     for (let c = 0; c < 9; c++) { const x = 32 + c * (BWd + 8); if (x + BWd > L.x && x < L.x + L.w) cols.push(c); }
@@ -1768,15 +1735,15 @@ class Face extends Boss {
     L.dead = true;
     for (let k = 0; k < 14; k++) this.g.particles.push({ x: L.x + Math.random() * L.w, y: L.y + Math.random() * L.h, vx: (Math.random() - 0.5) * 220, vy: (Math.random() - 0.5) * 220, life: 0.6, max: 0.6, col: '#ffffff', sq: true });
     this.g.ring(L.x + L.w / 2, L.y + L.h / 2, 60);
-    this.g.float('CALADO!', L.x + L.w / 2, L.y - 10, 18);
+    this.g.float(L.candle ? 'VENDIDO!' : 'CALADO!', L.x + L.w / 2, L.y - 10, 18);
     sfx.brk(3);
   }
 
   pickAbility() {
-    const opts = ['talk', 'talk', 'lasers'];
-    if (this.freeBalls().some((b) => b.y > this.cy + 120)) opts.push('inhale');
-    if (this.fury) opts.push('lasers', 'talk');
-    if (this.balloons.length >= 2) return opts.filter((a) => a !== 'talk')[0] || 'lasers';
+    const opts = ['talk', 'talk', 'lasers', 'punch'];
+    if (this.freeBalls().some((b) => b.y > this.deskY + 160)) opts.push('inhale');
+    if (this.fury) opts.push('lasers', 'punch');
+    if (this.balloons.length >= 3) return 'lasers';
     return opts[Math.floor(Math.random() * opts.length)];
   }
 
@@ -1794,19 +1761,26 @@ class Face extends Boss {
       }
       const w = Math.round(Math.max(...lines.map((q) => q.length)) * 9.6 + 28), h = lines.length > 1 ? 50 : 34;
       const right = this.cx < W / 2;
-      let x = right ? this.cx + 130 : this.cx - 130 - w;
-      x = clamp(x, 18, W - 18 - w);
-      this.balloons.push({ text, lines, x, y: this.y0 - 70 - (h - 34), w, h, t: 1.8, vy: 0, right });
+      const x = clamp(right ? this.cx + 84 : this.cx - 84 - w, 18, W - 18 - w);
+      this.balloons.push({ text, lines, x, y: this.g.top + 82, w, h, t: 1.8, vy: 0, right });
       this.talk = 1.2;
       sfx.charge();
     } else if (a === 'lasers') {
       const p = g.paddle;
       for (const s of [-1, 1]) {
-        const ex = this.cx + s * 3 * FPX, ey = this.y0 - 1.5 * FPX;
-        const dx = p.x - ex, dy = p.y - ey, a0 = Math.atan2(dy, dx);
+        const ex = this.cx + s * 26 * this.hs, ey = this.headY - 10 * this.hs;
+        const a0 = Math.atan2(p.y - ey, p.x - ex);
         for (const o of this.fury ? [-0.18, 0.18] : [0]) { g.enemyShot(ex, ey, Math.cos(a0 + o) * 380, Math.sin(a0 + o) * 380); g.shots[g.shots.length - 1].zig = 22; }   // a chart line
       }
       sfx.laser();
+    } else if (a === 'punch') {   // a fist on the desk: candlesticks jump off it
+      this.punch = 1;
+      g.shake = Math.max(g.shake, 0.7);
+      for (const f of this.fists()) {
+        g.ring(f.x, this.deskY, 140);
+        this.balloons.push({ x: f.x - 48, y: this.deskY - 60, w: 96, h: 56, t: 0, vy: -380 - Math.random() * 120, candle: true, lines: [] });
+      }
+      sfx.blast(); vibrate(40);
     } else if (a === 'inhale') {
       this.inhale = 2.2;
       sfx.capture();
@@ -1815,152 +1789,218 @@ class Face extends Boss {
 
   holdBall(b, dt) {
     b.x += (this.cx - b.x) * Math.min(1, dt * 10);
-    b.y += (this.cy - b.y) * Math.min(1, dt * 10);
+    b.y += (this.mouthY - b.y) * Math.min(1, dt * 10);
     b.cap.t -= dt;
     if (b.cap.t <= 0) { this.throwBall(b); b.s *= 1.15; }
+  }
+
+  // the boxes that bounce the disc: the desk, the head and the body
+  solids() {
+    const hw = (HEAD_W / 2) * this.hs, hh = (HEAD_H / 2) * this.hs, list = [[DESK_X0, this.deskY, DESK_X1 - DESK_X0, DESK_H]];
+    list.push([this.cx - 158, this.torsoY, 316, this.deskY - this.torsoY]);
+    list.push([this.cx - hw, this.headY - hh, hw * 2, this.lean > 0.5 ? hh * 2 - 34 * this.hs : hh * 2]);   // leaning, the chin is the mouth
+    return list;
   }
 
   collide(b) {
     if (this.dead) return false;
     for (const L of this.balloons) if (!L.dead && collideRect(b, L.x, L.y, L.w, L.h)) { this.pop(L); return true; }
-    if (collideCircle(b, this.cx, this.cy, MOUTH_R)) {
+    if (this.lean > 0.5 && collideCircle(b, this.cx, this.mouthY, MOUTH_R * this.hs)) {
       if (this.coreOpen && this.coreCool <= 0) { this.coreCool = 0.35; this.damage(this.g.ballDamage()); }
       else { sfx.clang(); this.g.ring(b.x, b.y, 36); }
       return true;
     }
     if (this.g.effects.pierce) return false;
-    const x = this.cx, y = this.y0;
-    if (collideRect(b, x - 119, y - 91, 238, 126) || collideRect(b, x - 105, y + 35, 56, 49) || collideRect(b, x + 49, y + 35, 56, 49)
-      || collideRect(b, x - 196, y + 42, 80, 56) || collideRect(b, x + 116, y + 42, 80, 56)) {
-      sfx.clang(); this.g.ring(b.x, b.y, 36);
-      return true;
+    for (const [x, y, w, h] of this.solids()) {
+      if (collideRect(b, x, y, w, h)) { sfx.clang(); this.g.ring(b.x, b.y, 36); return true; }
     }
     return false;
   }
 
   hitShot(x, y, rad) {
     if (this.dead) return null;
-    if (Math.hypot(x - this.cx, y - this.cy) < MOUTH_R + rad) return this.coreOpen ? 'core' : 'armor';
-    const fx = this.cx, fy = this.y0;
-    if (x > fx - 119 - rad && x < fx + 119 + rad && y > fy - 91 - rad && y < fy + 84 + rad) return 'armor';
-    if (Math.abs(x - fx) < 196 + rad && y > fy + 42 - rad && y < fy + 98 + rad) return 'armor';   // the shoulders
+    if (this.lean > 0.5 && Math.hypot(x - this.cx, y - this.mouthY) < MOUTH_R + rad) return this.coreOpen ? 'core' : 'armor';
+    for (const [bx, by, w, h] of this.solids()) if (x > bx - rad && x < bx + w + rad && y > by - rad && y < by + h + rad) return 'armor';
     return null;
   }
 
   render(c) {
     const col = this.g.col, t = this.t;
     if (this.dead) { this.renderCrash(c, col); return; }
-    this.drawSuit(c, this.cx, this.y0, col);
-    // in fury the face glitches: a shifted copy flickers beside it
+    // in fury he glitches: a shifted copy flickers beside him
     if (this.fury && Math.sin(t * 11) > 0.6) {
-      c.save(); c.globalAlpha *= 0.3;
-      this.drawFace(c, this.cx + 9 * Math.sin(t * 37), this.y0 - 3, col);
+      c.save(); c.globalAlpha *= 0.3; c.translate(9 * Math.sin(t * 37), -3);
+      this.drawBoss(c, col, 0);
       c.restore();
     }
-    this.drawFace(c, this.cx, this.y0, col);
+    this.drawBoss(c, col, 0);
     // the deep breath: lines rushing into the mouth
     if (this.inhale > 0) {
       c.save(); c.setLineDash([10, 14]); c.lineDashOffset = t * 120;
       c.beginPath();
       for (let k = 0; k < 8; k++) {
         const a = Math.PI * 0.15 + (k / 7) * Math.PI * 0.7;
-        c.moveTo(this.cx + Math.cos(a) * 190, this.cy + Math.sin(a) * 190); c.lineTo(this.cx + Math.cos(a) * 44, this.cy + Math.sin(a) * 44);
+        c.moveTo(this.cx + Math.cos(a) * 190, this.mouthY + Math.sin(a) * 190); c.lineTo(this.cx + Math.cos(a) * 44, this.mouthY + Math.sin(a) * 44);
       }
       c.strokeStyle = rgba(col, 0.55); c.lineWidth = 2; c.stroke();
       c.restore();
     }
     for (const L of this.balloons) {
-      const fall = L.t <= 0;
       if (L.candle) { drawCandles(c, L.x, L.y, L.w, L.h, col, t); continue; }
       c.save();
-      if (fall) c.globalAlpha *= 0.75 + 0.25 * Math.sin(t * 30);
       roundRectPath2(c, L.x, L.y, L.w, L.h, 12);
       c.fillStyle = '#000'; c.fill();
       c.fillStyle = rgba(col, 0.14); c.fill();
-      if (fall) c.setLineDash([6, 5]);
       neonStroke(c, col, col, 2.2, L.x, L.y, L.x + L.w, L.y + L.h, 0.8);
-      c.setLineDash([]);
-      if (!fall) {   // the tail points at the face
-        const tx = L.right ? L.x : L.x + L.w, s = L.right ? -1 : 1;
-        c.beginPath(); c.moveTo(tx, L.y + L.h - 12); c.lineTo(tx + s * 14, L.y + L.h + 6); c.lineTo(tx - s * 2, L.y + L.h - 2);
-        c.strokeStyle = col; c.lineWidth = 2; c.stroke();
-      }
+      const tx = L.right ? L.x : L.x + L.w, s = L.right ? -1 : 1;   // the tail points at the head
+      c.beginPath(); c.moveTo(tx, L.y + L.h - 12); c.lineTo(tx + s * 14, L.y + L.h + 6); c.lineTo(tx - s * 2, L.y + L.h - 2);
+      c.strokeStyle = col; c.lineWidth = 2; c.stroke();
       L.lines.forEach((q, i) => glowText(c, q, L.x + L.w / 2, L.y + L.h / 2 + 1 + (i - (L.lines.length - 1) / 2) * 16, 11, '#ffffff', col, 'center', 800, 2));
       c.restore();
     }
   }
 
-  drawFace(c, x0, y0, col) {
-    const t = this.t, lost = new Set(this.order.slice(0, this.lostCells));
-    const has = (q, r) => FACE[r] && FACE[r][q] === '#' && !lost.has(q + ',' + r);
-    const px = (q, r, inset = 1) => c.rect(x0 + (q - 8) * FPX - FPX / 2 + inset, y0 + (r - 6) * FPX - FPX / 2 + inset, FPX - inset * 2, FPX - inset * 2);
-    // body: inner pixels faint, edge pixels bright and glowing
-    const glow = 0.8 + this.flash * 1.2 + (this.charge ? 0.5 * Math.sin(t * 30) : 0);
+  // the whole executive: body and arms behind the desk, the desk, the fists,
+  // and the head behind the desk or, leaning, in front of it. crack: 0..1, the
+  // desk breaking in two (the crash)
+  drawBoss(c, col, crack) {
+    const x = this.cx, lean = this.lean > 0.5;
+    this.drawBody(c, x, col);
+    if (!lean) this.drawHead(c, x, this.headY, this.hs, col);
+    this.drawDesk(c, col, crack);
+    for (const f of this.fists()) this.drawFist(c, f.x, f.y + 130 * crack * crack, col);
+    if (lean) this.drawHead(c, x, this.headY, this.hs, col);
+  }
+
+  drawBody(c, x, col) {
+    const yT = this.torsoY, yD = this.deskY, fill = rgba(col, 0.14 + this.flash * 0.3);
+    // arms down to the fists on the desk
+    for (const f of this.fists()) {
+      const s = Math.sign(f.x - x);
+      c.beginPath(); c.moveTo(x + s * 138, yT + 30); c.quadraticCurveTo(x + s * 190, yT + 50, f.x, f.y);
+      c.lineCap = 'round';
+      c.strokeStyle = rgba(col, 0.9); c.lineWidth = 30; c.stroke();
+      c.strokeStyle = '#000'; c.lineWidth = 25; c.stroke();
+      c.strokeStyle = fill; c.stroke();
+    }
+    // the suit: broad shoulders joined to the neck
     c.beginPath();
-    for (const [q, r] of this.cells) if (has(q, r) && has(q - 1, r) && has(q + 1, r) && has(q, r - 1) && has(q, r + 1)) px(q, r);
-    c.fillStyle = rgba(col, 0.2 + this.flash * 0.35); c.fill();
+    c.moveTo(x - 36, yT); c.lineTo(x - 128, yT + 14); c.quadraticCurveTo(x - 160, yT + 22, x - 160, yT + 56); c.lineTo(x - 160, yD);
+    c.lineTo(x + 160, yD); c.lineTo(x + 160, yT + 56); c.quadraticCurveTo(x + 160, yT + 22, x + 128, yT + 14); c.lineTo(x + 36, yT); c.closePath();
+    c.fillStyle = '#000'; c.fill(); c.fillStyle = fill; c.fill();
+    neonStroke(c, col, col, 3, x - 160, yT, x + 160, yD, 0.9);
+    // shirt, lapels and the tie
+    c.beginPath(); c.moveTo(x - 30, yT); c.lineTo(x, yT + 62); c.lineTo(x + 30, yT); c.closePath();
+    c.fillStyle = '#ffffff'; c.fill();
     c.beginPath();
-    for (const [q, r] of this.cells) if (has(q, r) && !(has(q - 1, r) && has(q + 1, r) && has(q, r - 1) && has(q, r + 1))) px(q, r);
-    c.fillStyle = rgba(col, Math.min(1, 0.6 + 0.2 * glow)); c.shadowColor = col; c.shadowBlur = 12 * glow * view.blur; c.fill(); c.shadowBlur = 0;
-    // the mood: smiling, angry (charging or in fury) or shocked (just hit)
-    const mood = this.shock > 0 ? 'shock' : this.charge || this.fury ? 'angry' : 'smile';
-    c.beginPath();
-    const brow = mood === 'shock' ? [[4, 1], [5, 1], [6, 1], [10, 1], [11, 1], [12, 1]]
-      : mood === 'angry' ? [[4, 2], [5, 2], [6, 3], [10, 3], [11, 2], [12, 2]]
-      : [[4, 2], [5, 2], [6, 2], [10, 2], [11, 2], [12, 2]];
-    for (const [q, r] of brow) px(q, r, 2);
-    // eyes (they follow the disc); they light up before the lasers
-    const laser = this.charge && this.charge.a === 'lasers';
-    for (const eye of FACE_EYES) for (const q of eye) for (const r of [4, 5]) px(q, r, 1);
-    c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = (laser ? 22 : 8) * view.blur; c.fill(); c.shadowBlur = 0;
-    const blink = !laser && mood !== 'shock' && (t % 4.2) > 4.05;
-    if (blink) {
+    for (const s of [-1, 1]) { c.moveTo(x + s * 36, yT); c.lineTo(x + s * 62, yT + 30); c.lineTo(x + s * 34, yT + 46); c.lineTo(x + s * 4, yT + 78); }
+    c.strokeStyle = rgba('#ffffff', 0.8); c.lineWidth = 2.4; c.stroke();
+    const sw = this.fury ? 0.25 * Math.sin(this.t * 9) : 0.04 * Math.sin(this.t * 2);
+    c.save(); c.translate(x, yT + 8); c.rotate(sw);
+    c.beginPath(); c.moveTo(-7, 0); c.lineTo(7, 0); c.lineTo(4, 10); c.lineTo(10, 54); c.lineTo(0, 66); c.lineTo(-10, 54); c.lineTo(-4, 10); c.closePath();
+    c.fillStyle = col; c.fill(); c.strokeStyle = '#000'; c.lineWidth = 1.5; c.stroke();
+    c.restore();
+  }
+
+  drawDesk(c, col, crack) {
+    const y = this.deskY, mid = W / 2;
+    for (const s of crack ? [-1, 1] : [0]) {   // whole, or two halves falling apart
+      c.save();
+      if (s) { c.translate(mid + s * 40 * crack, 200 * crack * crack); c.rotate(s * 0.5 * crack); c.translate(-mid, 0); }
+      const x0 = s > 0 ? mid : DESK_X0, x1 = s < 0 ? mid : DESK_X1;
+      c.beginPath(); c.rect(x0, y, x1 - x0, DESK_H);
+      c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(col, 0.12); c.fill();
+      neonStroke(c, col, col, 3, x0, y, x1, y, 1);
+      c.beginPath(); c.moveTo(x0 + 10, y + 3); c.lineTo(x1 - 10, y + 3); c.strokeStyle = rgba('#ffffff', 0.5); c.lineWidth = 1.5; c.stroke();
       c.beginPath();
-      for (const eye of FACE_EYES) for (const q of eye) px(q, 4, 1);
-      c.fillStyle = rgba(col, 0.9); c.fill();
-    } else {   // dollar signs for pupils, looking at the disc
-      c.font = '900 24px "Orbitron", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillStyle = '#000';
-      for (const eye of FACE_EYES) c.fillText('$', x0 + (eye[1] - 8) * FPX + this.look * 7, y0 + (4.5 - 6) * FPX + 1);
-      c.textBaseline = 'alphabetic';
-    }
-    if (laser) for (const s of [-1, 1]) {
-      const k = 1 - this.charge.t / this.charge.max;
-      c.beginPath(); c.arc(x0 + s * 3 * FPX, y0 - 1.5 * FPX, 40 * (1 - k) + 8, 0, TAU);
-      c.strokeStyle = rgba('#ffffff', 0.8 * k); c.lineWidth = 2; c.stroke();
-    }
-    // the mouth, in the notch at the bottom
-    const my = y0 + MOUTH_Y;
-    const flap = this.talk > 0 ? 0.5 + 0.5 * Math.sin(t * 28) : 0;
-    const op = Math.max(this.open, flap * 0.5);
-    if (this.inhale > 0) {   // an O, teeth shut
-      c.beginPath(); c.arc(x0, my - 4, 18, 0, TAU);
-      c.fillStyle = '#000'; c.fill();
-      neonStroke(c, col, col, 3, x0 - 18, my, x0 + 18, my, 1);
-    } else if (op > 0.15) {   // open: a dark mouth with the core inside
-      const h = 18 + 48 * op;
-      roundRectPath2(c, x0 - 46, my - 36, 92, h, 12);
-      c.fillStyle = '#000'; c.fill();
-      c.strokeStyle = rgba(col, 0.9); c.lineWidth = 2.4; c.stroke();
-      c.fillStyle = '#ffffff';
-      for (const q of [-1, 0, 1]) c.fillRect(x0 + q * 22 - 6, my - 34, 12, 8);   // teeth
-      if (this.coreOpen) {
-        c.beginPath(); c.arc(x0, my, 12 + 2 * Math.sin(t * 8), 0, TAU);
-        c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = 24 * view.blur; c.fill(); c.shadowBlur = 0;
-        c.beginPath(); c.arc(x0, my, MOUTH_R - 4, 0, TAU);
-        c.strokeStyle = rgba(col, 0.5 + 0.3 * Math.sin(t * 6)); c.lineWidth = 2; c.stroke();
+      if (x0 === DESK_X0) { c.moveTo(x0 + 18, y + DESK_H); c.lineTo(x0 + 18, y + DESK_H + 26); }
+      if (x1 === DESK_X1) { c.moveTo(x1 - 18, y + DESK_H); c.lineTo(x1 - 18, y + DESK_H + 26); }
+      c.strokeStyle = rgba(col, 0.8); c.lineWidth = 3; c.stroke();
+      if (!s) {   // the nameplate
+        roundRectPath2(c, mid - 78, y + 8, 156, 18, 4);
+        c.fillStyle = '#000'; c.fill(); c.strokeStyle = rgba(col, 0.8); c.lineWidth = 1.5; c.stroke();
+        glowText(c, 'O ACIONISTA', mid, y + 17, 10, '#ffffff', col, 'center', 800, 2);
       }
-    } else {   // shut: a pixel smile (a frown when angry) over a faint closed mouth
-      c.beginPath();
-      for (let q = NOTCH[0]; q <= NOTCH[1]; q++) for (let r = 9; r <= 11; r++) px(q, r, 1);
-      c.fillStyle = rgba(col, 0.12); c.fill();
-      c.beginPath();
-      const lips = mood === 'angry' ? [[5, 11], [6, 10], [7, 9], [8, 9], [9, 9], [10, 10], [11, 11]]
-        : mood === 'shock' ? [[7, 9], [8, 9], [9, 9], [6, 10], [10, 10], [7, 11], [8, 11], [9, 11]]
-        : [[5, 9], [6, 10], [7, 11], [8, 11], [9, 11], [10, 10], [11, 9]];
-      for (const [q, r] of lips) px(q, r, 1);
-      c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
+      c.restore();
     }
+  }
+
+  drawFist(c, x, y, col) {
+    roundRectPath2(c, x - 22, y - 16, 44, 32, 9);
+    c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(col, 0.22 + this.flash * 0.3); c.fill();
+    neonStroke(c, col, col, 2.6, x - 22, y, x + 22, y, 0.9);
+    c.beginPath();
+    for (let k = -1; k <= 1; k++) { c.moveTo(x + k * 11, y - 15); c.lineTo(x + k * 11, y - 6); }
+    c.moveTo(x - 24, y + 16); c.lineTo(x + 24, y + 16);   // the shirt cuff
+    c.strokeStyle = rgba('#ffffff', 0.7); c.lineWidth = 2; c.stroke();
+  }
+
+  drawHead(c, x, y, s, col) {
+    const t = this.t, mood = this.shock > 0 ? 'shock' : this.charge || this.fury ? 'angry' : 'smile';
+    c.save(); c.translate(x, y); c.scale(s, s);
+    // neck (leaning over the desk, it is hidden behind the head)
+    if (this.lean < 0.5) c.beginPath(), c.rect(-22, 50, 44, 34 / s);
+    else c.beginPath(); c.fillStyle = '#000'; c.fill(); c.strokeStyle = rgba(col, 0.7); c.lineWidth = 2; c.stroke();
+    // the square head
+    const glow = 0.9 + this.flash * 1.2 + (this.charge ? 0.5 * Math.sin(t * 30) : 0);
+    roundRectPath2(c, -HEAD_W / 2, -HEAD_H / 2, HEAD_W, HEAD_H, 18);
+    c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(col, 0.16 + this.flash * 0.35); c.fill();
+    neonStroke(c, col, col, 3.5, -62, 0, 62, 0, glow);
+    // slicked-back hair, with a side part (a mess in fury)
+    c.beginPath();
+    c.moveTo(-64, -18); c.quadraticCurveTo(-70, -70, -14, -72); c.quadraticCurveTo(46, -76, 66, -26);
+    c.quadraticCurveTo(48, -58, 8, -56); c.lineTo(-10, -48); c.quadraticCurveTo(-46, -56, -64, -18); c.closePath();
+    c.fillStyle = col; c.fill();
+    if (this.fury) {
+      c.beginPath();
+      for (let k = 0; k < 6; k++) { const a = Math.PI * (1.1 + k * 0.16); c.moveTo(Math.cos(a) * 58, Math.sin(a) * 60); c.lineTo(Math.cos(a) * 76, Math.sin(a) * 80 + 4 * Math.sin(t * 20 + k)); }
+      c.strokeStyle = col; c.lineWidth = 4; c.stroke();
+    }
+    // eyebrows
+    c.beginPath();
+    const bro = mood === 'shock' ? [[-40, -34, -12, -36], [12, -36, 40, -34]] : mood === 'angry' ? [[-42, -36, -12, -26], [12, -26, 42, -36]] : [[-40, -30, -12, -30], [12, -30, 40, -30]];
+    for (const [a, b2, d, e] of bro) { c.moveTo(a, b2); c.lineTo(d, e); }
+    c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.lineCap = 'round'; c.stroke();
+    // eyes with dollar signs for pupils; they light up before the lasers
+    const laser = this.charge && this.charge.a === 'lasers', blink = !laser && mood !== 'shock' && (t % 4.2) > 4.05;
+    for (const ex of [-26, 26]) {
+      if (blink) { c.beginPath(); c.moveTo(ex - 15, -8); c.lineTo(ex + 15, -8); c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.stroke(); continue; }
+      c.beginPath(); c.ellipse(ex, -8, 17, mood === 'shock' ? 16 : 13, 0, 0, TAU);
+      c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = (laser ? 22 : 6) * view.blur; c.fill(); c.shadowBlur = 0;
+      c.font = '900 19px "Orbitron", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = '#000'; c.fillText('$', ex + this.look * 5, -7);
+      if (laser) { const k = 1 - this.charge.t / this.charge.max; c.beginPath(); c.arc(ex, -8, 36 * (1 - k) + 8, 0, TAU); c.strokeStyle = rgba('#ffffff', 0.8 * k); c.lineWidth = 2; c.stroke(); }
+    }
+    c.textBaseline = 'alphabetic';
+    // nose
+    c.beginPath(); c.moveTo(2, 2); c.lineTo(-6, 18); c.lineTo(4, 20);
+    c.strokeStyle = rgba('#ffffff', 0.75); c.lineWidth = 2.5; c.stroke();
+    // the mouth: a smirk, or open (the weak point), or an O breathing in
+    const flap = this.talk > 0 ? 0.5 + 0.5 * Math.sin(t * 28) : 0, op = Math.max(this.open, flap * 0.5);
+    if (this.inhale > 0) {
+      c.beginPath(); c.arc(0, 36, 16, 0, TAU); c.fillStyle = '#000'; c.fill();
+      neonStroke(c, col, col, 3, -16, 36, 16, 36, 1);
+    } else if (op > 0.15) {
+      const h = 10 + 22 * op;
+      roundRectPath2(c, -30, 30 - h / 2, 60, h, 9);
+      c.fillStyle = '#000'; c.fill(); c.strokeStyle = '#ffffff'; c.lineWidth = 2.4; c.stroke();
+      c.fillStyle = '#ffffff'; c.fillRect(-20, 30 - h / 2 + 1, 40, 6);   // teeth
+      if (this.coreOpen) {
+        c.beginPath(); c.arc(0, 36, 8 + 2 * Math.sin(t * 8), 0, TAU);
+        c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = 24 * view.blur; c.fill(); c.shadowBlur = 0;
+      }
+    } else {
+      c.beginPath();
+      if (mood === 'angry') { c.moveTo(-24, 40); c.quadraticCurveTo(0, 28, 24, 40); }
+      else if (mood === 'shock') c.ellipse(0, 36, 10, 12, 0, 0, TAU);
+      else { c.moveTo(-26, 30); c.quadraticCurveTo(4, 46, 26, 26); }   // the smirk
+      c.strokeStyle = '#ffffff'; c.lineWidth = 3.5; c.stroke();
+    }
+    if (this.fury) {   // sweat
+      c.beginPath(); c.moveTo(56, -30); c.quadraticCurveTo(64, -18, 56, -14); c.quadraticCurveTo(48, -18, 56, -30);
+      c.fillStyle = '#ffffff'; c.fill();
+    }
+    c.restore();
   }
 }
 
@@ -1977,28 +2017,10 @@ function drawCandles(c, x, y, w, h, col, t) {
   }
 }
 
-Face.prototype.drawSuit = function (c, x0, y0, col) {
-  // shoulders and lapels beside the head, and a crooked tie over one shoulder
-  for (const s of [-1, 1]) {
-    const X = (u) => x0 + s * u;
-    c.beginPath(); c.moveTo(X(112), y0 + 44); c.lineTo(X(170), y0 + 52); c.quadraticCurveTo(X(196), y0 + 58, X(196), y0 + 80); c.lineTo(X(196), y0 + 98); c.lineTo(X(112), y0 + 98); c.closePath();
-    c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(col, 0.16 + this.flash * 0.3); c.fill();
-    neonStroke(c, col, col, 2.6, X(112), y0 + 70, X(196), y0 + 70, 0.8);
-    c.beginPath(); c.moveTo(X(114), y0 + 46); c.lineTo(X(146), y0 + 96); c.lineTo(X(150), y0 + 68);   // lapel
-    c.strokeStyle = rgba('#ffffff', 0.75); c.lineWidth = 2; c.stroke();
-    c.fillStyle = '#ffffff'; c.fillRect(X(176) - 3, y0 + 80, 6, 6);   // a button
-  }
-  const a = -0.5 + 0.18 * Math.sin(this.t * 2.4) + (this.fury ? 0.25 * Math.sin(this.t * 9) : 0);
-  c.save(); c.translate(x0 - 116, y0 + 50); c.rotate(a);
-  c.beginPath(); c.moveTo(-7, 0); c.lineTo(7, 0); c.lineTo(4, 10); c.lineTo(-4, 10); c.closePath();
-  c.moveTo(-4, 10); c.lineTo(4, 10); c.lineTo(10, 52); c.lineTo(0, 62); c.lineTo(-10, 52); c.closePath();
-  c.fillStyle = '#ffffff'; c.fill();
-  c.restore();
-};
-
 // the market crash: a chart in free fall, candles tipping over, the ticker in
-// panic, and the executive shrinking into a little man who runs off screen
-Face.prototype.renderCrash = function (c, col) {
+// panic, the desk breaking in two and the shareholder shrinking into a little
+// man who runs off screen
+Shareholder.prototype.renderCrash = function (c, col) {
   const g = this.g, k = FACE_DEATH - this.deathT, t = this.t;
   const top = g.top + 40, bot = g.dangerY - 40;
   // the chart: it climbs, then falls through the floor
@@ -2016,30 +2038,33 @@ Face.prototype.renderCrash = function (c, col) {
   // candles all along, tipping over and falling, one after another
   for (let i = 0; i < 9; i++) {
     const d = Math.max(0, k - 0.4 - i * 0.12), x = 70 + i * 72, y = top + 60 + (i % 3) * 30 + 300 * d * d, rot = Math.min(1.5, d * 2) * (i % 2 ? 1 : -1);
-    if (y > g.H) continue;
+    if (y > g.dangerY) continue;
     c.save(); c.translate(x, y); c.rotate(rot); drawCandles(c, -21, -26, 42, 52, col, t); c.restore();
   }
+  // the shareholder shrinks behind the breaking desk, then runs away
+  const shrink = Math.min(1, Math.max(0, (k - 0.8) / 1.2)), crack = Math.min(1, k / 1.6);
+  if (shrink < 1) {
+    const s = 1 - shrink * 0.92, px = this.cx, py = this.deskY;
+    c.save(); c.translate(px, py); c.scale(s, s); c.translate(-px, -py);
+    this.drawBody(c, this.cx, col);
+    this.drawHead(c, this.cx, this.headY, this.hs, col);
+    c.restore();
+  }
+  if (crack < 1) this.drawDesk(c, col, Math.max(0.02, crack));
   // the ticker in panic
-  const ty = g.top + 300;
+  const ty = g.top + 330;
   c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(0, ty - 24, W, 48);
   c.beginPath(); c.moveTo(0, ty - 24); c.lineTo(W, ty - 24); c.moveTo(0, ty + 24); c.lineTo(W, ty + 24);
   neonStroke(c, col, col, 2, 0, ty, W, ty, 0.8);
-  const msg = 'PÂNICO NA BOLSA   ▼ O SISTEMA -99,9%   ▼ CIRCUIT BREAKER   ▼ LUCRO NÃO ENCONTRADO   ';
+  const msg = 'PÂNICO NA BOLSA   ▼ O ACIONISTA -99,9%   ▼ CIRCUIT BREAKER   ▼ LUCRO NÃO ENCONTRADO   ';
   c.save(); c.beginPath(); c.rect(0, ty - 24, W, 48); c.clip();
   c.font = '800 20px "Orbitron", sans-serif';
   const mw = c.measureText(msg).width + msg.length * 2, off = -((k * 260) % mw);   // glowText adds 2 px between letters
   for (let x = off; x < W; x += mw) glowText(c, msg, x, ty + 1, 20, '#ffffff', col, 'left', 800, 2);
   c.restore();
   if (Math.sin(t * 12) > -0.3) neonTitle(c, '-99,9%', W / 2, ty + 100, 64, col, col, 8);
-  // the executive: the face shrinks, then the little man runs away
-  const shrink = Math.min(1, Math.max(0, (k - 0.6) / 1.4));
-  if (shrink < 1) {
-    c.save(); c.translate(this.cx, this.y0); c.scale(1 - shrink * 0.9, 1 - shrink * 0.9); c.translate(-this.cx, -this.y0);
-    this.drawSuit(c, this.cx, this.y0, col);
-    this.drawFace(c, this.cx, this.y0, col);
-    c.restore();
-  } else {
-    const run = k - 2, dir = this.cx > W / 2 ? -1 : 1, x = this.cx + dir * (run * run * 60 + run * 120), y = this.y0 + 40, step = Math.sin(t * 26);
+  if (shrink >= 1) {
+    const run = k - 2, dir = this.cx > W / 2 ? -1 : 1, x = this.cx + dir * (run * run * 60 + run * 120), y = this.deskY - 20, step = Math.sin(t * 26);
     if (x > -40 && x < W + 40) {
       c.save(); c.translate(x, y); c.scale(dir * 1.7, 1.7);
       c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.lineCap = 'round';
@@ -2063,7 +2088,7 @@ export function createBoss(type, g) {
   if (type === 'censor') return new Censor(g);
   if (type === 'clock') return new Clock(g);
   if (type === 'patent') return new Patent(g);
-  if (type === 'system') return new Face(g);
+  if (type === 'system') return new Shareholder(g);
   if (type === 'supervisor') return new Supervisor(g);
   return type === 'sentinel' ? new Sentinel(g) : new Singularity(g);
 }
