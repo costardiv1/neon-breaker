@@ -2,6 +2,18 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9.3 (16/11/2026)
+
+### Fonte
+- [ ] Com o celular em modo avião, abra o jogo já instalado: os textos continuam na fonte Orbitron.
+
+### Final
+- [ ] Derrote O SISTEMA: depois do crash da bolsa aparece DERROTADO com as moedas e o botão de dobrar com anúncio. CONTINUAR leva ao falso travamento.
+
+### Mapa e modo dev
+- [ ] O mapa continua igual, com o capítulo 10 e a torre no fim.
+- [ ] Modo dev, aba Capítulo e fase: os botões de 1 a 10 aparecem em duas linhas, e o 10 leva ao capítulo 10.
+
 ## 1.9.2 (16/11/2026)
 
 ### O SISTEMA (chefão final)

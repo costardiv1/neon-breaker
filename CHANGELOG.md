@@ -2,6 +2,21 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9.3] · 16/11/2026 · Pendências: fonte embutida, documentação nova e moedas do final
+
+### Adicionado
+
+- A fonte Orbitron agora vem dentro do jogo (www/fonts, licença SIL OFL), então o texto não muda de fonte sem internet e o jogo não depende mais do Google Fonts.
+
+### Alterado
+
+- Documentação: capturas de tela novas (menu, mapa, fases, chefões, BREAKERS, final e o crash da bolsa) e diagramas de casos de uso, módulos e áudio atualizados.
+- Removido o código dos capítulos "EM BREVE", que não era mais usado desde que o capítulo 10 ficou pronto.
+
+### Corrigido
+
+- Depois do chefão final, as moedas entravam na conta, mas a tela de dobrar com anúncio não aparecia. Agora ela aparece (DERROTADO) antes do falso travamento.
+
 ## [1.9.2] · 16/11/2026 · O SISTEMA do mercado financeiro
 
 ### Adicionado

@@ -20,7 +20,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.9.2';
+export const VERSION = '1.9.3';
 
 let H = 1280;
 let safeTop = 0;
@@ -115,7 +115,7 @@ const unlocked = (i) => i <= prog || (opts.dev && opts.unlock);
 // each boss beaten unlocks the next platform shape
 function bossesBeaten() {
   let n = 0;
-  for (let w = 0; w < WORLDS.length; w++) if (!WORLDS[w].soon && prog > worldStart(w) + worldCount(w) - 1) n++;
+  for (let w = 0; w < WORLDS.length; w++) if (prog > worldStart(w) + worldCount(w) - 1) n++;
   return n;
 }
 if (plat.shape > bossesBeaten() && !(opts.dev && opts.unlock)) plat.shape = 0;
@@ -198,7 +198,7 @@ const endlessOpen = () => bossesBeaten() >= 1 || devAll();
 // capsules the campaign already showed (they arrive district by district)
 function capKnown(type) {
   let reach = 0;
-  for (let w = 0; w < WORLDS.length; w++) if (!WORLDS[w].soon && prog >= worldStart(w)) reach = w;
+  for (let w = 0; w < WORLDS.length; w++) if (prog >= worldStart(w)) reach = w;
   return POWERS[type].d <= reach + 1;
 }
 
@@ -266,7 +266,8 @@ const game = new Game({
     if (e === 'worldClear') {
       saveChips();
       reward = game.stageCoins > 0 ? { n: game.stageCoins, back: 'world', done: false } : null;
-      if (game.world.final) { startCrash(); return; }
+      // the end: the coins (and the ad that doubles them) first, then the game crashes
+      if (game.world.final) { if (reward) { reward.back = 'crash'; setScene('reward'); } else startCrash(); return; }
       if (game.stage.boss && STORY[game.stage.w]) startStory(game.stage.w);
       else setScene('world');
       return;
@@ -476,14 +477,13 @@ function optionButtons() {
 const TW = 36, TH = 18, J0 = 6;
 const isoXY = (i, j) => ({ x: W / 2 + (i - j) * TW, y: 70 + (i + j - J0) * TH });
 const MAP_Y0 = 70;                 // y of the first tile of the street
-const STEPS = 36, SOON_STEPS = 26;  // street tiles per chapter (the last one is shorter)
-const DIST_H = STEPS * TH, SOON_H = SOON_STEPS * TH;
+const STEPS = 36;                  // street tiles per chapter
+const DIST_H = STEPS * TH;
 const NODE_F = [0.1, 0.3, 0.5, 0.7, 0.9];   // where the stages sit along a chapter's street
 const BONUS_F = 0.4;                          // where the side street to the bonus stage leaves it
 const EDGE = 8;                               // the street stays within |i - j| <= EDGE
 const LEAD = { i: 1, j: 3, bi: 2, bj: 4, h: 58 }; // where the street comes in, and the building in front of it
 const bandTop = (w) => MAP_Y0 + w * DIST_H;
-const distH = (w) => (WORLDS[w].soon ? SOON_H : DIST_H);
 const bonusOpen = (b) => unlocked(bonusIndex(b) + 1);
 
 // points every `step` px along straight segments
@@ -538,7 +538,7 @@ function isoData() {
   const R = rng(2718);
   let i = 3, j = 3, dir = 1;   // dir 1: along i (down-right), -1: along j (down-left)
   const tiles = [{ i, j }];
-  const total = WORLDS.reduce((n, wd) => n + (wd.soon ? SOON_STEPS : STEPS), 0);
+  const total = WORLDS.length * STEPS;
   const FINAL_RUN = 8;
   // around each chapter border (from the boss to the next chapter's first
   // stage) the street runs straight for GATE_RUN tiles, so the gate crosses it
@@ -574,7 +574,6 @@ function isoData() {
   path.forEach((q, t) => { const d = dist[q.w]; d.t0 = Math.min(d.t0, t); d.t1 = Math.max(d.t1, t + 1); });
   const nodes = [];
   WORLDS.forEach((wd, w) => {
-    if (wd.soon) return;
     const d = dist[w], len = d.t1 - d.t0 - 1;
     for (let k = 0; k < worldCount(w); k++) {
       const t = d.t0 + Math.round(NODE_F[k] * len);
@@ -630,7 +629,7 @@ function isoData() {
   const AX = [[TW, TH], [-TW, TH]].map(([u, v]) => { const m = Math.hypot(u, v); return [u / m, v / m]; });
   dist.forEach((d) => {
     d.gate = null;
-    if (d.w >= WORLDS.length - 1 || WORLDS[d.w].soon) return;
+    if (d.w >= WORLDS.length - 1) return;
     const boss = nodes.find((nd) => nd.w === d.w && nd.boss), next = nodes.find((nd) => nd.w === d.w + 1);
     const lo = boss.t + 9, hi = (next ? next.t : path.length - 1) - 9;
     // each half of the fence grows while it keeps clear of the other streets;
@@ -970,7 +969,7 @@ function itemOpen(key, i) {
 }
 function shapeNeed(i) {
   const wd = WORLDS[i - 1], b = wd && wd.boss;
-  return 'DERROTE ' + (b && !wd.soon ? b.name : 'O CHEFÃO DO CAPÍTULO ' + i);
+  return 'DERROTE ' + (b ? b.name : 'O CHEFÃO DO CAPÍTULO ' + i);
 }
 function openPlat() { for (const k in browse) browse[k] = plat[k]; }
 function browseItem(d) {
@@ -1463,7 +1462,7 @@ function pixelBot(c, x, y, s) {
 }
 // bosses beaten, in district order: their diary entries can be read again
 const bossOf = (w) => getStage(worldStart(w) + worldCount(w) - 1).boss;
-const beaten = (w) => !WORLDS[w].soon && prog > worldStart(w) + worldCount(w) - 1;
+const beaten = (w) => prog > worldStart(w) + worldCount(w) - 1;
 const ARCH_W = STORY.length;
 function creditButtons() {
   const cx = W / 2, list = [];
@@ -1959,12 +1958,14 @@ function layout() {
       list.push(btn(cx, y + 100, bw, bh, 'MAPA', () => setScene('map')));
       return list;
     }
-    case 'reward':
-      if (!reward || reward.done) return [btn(cx, H * 0.6, bw, bh, 'CONTINUAR', () => setScene('play'), { big: true })];
+    case 'reward': {
+      const go = () => (reward && reward.back === 'crash' ? startCrash() : setScene('play'));
+      if (!reward || reward.done) return [btn(cx, H * 0.6, bw, bh, 'CONTINUAR', go, { big: true })];
       return [
         btn(cx, H * 0.6, bw, bh, 'DOBRAR MOEDAS  ·  ANÚNCIO', startAd, { big: true, fs: 17, ad: true }),
-        btn(cx, H * 0.6 + 100, bw, bh, 'CONTINUAR', () => setScene('play')),
+        btn(cx, H * 0.6 + 100, bw, bh, 'CONTINUAR', go),
       ];
+    }
     case 'ad': {
       const list = adDone(performance.now() / 1000) ? [btn(W - 110, safeTop + 60, 170, 56, 'FECHAR  ✕', finishAd, { fs: 15 })] : [];
       if (ad && ad.kind === 'quebrabloco') list.push({ x: W / 2 - 170, y: H - 330 + 170 - 36, w: 340, h: 70, label: '', fn: () => openUrl(QB_URL), hidden: true });
@@ -2327,7 +2328,7 @@ function tileDistrict(y) {
   while (w < WORLDS.length - 1 && y >= bandTop(w + 1)) w++;
   return w;
 }
-const districtOpen = (w) => !WORLDS[w].soon && unlocked(worldStart(w));
+const districtOpen = (w) => unlocked(worldStart(w));
 // The map lights each district up as it opens (closed ones stay dark).
 const DARK = 0.6;
 const openCount = () => WORLDS.filter((_, w) => districtOpen(w)).length;
@@ -2343,7 +2344,7 @@ const FOCUS_DIM = 0.5;     // open districts away from the one in focus
 const mapDim = {};          // current darkness of each district (eases toward its target)
 let mapFocus = -1, mapDimT = 0;
 function districtBand(D, w) {
-  return [w ? bandTop(w) : -300, w < WORLDS.length - 1 ? bandTop(w) + distH(w) : D.height + 300];
+  return [w ? bandTop(w) : -300, w < WORLDS.length - 1 ? bandTop(w) + DIST_H : D.height + 300];
 }
 function updateMapDim(D, now, cy) {
   const dt = Math.min(0.1, Math.max(0, now - mapDimT)); mapDimT = now;
@@ -2881,7 +2882,7 @@ function drawFence(c, D, d, now, k) {
   if (!G) return;
   const P = G, nx = G.nx, ny = G.ny;
   const boss = worldStart(d.w) + worldCount(d.w) - 1;
-  const open = !WORLDS[d.w].soon && prog > boss;
+  const open = prog > boss;
   const pt = (o) => ({ x: P.x + nx * o, y: P.y + ny * o });
   c.save();
   for (const [a, b] of [[-G.La, -30], [30, G.Lb]]) {
@@ -2930,7 +2931,7 @@ function renderMapStrip(c, now, k, y0) {
   const x = 28;
   glowText(c, 'CAPÍTULO ' + (w + 1), x, y0 + 32, 13, rgba(k, 0.9), k, 'left', 700, 4);
   glowText(c, wd.name, x, y0 + 66, 26, open ? '#ffffff' : rgba('#ffffff', 0.55), k, 'left', 700, 3);
-  const sub = wd.soon ? 'EM BREVE' : !open ? 'BLOQUEADO' : 'CHEFÃO: ' + wd.boss.name;
+  const sub = !open ? 'BLOQUEADO' : 'CHEFÃO: ' + wd.boss.name;
   glowText(c, sub, x, y0 + 98, 12, rgba('#ffffff', open ? 0.75 : 0.5), k, 'left', 600, 3);
   // mechanics, newest first, on the right (two rows when they do not fit)
   c.font = `700 26px "Orbitron", sans-serif`;
@@ -3314,7 +3315,7 @@ function render() {
       renderChipsWon(ctx, reward ? H * 0.49 + 38 : H * 0.49, k);
     } else if (scene === 'reward') {
       dim(ctx, 0.72);
-      neonTitle(ctx, game.bonus ? 'FIM DO BÔNUS' : 'LIMPO', W / 2, H * 0.32, game.bonus ? 54 : 66, k, k, 10);
+      neonTitle(ctx, game.bonus ? 'FIM DO BÔNUS' : game.boss ? 'DERROTADO' : 'LIMPO', W / 2, H * 0.32, game.bonus || game.boss ? 54 : 66, k, k, 10);
       if (reward) renderCoinsWon(ctx, H * 0.43, k);
       renderChipsWon(ctx, H * 0.43 + 38, k);
       if (reward && !reward.done) glowText(ctx, 'ASSISTA A UM ANÚNCIO PARA DOBRAR AS MOEDAS', W / 2, H * 0.49 + 18, 15, rgba(k, 0.9), k, 'center', 500, 4);

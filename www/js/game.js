@@ -986,7 +986,7 @@ export class Game {
 
   endlessBoss() {
     const E = this.endless;
-    const ws = WORLDS.map((wd, i) => (wd.soon ? -1 : i)).filter((i) => i >= 0);
+    const ws = WORLDS.map((wd, i) => i);
     E.bossT = ENDLESS_BOSS;
     // first the bricks break one after another, from the middle out, and the
     // discs fly back to the platform; then the boss bursts in

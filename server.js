@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5173;
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css', '.json': 'application/json', '.png': 'image/png',
-  '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json',
+  '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.ttf': 'font/ttf', '.txt': 'text/plain; charset=utf-8',
 };
 
 http.createServer((req, res) => {

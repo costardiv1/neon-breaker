@@ -409,7 +409,7 @@ export function getBonus(b) {
 }
 
 // Stages per world = its stages + the boss.
-export const worldCount = (w) => (WORLDS[w].soon ? 0 : WORLDS[w].stages.length + 1);
+export const worldCount = (w) => WORLDS[w].stages.length + 1;
 export function worldStart(w) {
   let n = 0;
   for (let k = 0; k < w; k++) n += worldCount(k);
@@ -455,7 +455,6 @@ function stageMechs(world, st) {
 const ORDER = WORLDS.map((x) => x.mech).filter(Boolean);
 export function districtMechs(w) {
   const wd = WORLDS[w];
-  if (wd.soon) return [];
   const m = new Set([wd.mech]);
   for (const st of wd.stages) for (const k of stageMechs(wd, st)) m.add(k);
   return [...m].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));

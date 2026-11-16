@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.9.2** (16/11/2026)
+Versão atual publicada: **1.9.3** (16/11/2026)
 
 ## Objetivos
 
@@ -20,6 +20,13 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - Cada breaker vira uma nave diferente, inspirada no formato, mantendo emblema e cores, com um tiro próprio: ARCO duplo e reto; LÂMINA um laser forte e rápido; PONTA leque de 3; FERRADURA das duas pontas curvando para dentro; ASA das pontas das asas, abrindo; ONDA em zigue-zague; FUNIL convergindo à frente.
 
 ## Histórico
+
+### 1.9.3 (16/11/2026)
+
+- [x] Fonte Orbitron embutida no jogo.
+- [x] Documentação: capturas novas e diagramas atualizados.
+- [x] Tela de dobrar moedas depois do chefão final.
+- [x] Removido o código dos capítulos "EM BREVE"; modo dev conferido com o capítulo 10.
 
 ### 1.9.2 (16/11/2026)
 
@@ -202,11 +209,6 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 ### Pendências conhecidas
 
-- As capturas 03 a 17 da documentação são anteriores à 1.3 (numeração antiga das fases no topo da tela).
 - Os anúncios são de teste; os de verdade dependem de uma conta de anúncios na Play Store.
 - O placar online está desligado: falta criar o projeto no Supabase, rodar supabase/schema.sql e colocar a URL e a chave pública em www/js/online.js.
 - Tradução para o inglês: todos os textos estão em português, direto no código (menus, cartões, nomes, diário, frases do chefão, anúncios). Falta um sistema de idiomas (PT/EN) com troca nas OPÇÕES e decidir se os nomes (SUBÚRBIO, O SISTEMA...) são traduzidos. (16/11/2026)
-- Os diagramas de casos de uso, de módulos e de áudio da documentação estão desatualizados (só o dos chefões foi refeito na 1.9). (16/11/2026)
-- Depois do chefão final, as moedas entram na conta, mas a tela de dobrar com anúncio não aparece (o falso travamento entra direto). (16/11/2026)
-- Sobrou no mapa o código dos capítulos "EM BREVE" (SOON_STEPS), que não é mais usado. (16/11/2026)
-- Conferir a aba Capítulo e fase do modo dev com o capítulo 10. (16/11/2026)

@@ -112,7 +112,7 @@ export function createDevPanel(api) {
       `<div class="row">${b('📱 Padrão celular', api.gfxMobile)}${b('💻 Padrão PC', api.gfxPC)}</div>`,
     ].join('');
 
-    const worlds = api.WORLDS.map((wd, i) => (wd.soon ? '' : b(String(i + 1), () => api.goStage(api.worldStart(i)), i === w ? 'on' : ''))).join('');
+    const worlds = api.WORLDS.map((wd, i) => b(String(i + 1), () => api.goStage(api.worldStart(i)), i === w ? 'on' : '')).join('');
     const n = api.worldCount(w), s0 = api.worldStart(w);
     const stages = Array.from({ length: n }, (_, i) => b(i === n - 1 ? '👑' : String(i + 1), () => api.goStage(s0 + i), s0 + i === g.index ? 'on' : '')).join('');
     const mundo = g.endless ? [

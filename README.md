@@ -7,7 +7,7 @@
 **Um quebra-blocos minimalista em neon, feito para o celular.**
 Rebata o disco, atravesse os capítulos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.9.2-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.9.3-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -191,7 +191,7 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 ## Documentação
 
 - 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, capítulos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.9.2.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.9.3.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>
@@ -202,7 +202,7 @@ Feito por **Vinícius Costardi** e **Claude Code**, desenvolvido em vibe code.
 
 | Asset de terceiros | Licença |
 |---|---|
-| [Orbitron](https://fonts.google.com/specimen/Orbitron) (Matt McInerney), via Google Fonts | SIL Open Font License 1.1 |
+| [Orbitron](https://fonts.google.com/specimen/Orbitron) (Matt McInerney), embutida em `www/fonts` | SIL Open Font License 1.1 |
 | Textos: fonte do sistema (Segoe UI, Roboto ou Helvetica) | do próprio dispositivo |
 | Gráficos, efeitos, sons e músicas | gerados por código no próprio jogo |
 
@@ -214,11 +214,11 @@ Inspirado nos quebra-blocos clássicos e na estética neon de Tron.
 
 ## Próximos passos
 
-- [ ] Capítulo 10 e a luta final contra O SISTEMA
+- [x] Capítulo 10 e a luta final contra O SISTEMA
 - [ ] Anúncios de verdade (hoje são de teste)
 - [ ] Ligar o placar online (criar o projeto no Supabase)
 - [ ] APK com Capacitor e publicação na Play Store
-- [ ] Fonte Orbitron embutida no projeto
+- [x] Fonte Orbitron embutida no projeto
 - [ ] Idiomas (PT / EN)
 
 ---

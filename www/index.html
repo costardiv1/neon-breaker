@@ -12,10 +12,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-title" content="Neon Breaker">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/Orbitron.ttf" as="font" type="font/ttf" crossorigin>
 <style>
+  /* Orbitron (SIL Open Font License, fonts/OFL.txt), inside the game so it also works offline */
+  @font-face { font-family: "Orbitron"; src: url("fonts/Orbitron.ttf") format("truetype"); font-weight: 400 900; font-display: swap; }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
     touch-action: none; -webkit-user-select: none; user-select: none;
     -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
