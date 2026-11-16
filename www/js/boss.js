@@ -2,7 +2,7 @@
 // Each boss has a weak point, abilities that mess with the disc
 // (deflect, capture & throw...) and 2 health bars; losing the first one
 // triggers FURY mode.
-import { TAU, rgba, neonStroke, view, glowText } from './render.js';
+import { TAU, rgba, neonStroke, view, glowText, neonTitle } from './render.js';
 import { sfx, vibrate } from './audio.js';
 
 const W = 720;
@@ -1583,12 +1583,14 @@ class Council extends Boss {
 }
 
 // ---------- CHAPTER 10 (FINAL): O SISTEMA ----------
-// The smiling pixel face of the company. The mouth, a notch at the bottom of
-// the face between the cheeks, is the weak point: it opens to talk, and the
-// speech balloons fall and become bricks (a hit pops them first). The eyes
-// fire lasers, and a deep breath pulls the discs in and spits them back out.
-// Every hit knocks pixels off; in fury it glitches and pushes updates that
-// swap the field's mechanic.
+// The market's smiling executive: a pixel face in a suit, with dollar signs
+// for eyes. The mouth, a notch at the bottom of the face between the cheeks,
+// is the weak point: it opens to talk, and its market talk falls as
+// candlesticks that become bricks (a hit pops the balloon first). The eyes
+// fire lasers shaped like a chart line, and a deep breath pulls the discs in
+// and spits them back out. Every hit knocks pixels off; in fury it glitches
+// and pushes updates that swap the field's mechanic. Beaten, the market
+// crashes and the executive shrinks into a little man who runs away.
 const FPX = 14;
 const FACE = [
   '.....#######.....',
@@ -1605,8 +1607,9 @@ const FACE = [
   '...##.......##...',
 ];
 const FACE_EYES = [[4, 5, 6], [10, 11, 12]];   // eye columns, on rows 4 and 5
-const FACE_TALK = ['SUA OPINIÃO É IMPORTANTE', 'ACEITE OS TERMOS', 'TUDO SOB CONTROLE', 'ESTAMOS MELHORANDO', 'SORRIA!', 'CONFIE EM NÓS', 'É PARA O SEU BEM', 'VOLTE SEMPRE'];
-const FACE_FURY = ['ERRO 0x0000', 'NÃO ME DESLIGUE', 'REINICIANDO...', 'ISSO NÃO É POSSÍVEL', 'ATUALIZANDO...'];
+const FACE_TALK = ['COMPRE!', 'O MERCADO SE AUTORREGULA', 'LUCRO RECORDE', 'VOLATILIDADE É OPORTUNIDADE', 'RISCO ZERO', 'INVISTA EM VOCÊ', 'SÓ SOBE!', 'CONFIE NO MERCADO'];
+const FACE_FURY = ['VENDAM TUDO!', 'É SÓ UMA CORREÇÃO', 'NÃO ENTREM EM PÂNICO', 'CIRCUIT BREAKER!', 'RESGATE JÁ!'];
+const FACE_DEATH = 6.5;   // seconds of the market crash, before the ending
 const MOUTH_Y = 75, MOUTH_R = 32;   // the weak point, in the notch (it sticks out under the chin)
 const NOTCH = [5, 11];               // the mouth's columns, on rows 9 to 11
 
@@ -1642,7 +1645,7 @@ class Face extends Boss {
   // how many pixels are gone: more with every hit, all of them at the end
   get lostCells() {
     const taken = (this.lives === 2 ? 0 : this.hpMax) + (this.hpMax - this.hp);
-    const f = this.dead ? 0.55 + 0.45 * (1 - Math.max(0, this.deathT) / 2.6) : (taken / (2 * this.hpMax)) * 0.55;
+    const f = this.dead ? 0.55 + 0.45 * Math.min(1, (FACE_DEATH - this.deathT) / 1.4) : (taken / (2 * this.hpMax)) * 0.55;
     return Math.floor(f * this.order.length);
   }
 
@@ -1683,10 +1686,28 @@ class Face extends Boss {
     this.g.startUpd(['portals', 'gravity', 'alarm'], 11);
   }
 
+  die() {
+    super.die();
+    this.deathT = FACE_DEATH;
+    this.ownDeath = true;   // the game draws the whole crash, without fading it out
+    this.g.bricks = []; this.g.alive = 0;
+    this.balloons = [];
+    this.inhale = 0;
+    sfx.marketCrash();
+  }
+
   update(dt) {
-    const n0 = this.lostCells;
+    if (this.dead) {   // the market crash: the face falls apart, then the little man runs
+      const n0 = this.lostCells;
+      this.t += dt;
+      this.deathT -= dt;
+      this.shed(n0, this.lostCells);
+      const k = FACE_DEATH - this.deathT;
+      if (k < 1.6 && Math.random() < dt * 10) this.g.burst(this.cx + (Math.random() - 0.5) * 240, this.y0 + (Math.random() - 0.5) * 160, 8, 1.2);
+      this.g.shake = Math.max(this.g.shake, k < 1.4 ? 0.5 : 0);
+      return;
+    }
     super.update(dt);
-    if (this.dead) this.shed(n0, this.lostCells);
   }
 
   updateExtra(dt) {
@@ -1711,7 +1732,11 @@ class Face extends Boss {
     }
     // speech balloons: they hang beside the face, then fall and become bricks
     for (const L of this.balloons) {
-      if (L.t > 0) { L.t -= dt; continue; }
+      if (L.t > 0) {
+        L.t -= dt;
+        if (L.t <= 0) { const cx = L.x + L.w / 2; L.x = cx - 48; L.w = 96; L.y += L.h - 56; L.h = 56; L.candle = true; }   // the promise turns into candlesticks
+        continue;
+      }
       L.vy += 900 * dt;
       L.y += L.vy * dt;
       if (L.y + L.h >= this.bandY) { L.dead = true; this.drop(L); }
@@ -1760,11 +1785,18 @@ class Face extends Boss {
     if (a === 'talk') {
       const list = this.fury ? FACE_FURY : FACE_TALK;
       const text = list[Math.floor(Math.random() * list.length)];
-      const w = Math.round(text.length * 8.6 + 28), h = 34;
+      // long sentences break into two lines, at the space nearest the middle
+      let lines = [text];
+      if (text.length > 14) {
+        let best = -1;
+        for (let i = 0; i < text.length; i++) if (text[i] === ' ' && (best < 0 || Math.abs(i - text.length / 2) < Math.abs(best - text.length / 2))) best = i;
+        if (best > 0) lines = [text.slice(0, best), text.slice(best + 1)];
+      }
+      const w = Math.round(Math.max(...lines.map((q) => q.length)) * 9.6 + 28), h = lines.length > 1 ? 50 : 34;
       const right = this.cx < W / 2;
       let x = right ? this.cx + 130 : this.cx - 130 - w;
       x = clamp(x, 18, W - 18 - w);
-      this.balloons.push({ text, x, y: this.y0 - 70, w, h, t: 1.8, vy: 0, right });
+      this.balloons.push({ text, lines, x, y: this.y0 - 70 - (h - 34), w, h, t: 1.8, vy: 0, right });
       this.talk = 1.2;
       sfx.charge();
     } else if (a === 'lasers') {
@@ -1772,7 +1804,7 @@ class Face extends Boss {
       for (const s of [-1, 1]) {
         const ex = this.cx + s * 3 * FPX, ey = this.y0 - 1.5 * FPX;
         const dx = p.x - ex, dy = p.y - ey, a0 = Math.atan2(dy, dx);
-        for (const o of this.fury ? [-0.18, 0.18] : [0]) g.enemyShot(ex, ey, Math.cos(a0 + o) * 420, Math.sin(a0 + o) * 420);
+        for (const o of this.fury ? [-0.18, 0.18] : [0]) { g.enemyShot(ex, ey, Math.cos(a0 + o) * 380, Math.sin(a0 + o) * 380); g.shots[g.shots.length - 1].zig = 22; }   // a chart line
       }
       sfx.laser();
     } else if (a === 'inhale') {
@@ -1798,7 +1830,8 @@ class Face extends Boss {
     }
     if (this.g.effects.pierce) return false;
     const x = this.cx, y = this.y0;
-    if (collideRect(b, x - 119, y - 91, 238, 126) || collideRect(b, x - 105, y + 35, 56, 49) || collideRect(b, x + 49, y + 35, 56, 49)) {
+    if (collideRect(b, x - 119, y - 91, 238, 126) || collideRect(b, x - 105, y + 35, 56, 49) || collideRect(b, x + 49, y + 35, 56, 49)
+      || collideRect(b, x - 196, y + 42, 80, 56) || collideRect(b, x + 116, y + 42, 80, 56)) {
       sfx.clang(); this.g.ring(b.x, b.y, 36);
       return true;
     }
@@ -1810,11 +1843,14 @@ class Face extends Boss {
     if (Math.hypot(x - this.cx, y - this.cy) < MOUTH_R + rad) return this.coreOpen ? 'core' : 'armor';
     const fx = this.cx, fy = this.y0;
     if (x > fx - 119 - rad && x < fx + 119 + rad && y > fy - 91 - rad && y < fy + 84 + rad) return 'armor';
+    if (Math.abs(x - fx) < 196 + rad && y > fy + 42 - rad && y < fy + 98 + rad) return 'armor';   // the shoulders
     return null;
   }
 
   render(c) {
     const col = this.g.col, t = this.t;
+    if (this.dead) { this.renderCrash(c, col); return; }
+    this.drawSuit(c, this.cx, this.y0, col);
     // in fury the face glitches: a shifted copy flickers beside it
     if (this.fury && Math.sin(t * 11) > 0.6) {
       c.save(); c.globalAlpha *= 0.3;
@@ -1835,6 +1871,7 @@ class Face extends Boss {
     }
     for (const L of this.balloons) {
       const fall = L.t <= 0;
+      if (L.candle) { drawCandles(c, L.x, L.y, L.w, L.h, col, t); continue; }
       c.save();
       if (fall) c.globalAlpha *= 0.75 + 0.25 * Math.sin(t * 30);
       roundRectPath2(c, L.x, L.y, L.w, L.h, 12);
@@ -1848,7 +1885,7 @@ class Face extends Boss {
         c.beginPath(); c.moveTo(tx, L.y + L.h - 12); c.lineTo(tx + s * 14, L.y + L.h + 6); c.lineTo(tx - s * 2, L.y + L.h - 2);
         c.strokeStyle = col; c.lineWidth = 2; c.stroke();
       }
-      glowText(c, L.text, L.x + L.w / 2, L.y + L.h / 2 + 1, 11, '#ffffff', col, 'center', 800, 2);
+      L.lines.forEach((q, i) => glowText(c, q, L.x + L.w / 2, L.y + L.h / 2 + 1 + (i - (L.lines.length - 1) / 2) * 16, 11, '#ffffff', col, 'center', 800, 2));
       c.restore();
     }
   }
@@ -1876,13 +1913,17 @@ class Face extends Boss {
     const laser = this.charge && this.charge.a === 'lasers';
     for (const eye of FACE_EYES) for (const q of eye) for (const r of [4, 5]) px(q, r, 1);
     c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = (laser ? 22 : 8) * view.blur; c.fill(); c.shadowBlur = 0;
-    const pq = Math.round(this.look), blink = !laser && mood !== 'shock' && (t % 4.2) > 4.05;
-    c.beginPath();
-    for (const eye of FACE_EYES) {
-      if (blink) { for (const q of eye) px(q, 4, 1); continue; }
-      px(eye[1] + pq, mood === 'shock' ? 4 : 5, 3);
+    const blink = !laser && mood !== 'shock' && (t % 4.2) > 4.05;
+    if (blink) {
+      c.beginPath();
+      for (const eye of FACE_EYES) for (const q of eye) px(q, 4, 1);
+      c.fillStyle = rgba(col, 0.9); c.fill();
+    } else {   // dollar signs for pupils, looking at the disc
+      c.font = '900 24px "Orbitron", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = '#000';
+      for (const eye of FACE_EYES) c.fillText('$', x0 + (eye[1] - 8) * FPX + this.look * 7, y0 + (4.5 - 6) * FPX + 1);
+      c.textBaseline = 'alphabetic';
     }
-    c.fillStyle = blink ? rgba(col, 0.9) : '#000'; c.fill();
     if (laser) for (const s of [-1, 1]) {
       const k = 1 - this.charge.t / this.charge.max;
       c.beginPath(); c.arc(x0 + s * 3 * FPX, y0 - 1.5 * FPX, 40 * (1 - k) + 8, 0, TAU);
@@ -1922,6 +1963,98 @@ class Face extends Boss {
     }
   }
 }
+
+// candlesticks of a chart: filled ones went up, outlined ones went down
+function drawCandles(c, x, y, w, h, col, t) {
+  const n = 3, cw = w / n;
+  for (let i = 0; i < n; i++) {
+    const up = i % 2 === 0, bx = x + i * cw + cw * 0.2, bw = cw * 0.6, top = y + h * (up ? 0.22 : 0.3), bh = h * (up ? 0.56 : 0.42);
+    c.beginPath(); c.moveTo(bx + bw / 2, y); c.lineTo(bx + bw / 2, y + h);
+    c.strokeStyle = rgba(col, 0.9); c.lineWidth = 2; c.stroke();
+    c.beginPath(); c.rect(bx, top, bw, bh);
+    c.fillStyle = up ? col : '#000'; c.fill();
+    neonStroke(c, col, col, 2, bx, top, bx + bw, top, 0.6 + 0.3 * Math.sin(t * 9 + i));
+  }
+}
+
+Face.prototype.drawSuit = function (c, x0, y0, col) {
+  // shoulders and lapels beside the head, and a crooked tie over one shoulder
+  for (const s of [-1, 1]) {
+    const X = (u) => x0 + s * u;
+    c.beginPath(); c.moveTo(X(112), y0 + 44); c.lineTo(X(170), y0 + 52); c.quadraticCurveTo(X(196), y0 + 58, X(196), y0 + 80); c.lineTo(X(196), y0 + 98); c.lineTo(X(112), y0 + 98); c.closePath();
+    c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(col, 0.16 + this.flash * 0.3); c.fill();
+    neonStroke(c, col, col, 2.6, X(112), y0 + 70, X(196), y0 + 70, 0.8);
+    c.beginPath(); c.moveTo(X(114), y0 + 46); c.lineTo(X(146), y0 + 96); c.lineTo(X(150), y0 + 68);   // lapel
+    c.strokeStyle = rgba('#ffffff', 0.75); c.lineWidth = 2; c.stroke();
+    c.fillStyle = '#ffffff'; c.fillRect(X(176) - 3, y0 + 80, 6, 6);   // a button
+  }
+  const a = -0.5 + 0.18 * Math.sin(this.t * 2.4) + (this.fury ? 0.25 * Math.sin(this.t * 9) : 0);
+  c.save(); c.translate(x0 - 116, y0 + 50); c.rotate(a);
+  c.beginPath(); c.moveTo(-7, 0); c.lineTo(7, 0); c.lineTo(4, 10); c.lineTo(-4, 10); c.closePath();
+  c.moveTo(-4, 10); c.lineTo(4, 10); c.lineTo(10, 52); c.lineTo(0, 62); c.lineTo(-10, 52); c.closePath();
+  c.fillStyle = '#ffffff'; c.fill();
+  c.restore();
+};
+
+// the market crash: a chart in free fall, candles tipping over, the ticker in
+// panic, and the executive shrinking into a little man who runs off screen
+Face.prototype.renderCrash = function (c, col) {
+  const g = this.g, k = FACE_DEATH - this.deathT, t = this.t;
+  const top = g.top + 40, bot = g.dangerY - 40;
+  // the chart: it climbs, then falls through the floor
+  const fall = Math.min(1, Math.max(0, (k - 0.3) / 1.6));
+  c.beginPath();
+  for (let i = 0; i <= 24; i++) {
+    const u = i / 24, x = 40 + u * (W - 80);
+    let y = bot - (bot - top) * 0.75 * u + 18 * Math.sin(i * 1.7);
+    if (u > 0.6) y += (u - 0.6) / 0.4 * (bot - top + 400) * fall;
+    c[i ? 'lineTo' : 'moveTo'](x, Math.min(y, g.H + 50));
+  }
+  c.save(); c.globalAlpha *= Math.min(1, k * 2);
+  neonStroke(c, col, col, 4, 40, top, W - 40, bot, 1.2);
+  c.restore();
+  // candles all along, tipping over and falling, one after another
+  for (let i = 0; i < 9; i++) {
+    const d = Math.max(0, k - 0.4 - i * 0.12), x = 70 + i * 72, y = top + 60 + (i % 3) * 30 + 300 * d * d, rot = Math.min(1.5, d * 2) * (i % 2 ? 1 : -1);
+    if (y > g.H) continue;
+    c.save(); c.translate(x, y); c.rotate(rot); drawCandles(c, -21, -26, 42, 52, col, t); c.restore();
+  }
+  // the ticker in panic
+  const ty = g.top + 300;
+  c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(0, ty - 24, W, 48);
+  c.beginPath(); c.moveTo(0, ty - 24); c.lineTo(W, ty - 24); c.moveTo(0, ty + 24); c.lineTo(W, ty + 24);
+  neonStroke(c, col, col, 2, 0, ty, W, ty, 0.8);
+  const msg = 'PÂNICO NA BOLSA   ▼ O SISTEMA -99,9%   ▼ CIRCUIT BREAKER   ▼ LUCRO NÃO ENCONTRADO   ';
+  c.save(); c.beginPath(); c.rect(0, ty - 24, W, 48); c.clip();
+  c.font = '800 20px "Orbitron", sans-serif';
+  const mw = c.measureText(msg).width + msg.length * 2, off = -((k * 260) % mw);   // glowText adds 2 px between letters
+  for (let x = off; x < W; x += mw) glowText(c, msg, x, ty + 1, 20, '#ffffff', col, 'left', 800, 2);
+  c.restore();
+  if (Math.sin(t * 12) > -0.3) neonTitle(c, '-99,9%', W / 2, ty + 100, 64, col, col, 8);
+  // the executive: the face shrinks, then the little man runs away
+  const shrink = Math.min(1, Math.max(0, (k - 0.6) / 1.4));
+  if (shrink < 1) {
+    c.save(); c.translate(this.cx, this.y0); c.scale(1 - shrink * 0.9, 1 - shrink * 0.9); c.translate(-this.cx, -this.y0);
+    this.drawSuit(c, this.cx, this.y0, col);
+    this.drawFace(c, this.cx, this.y0, col);
+    c.restore();
+  } else {
+    const run = k - 2, dir = this.cx > W / 2 ? -1 : 1, x = this.cx + dir * (run * run * 60 + run * 120), y = this.y0 + 40, step = Math.sin(t * 26);
+    if (x > -40 && x < W + 40) {
+      c.save(); c.translate(x, y); c.scale(dir * 1.7, 1.7);
+      c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(0, 6); c.lineTo(-7 * step, 20); c.moveTo(0, 6); c.lineTo(7 * step, 20);   // legs
+      c.moveTo(0, -6); c.lineTo(-9, 2 + 4 * step); c.moveTo(0, -6); c.lineTo(9, 2 - 4 * step); c.stroke();   // arms
+      c.beginPath(); c.rect(-6, -10, 12, 17); c.fillStyle = col; c.fill();   // the little suit
+      c.beginPath(); c.rect(-6, -24, 12, 12); c.fillStyle = col; c.fill();   // the little head
+      c.fillStyle = '#000'; c.fillRect(-3, -20, 2, 3); c.fillRect(2, -20, 2, 3);
+      c.fillStyle = '#ffffff'; c.fillRect(-1, -9, 2, 9);   // the tie
+      c.beginPath(); c.arc(-12, -20 - 4 * Math.abs(step), 2.5, 0, TAU); c.fill();   // a drop of sweat
+      c.restore();
+      if (run < 1.6) glowText(c, 'NÃO FOI CULPA MINHA!', Math.max(130, Math.min(W - 130, x)), y - 64, 13, '#ffffff', col, 'center', 800, 3);
+    }
+  }
+};
 
 export function createBoss(type, g) {
   if (type === 'armored') return new Armored(g);

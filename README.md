@@ -7,7 +7,7 @@
 **Um quebra-blocos minimalista em neon, feito para o celular.**
 Rebata o disco, atravesse os capítulos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.9.1-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.9.2-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -40,7 +40,7 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 
 ## Destaques
 
-- **10 capítulos, 50 fases e 10 chefões**, cada um com dois estágios de vida e MODO FÚRIA, até o chefão final: O SISTEMA, um rosto de pixels que fala, dispara lasers e se desmancha a cada acerto.
+- **10 capítulos, 50 fases e 10 chefões**, cada um com dois estágios de vida e MODO FÚRIA, até o chefão final: O SISTEMA, um executivo de pixels do mercado financeiro que, derrotado, quebra a bolsa e sai correndo.
 - **Fases bônus de chuva de moedas** nos capítulos 2, 5 e 8: um escudo segura o disco, e um combo faz chover mais moedas.
 - **NEON FIGHTERS**: quem zera o jogo ganha a primeira fase do próximo, uma nave vista de cima (as asas do breaker ARCO) contra hordas e uma nave-mãe.
 - **A história em capítulos**: a cada chefão derrotado, um terminal digita um trecho do diário de quem está derrubando o sistema.
@@ -191,7 +191,7 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 ## Documentação
 
 - 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, capítulos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.9.1.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.9.2.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>

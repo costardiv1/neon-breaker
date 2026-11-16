@@ -2,6 +2,21 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9.2 (16/11/2026)
+
+### O SISTEMA (chefão final)
+- [ ] O rosto está de terno: ombros com lapelas dos lados, uma gravata torta e cifrões nos olhos, que seguem o disco.
+- [ ] Os ombros também rebatem o disco.
+- [ ] Os balões têm frases de mercado (COMPRE!, O MERCADO SE AUTORREGULA...), em duas linhas quando são longas e sem o texto sair do balão.
+- [ ] Quando o balão cai, ele vira três velas de gráfico (cheias e só com contorno) e depois blocos.
+- [ ] Os lasers dos olhos voam em zigue-zague, deixando uma linha de gráfico.
+- [ ] Na fúria, as frases mudam (VENDAM TUDO!, CIRCUIT BREAKER!...).
+- [ ] Ao derrotá-lo: o gráfico sobe e despenca, as velas caem, o letreiro corre (PÂNICO NA BOLSA, -99,9%) e ele encolhe até virar um bonequinho que corre para fora da tela ("NÃO FOI CULPA MINHA!"). Depois vem o falso travamento.
+- [ ] No INFINITO, depois desse crash, o jogo continua normalmente.
+
+### BARRICADA
+- [ ] Só blocos simples, sem as muralhas nas pontas.
+
 ## 1.9.1 (16/11/2026)
 
 ### BARRICADA

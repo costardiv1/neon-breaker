@@ -2,6 +2,17 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9.2] · 16/11/2026 · O SISTEMA do mercado financeiro
+
+### Adicionado
+
+- Ao ser derrotado, O SISTEMA tem um crash da bolsa: o gráfico despenca, as velas tombam e caem, um letreiro corre com PÂNICO NA BOLSA e -99,9%, e o chefão encolhe até virar um bonequinho de terno que sai correndo da tela ("NÃO FOI CULPA MINHA!"). Depois vem o falso travamento.
+
+### Alterado
+
+- O SISTEMA virou um executivo do mercado financeiro: terno com ombros e lapelas, gravata torta e cifrões no lugar das pupilas. Os balões têm frases de mercado (COMPRE!, O MERCADO SE AUTORREGULA, LUCRO RECORDE, RISCO ZERO; na fúria, VENDAM TUDO!, CIRCUIT BREAKER!...), em duas linhas quando são longas. Eles caem como velas de gráfico antes de virar blocos, e os lasers dos olhos voam em zigue-zague, como uma linha de gráfico.
+- Fase bônus BARRICADA: só blocos simples, de uma batida, sem as muralhas.
+
 ## [1.9.1] · 16/11/2026 · BARRICADA perfurante e mapa que lembra a posição
 
 ### Alterado

@@ -1592,7 +1592,14 @@ export class Game {
     this.missiles = this.missiles.filter((m) => !m.dead);
     // boss shots
     for (const s of this.shots) {
-      s.x += s.vx * dt; s.y += s.vy * dt; s.t += dt;
+      s.t += dt;
+      if (s.zig) {   // O SISTEMA: a laser shaped like a chart line
+        if (s.bx === undefined) { s.bx = s.x; s.by = s.y; s.trail = []; }
+        s.bx += s.vx * dt; s.by += s.vy * dt;
+        const v = Math.hypot(s.vx, s.vy) || 1, u = (s.t * 3.4) % 2, off = ((u < 1 ? u : 2 - u) * 2 - 1) * s.zig;
+        s.x = s.bx - (s.vy / v) * off; s.y = s.by + (s.vx / v) * off;
+        s.trail.push(s.x, s.y); if (s.trail.length > 70) s.trail.splice(0, 2);
+      } else { s.x += s.vx * dt; s.y += s.vy * dt; }
       if (Math.abs(s.x - p.x) < p.hw + 6 && Math.abs(s.y - (p.y + 4)) < 16) {
         s.dead = true;
         this.addSize(-1, 6);
@@ -2572,6 +2579,14 @@ export class Game {
       c.restore();
     }
     for (const s of this.shots) {
+      if (s.trail && s.trail.length > 3) {
+        c.beginPath(); c.moveTo(s.trail[0], s.trail[1]);
+        for (let i = 2; i < s.trail.length; i += 2) c.lineTo(s.trail[i], s.trail[i + 1]);
+        c.lineJoin = 'round';
+        neonStroke(c, col, WHITE, 3, s.x - 20, s.y, s.x + 20, s.y, 1);
+        c.beginPath(); c.arc(s.x, s.y, 5, 0, TAU); c.fillStyle = WHITE; c.fill();
+        continue;
+      }
       c.save();
       c.translate(s.x, s.y); c.rotate(s.t * 8);
       c.beginPath(); c.moveTo(0, -9); c.lineTo(7, 0); c.lineTo(0, 9); c.lineTo(-7, 0); c.closePath();
@@ -2627,8 +2642,8 @@ export class Game {
     this.renderField(c);
     this.renderMechanics(c);
     if (this.bonus) this.renderShield(c);
-    if (this.boss && (!this.boss.dead || this.boss.deathT > 1.2)) {
-      c.globalAlpha = this.boss.dead ? (this.boss.deathT - 1.2) / 1.4 : 1;
+    if (this.boss && (!this.boss.dead || this.boss.deathT > 1.2 || this.boss.ownDeath)) {
+      c.globalAlpha = this.boss.dead && !this.boss.ownDeath ? (this.boss.deathT - 1.2) / 1.4 : 1;
       this.boss.render(c);
       c.globalAlpha = 1;
     }

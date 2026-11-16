@@ -337,7 +337,7 @@ export const WORLDS = [
     // The top of the tower: the system itself, which keeps updating the rules.
     name: 'O SISTEMA', final: true, mech: 'update', music: 'w10', bossMusic: 'boss10', border: 'scan',
     boss: { type: 'system', name: 'O SISTEMA',
-      text: 'O rosto sorridente da empresa. Acerte a boca quando ela abrir; os balões que ele fala caem como blocos.' },
+      text: 'O executivo sorridente do mercado. Acerte a boca quando ela abrir; as promessas dele caem como velas de gráfico e viram blocos.' },
     stages: [
       { name: 'FIREWALL', pool: ['portals', 'gravity', 'slide'], rows: [
         'X4444444X',
@@ -397,9 +397,9 @@ export const BONUS = [
   { w: 7, after: 1, kind: 'pierce', name: 'BARRICADA', demo: 'cap:pierce', slide: [1, 3],
     text: 'Chuva de moedas! Um escudo segura o disco, que fica com PERFURAR a fase inteira e atravessa os blocos. Quebre blocos sem deixar o disco tocar o escudo para subir o combo e pegue as moedas com a plataforma. São 30 s.',
     rows: [
-      'X2222222X',
+      '.1111111.',
       '111111111',
-      '..22222..',
+      '..11111..',
       '111111111',
     ] },
 ];

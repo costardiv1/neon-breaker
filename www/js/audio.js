@@ -212,6 +212,12 @@ class Sfx {
   shipShot() {
     this.voice({ f: 1700, to: 900, dur: 0.05, type: 'square', vol: 0.025, ff: 5000, q: 1, send: 0.1 });
   }
+  // O SISTEMA beaten: the market crashes, a long sad slide down
+  marketCrash() {
+    this.voice({ f: 880, to: 55, dur: 1.8, type: 'sawtooth', detune: [-15, 15], vol: 0.12, ff: 3000, fto: 200, q: 4, send: 0.6 });
+    this.voice({ f: 440, to: 40, dur: 2.2, type: 'square', vol: 0.05, ff: 1500, fto: 150, q: 2, send: 0.5, delay: 0.2 });
+    this.noise({ dur: 1.4, vol: 0.1, ff: 4000, fto: 200, q: 2, send: 0.5 });
+  }
   rainCombo(m) {
     [0, 4, 7].forEach((st, i) => this.voice({ f: this.note(st + m * 2, 660), dur: 0.14, type: 'triangle', vol: 0.1, ff: 7000, fto: 2500, q: 2, send: 0.6, delay: i * 0.05 }));
   }
