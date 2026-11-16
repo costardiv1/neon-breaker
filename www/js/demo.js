@@ -192,6 +192,31 @@ const SCENES = {
       if (ub > 0.5) ring(c, k, hitB[0], by + bh / 2, 14 + (ub - 0.5) * 60, 1 - (ub - 0.5) * 2);
     }
   },
+  // ATUALIZAÇÃO: a download bar fills, then the field's mechanic changes
+  update(c, k, w, h, t) {
+    const u = (t / 4) % 1, cur = (Math.floor(t / 4) + (u >= 0.75 ? 1 : 0)) % 2;
+    const bw = w * 0.13, bh = h * 0.11;
+    row(5, w / 2, bw, 8).forEach((x) => brick(c, k, x, h * 0.24, bw, bh, { hp: 2 }));
+    if (u > 0.2 && u < 0.75) {
+      const f = seg(u, 0.25, 0.72), bx = w * 0.15, bl = w * 0.7;
+      label(c, k, 'BAIXANDO ATUALIZAÇÃO  ' + Math.floor(f * 100) + '%', w / 2, h * 0.07, 11, 0.9);
+      roundRectPath(c, bx, h * 0.12, bl, 9, 4); c.strokeStyle = rgba(k, 0.7); c.lineWidth = 1.5; c.stroke();
+      roundRectPath(c, bx + 2, h * 0.12 + 2, (bl - 4) * f, 5, 2); c.fillStyle = k; c.fill();
+    }
+    if (u >= 0.75 && u < 0.9) { ring(c, k, w / 2, h * 0.55, 30 + seg(u, 0.75, 0.9) * 120, 1 - seg(u, 0.75, 0.9)); label(c, k, 'ATUALIZADO', w / 2, h * 0.07, 12, 1); }
+    if (cur === 0) {
+      for (const px of [w * 0.18, w * 0.82]) {
+        c.beginPath(); c.ellipse(px, h * 0.58, 22, 9, 0, 0, TAU);
+        c.fillStyle = rgba(k, 0.2); c.fill(); neonStroke(c, k, '#ffffff', 2.2, px - 22, h * 0.58, px + 22, h * 0.58, 0.8);
+      }
+    } else {
+      const wx = w / 2, wy = h * 0.58;
+      for (let i = 0; i < 3; i++) { const r = 40 - ((t * 22 + i * 13) % 39); ring(c, k, wx, wy, r, (40 - r) / 40 * 0.7); }
+      c.beginPath(); c.arc(wx, wy, 6, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+    }
+    pad(c, k, w / 2, h * 0.9);
+    disc(c, k, w * 0.36, lerp(h * 0.82, h * 0.24 + bh + 10, tri(t * 0.9)));
+  },
   portals(c, k, w, h, t) {
     const u = (t / 2.8) % 1, A = [w * 0.22, h * 0.45], B = [w * 0.78, h * 0.45];
     for (const [p, col] of [[A, k], [B, k]]) {

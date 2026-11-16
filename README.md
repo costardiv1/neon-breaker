@@ -7,7 +7,7 @@
 **Um quebra-blocos minimalista em neon, feito para o celular.**
 Rebata o disco, atravesse os capítulos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.8.3-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.9-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -40,19 +40,21 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 
 ## Destaques
 
-- **9 capítulos jogáveis, 45 fases e 9 chefões**, cada um com dois estágios de vida e MODO FÚRIA.
+- **10 capítulos, 50 fases e 10 chefões**, cada um com dois estágios de vida e MODO FÚRIA, até o chefão final: O SISTEMA, um rosto de pixels que fala, dispara lasers e se desmancha a cada acerto.
+- **Fases bônus de chuva de moedas** nos capítulos 2, 5 e 8: um escudo segura o disco, e um combo faz chover mais moedas.
+- **NEON FIGHTERS**: quem zera o jogo ganha a primeira fase do próximo, uma nave vista de cima (as asas do breaker ARCO) contra hordas e uma nave-mãe.
 - **A história em capítulos**: a cada chefão derrotado, um terminal digita um trecho do diário de quem está derrubando o sistema.
-- **Uma mecânica nova por capítulo**, misturada em cada fase com uma ou duas das antigas.
+- **Uma mecânica nova por capítulo**, misturada em cada fase com uma ou duas das antigas. No capítulo 10, O SISTEMA troca a mecânica no meio da fase (ATUALIZAÇÃO).
 - **Modo INFINITO**: uma fase só, com blocos descendo sem parar, mecânicas que entram e se revezam e um chefão aleatório a cada 3 min 30 s.
 - **Mapa em cidade 3D isométrica**: o caminho das fases é uma rua, com cercas de neon nos portões, carros de luz que passam atrás dos prédios e a torre AURUM no fim.
-- **Plataforma personalizável**: 7 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.
+- **Plataforma personalizável**: 10 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.
 - **Perks em cartas**, evoluídos com chips: equipe 1 ativo (ESCUDO, ONDA DE CHOQUE, CÂMERA LENTA, ÍMÃ, MEGA LASER ou RELÂMPAGO) e 1 passivo (PLATAFORMA LARGA, GRANA, RECARGA, SORTE, VIDA EXTRA ou DISCO PESADO).
 - **Anúncio opcional para dobrar as moedas** da fase vencida ou do chefão (por enquanto, anúncios de teste, um deles do QUEBRABLOCO, o projeto que deu origem ao Neon Breaker).
 - **Placar do INFINITO** pelo tempo sobrevivido, com as melhores partidas do aparelho e um placar online (Supabase) pronto para ser ligado. Na campanha, cada fase guarda o seu recorde no mapa.
 - **Arquivos dos chefões** nos créditos: releia o diário de cada chefão derrotado.
 - **Avisos de novidade**: um ! no menu BREAKERS quando há algo para comprar ou um formato novo, e um sino com todas as novidades.
 - **13 cápsulas** de poderes e desvantagens que entram até o capítulo 6, do míssil teleguiado e da BOMBA ao APAGÃO, que deixa o campo no escuro.
-- **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança, a ASA bate as asas, a ONDA ondula e o FUNIL afunda.
+- **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança, a ASA bate as asas, a ONDA ondula, o FUNIL afunda, o DEGRAU desce um degrau, o ESCUDO absorve a batida e a COROA inclina as pontas.
 - **Trilha sonora sintetizada** por capítulo, cada vez mais rápida e frenética, com a borda do campo pulsando na batida.
 - **Feito para celular**: toque para levar a plataforma até o dedo, qualidade gráfica ajustável e padrões diferentes para PC e celular.
 - **Modo dev secreto** (5 toques na versão + senha), com um painel flutuante dentro da partida no estilo do Quebrabloco: seções com ícones, controles deslizantes e cápsulas que caem na plataforma com um toque.
@@ -70,7 +72,7 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 | 7 | CENSURA | VAZAMENTO: tarjas rebatem o disco até você acertar o vazamento | O CENSOR | ✅ |
 | 8 | RESISTÊNCIA | BLINDAGEM: blocos blindados por baixo | O BLINDADO | ✅ |
 | 9 | TORRE AURUM | SEGURANÇA: feixes que ligam, desligam e rebatem o disco | O CONSELHO | ✅ |
-| 10 | O SISTEMA | — | O SISTEMA | em breve |
+| 10 | O SISTEMA | ATUALIZAÇÃO: a mecânica da fase troca a cada 15 s | O SISTEMA | ✅ |
 
 <div align="center">
 <table>
@@ -104,9 +106,16 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 <td align="center"><img src="docs/img/19_censor.png" width="180"><br><sub><b>O CENSOR</b><br>a lente atrás da tarja</sub></td>
 <td align="center"><img src="docs/img/22_blindado.png" width="180"><br><sub><b>O BLINDADO</b><br>o escudo encara o disco</sub></td>
 <td align="center"><img src="docs/img/23_conselho.png" width="180"><br><sub><b>O CONSELHO</b><br>só a coroa leva dano</sub></td>
+<td align="center"><img src="docs/img/29_sistema.png" width="180"><br><sub><b>O SISTEMA</b><br>acerte a boca quando ela abrir</sub></td>
 </tr>
 </table>
 </div>
+
+## NEON FIGHTERS
+
+Depois de derrubar O SISTEMA, o terminal carrega a primeira fase do próximo jogo: uma nave vista de cima, com as asas na curva do breaker ARCO e as cores e o emblema do seu breaker. O tiro é automático e você arrasta para desviar de 2 min 30 de hordas até a nave-mãe, A COLMEIA. Depois disso, o botão FIGHTERS fica no menu inicial.
+
+<div align="center"><img src="docs/img/30_fighters.png" width="220"></div>
 
 <details>
 <summary><b>⚠️ Spoiler: o final</b></summary>
@@ -168,6 +177,7 @@ www/
   js/game.js        classe Game: física, blocos, cápsulas, moedas, poderes, HUD
   js/boss.js        classe Boss e os chefões
   js/levels.js      dados dos 10 capítulos, fases e mecânicas
+  js/fighters.js    NEON FIGHTERS: a demo do próximo jogo
   js/platform.js    formatos, paletas, emblemas e o desenho da plataforma
   js/audio.js       efeitos e músicas sintetizados (Web Audio)
   js/render.js      utilitários de desenho neon
@@ -181,7 +191,7 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 ## Documentação
 
 - 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, capítulos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.8.3.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.9.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>

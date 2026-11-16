@@ -2,6 +2,25 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9] · 16/11/2026 · O jogo completo: capítulo 10, o chefão final e o NEON FIGHTERS
+
+### Adicionado
+
+- Capítulo 10, O SISTEMA, no topo da Torre AURUM: 4 fases (FIREWALL, BACKUP, KERNEL e ROOT) e música própria, uma musiquinha de espera alegre que vive dando defeito.
+- Mecânica ATUALIZAÇÃO (capítulo 10): a cada 15 s O SISTEMA troca a mecânica da fase no meio da partida, entre as de cada fase (portais, gravidade, deslize, fase, segurança, contágio, vazamento, blindagem e pressão). Antes de trocar, uma barra "BAIXANDO ATUALIZAÇÃO" enche no topo por 3 s com o ícone e o nome da próxima.
+- Chefão final novo, O SISTEMA: um rosto gigante de pixels, o "mascote" sorridente da empresa. O ponto fraco é a boca, entre as bochechas, quando ela abre. Ele fala frases corporativas em balões que caem e viram blocos (acertar o balão antes faz ele estourar), dispara lasers pelos olhos e respira fundo para puxar o disco e cuspi-lo de volta. Cada acerto arranca pixels do rosto; na fúria ele dá defeito, muda as frases e começa a soltar atualizações que trocam a mecânica do campo.
+- Registro 10 do diário, depois do falso travamento.
+- NEON FIGHTERS: depois de zerar, o terminal carrega a primeira fase do próximo jogo. É uma nave vista de cima, com as asas na curva do breaker ARCO e as cores e o emblema do jogador. O tiro é automático e o jogador arrasta para mover. São uns 2 min 30 de hordas (drones, dardos que mergulham e tanques que atiram), cápsulas P de tiro triplo e tiro rápido, e no fim a nave-mãe A COLMEIA. O jogador tem 3 escudos, e o recorde fica salvo.
+- Menu inicial: botão FIGHTERS ao lado de BREAKERS e INFINITO, depois de zerar.
+- 3 formatos de breaker novos, liberados pelos chefões dos capítulos 7, 8 e 9: DEGRAU (três ângulos), ESCUDO (mais largo, com ângulos mais suaves) e COROA (três pontas, imprevisível). O chefão final não libera formato.
+
+### Alterado
+
+- Fases bônus viraram uma chuva de moedas. Sai a mesa de pinball: um escudo embaixo da plataforma segura o disco, que não cai mais. São 30 s quebrando blocos, que soltam moedas para pegar com a plataforma. Um combo de até x4 sobe a cada 4 blocos seguidos sem o disco tocar o escudo e aumenta a chance de moeda. O campo se enche de novo quando esvazia. São até 30 moedas na primeira vez e até 10 nas outras. LAG, FORK BOMB e BARRICADA continuam com o míssil, os discos e a explosão.
+- Mapa: o capítulo 10 tem fases, e a rua corre reta até a torre no fim, que fica ao lado das últimas fases.
+- INFINITO: O SISTEMA entra no rodízio dos chefões, depois do CONSELHO.
+- O SUPERVISOR (capítulo 3) ficou com a pirâmide só para ele.
+
 ## [1.8.3] · 13/11/2026 · Fases bônus de pinball e modo dev compacto
 
 ### Adicionado

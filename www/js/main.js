@@ -7,6 +7,7 @@ import { THEMES } from './themes.js';
 import { sfx, music, haptics } from './audio.js';
 import { createDevPanel } from './devpanel.js';
 import { ONLINE, submitRun, fetchTop, getName, setName, NAME_RE } from './online.js';
+import { Fighters } from './fighters.js';
 
 // ---------- persistence ----------
 const store = {
@@ -19,7 +20,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.8.3';
+export const VERSION = '1.9';
 
 let H = 1280;
 let safeTop = 0;
@@ -43,7 +44,6 @@ let bestT = store.get('bestT', 0);
 let eruns = store.get('eruns', []);        // best endless runs on this device: { t, bosses, date }
 // bonus stages already cleared ({ district: true }): the first clear pays the full reward
 let bonusWon = store.get('bonus', {});
-const BONUS_AGAIN = 3;                     // coins for clearing a bonus stage again
 let devUI = null;                          // in-game dev panel (created further down)
 const REPO_URL = 'https://github.com/costardiv1/neon-breaker';
 const INSTA_URL = 'https://www.instagram.com/v.costardi';
@@ -256,11 +256,8 @@ const game = new Game({
       saveChips();
       return;
     }
-    if (e === 'bonusClear') {   // the coins of the bonus stage go with the ones caught in it
-      const n = bonusWon[data.w] ? BONUS_AGAIN : data.coins;
+    if (e === 'bonusClear') {   // played once: the next runs rain fewer coins
       bonusWon[data.w] = true; store.set('bonus', bonusWon);
-      coins += n; game.stageCoins += n;
-      game.float('BÔNUS  +' + n + ' MOEDAS', W / 2, game.paddle.y - 200, 26);
       saveChips();
       return;
     }
@@ -278,10 +275,11 @@ const game = new Game({
   },
 });
 game.plat = plat;
+game.mechIcon = drawMechIcon;   // ATUALIZAÇÃO shows the next mechanic's icon
 game.wallet = () => coins;
 game.chipWallet = () => chips;
 game.setColor(col());
-window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
+window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), nf: () => startFighters(), get fighters() { return fighters; }, scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
 
 function applyOpts() {
   store.set('opts', opts);
@@ -297,7 +295,7 @@ let devOpen = false;
 let freeze = false;
 let drag = null;
 
-const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story', 'reward', 'ad', 'guide'];
+const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story', 'reward', 'ad', 'guide', 'fighters', 'fpause'];
 function setScene(s) {
   if (s !== 'play') saveChips();
   if (s === 'map' && scene !== 'map') focusMap();
@@ -305,10 +303,10 @@ function setScene(s) {
   showGateInput(s === 'devgate' && !opts.dev);
   if (s !== 'scores') showNameInput(false);
   scene = s;
-  sfx.setPlaying(s === 'play');
+  sfx.setPlaying(s === 'play' || s === 'fighters');
   if (s === 'crash') music.play(null);
   else if (!IN_GAME.includes(s)) music.play('map');
-  music.duck(s === 'pause' || s === 'guide' || s === 'card' || s === 'over' || s === 'story' || s === 'reward' || s === 'ad');
+  music.duck(s === 'pause' || s === 'fpause' || s === 'guide' || s === 'card' || s === 'over' || s === 'story' || s === 'reward' || s === 'ad');
   if (s !== 'play') devOpen = false;
 }
 setScene('menu');
@@ -540,7 +538,7 @@ function isoData() {
   let i = 3, j = 3, dir = 1;   // dir 1: along i (down-right), -1: along j (down-left)
   const tiles = [{ i, j }];
   const total = WORLDS.reduce((n, wd) => n + (wd.soon ? SOON_STEPS : STEPS), 0);
-  const lastStart = (WORLDS.length - 1) * STEPS;
+  const FINAL_RUN = 8;
   // around each chapter border (from the boss to the next chapter's first
   // stage) the street runs straight for GATE_RUN tiles, so the gate crosses it
   // far from any corner
@@ -555,10 +553,15 @@ function isoData() {
       step(Math.min(GATE_RUN, total - k)); dir = -dir;
       continue;
     }
-    // the last chapter heads for the middle, to the tower
-    const want = k >= lastStart + GATE_RUN / 2 ? Math.max(1, Math.abs(d)) : 3 + Math.floor(R() * 8);
-    if (k >= lastStart + GATE_RUN / 2 && i !== j) dir = i > j ? -1 : 1;
-    const len = Math.min(total - k, room, want, g - k);
+    // the last stretch runs straight to the tower, so the tower (tall, drawn
+    // at the end) stands beside the last stages instead of in front of them
+    if (k >= total - FINAL_RUN) {
+      if (room < total - k) dir = -dir;
+      step(total - k);
+      continue;
+    }
+    const want = 3 + Math.floor(R() * 8);
+    const len = Math.min(total - FINAL_RUN - k, room, want, g - k);
     if (len <= 0) { dir = -dir; continue; }
     step(len); dir = -dir;
   }
@@ -1304,12 +1307,19 @@ const STORY = [
     'lá em cima, O SISTEMA se acha seguro.',
     'falta uma fase.',
     'e eu sei onde ele é fraco.'],
+  ['registro 10',
+    'O SISTEMA caiu tentando se reiniciar.',
+    'o jogo agora não tem dono:',
+    'é de quem joga, de quem copia,',
+    'de quem conserta.',
+    'e já tem gente escrevendo o próximo.'],
 ];
 const STORY_CPS = 42;   // typed characters per second
 let story = { w: 0, t0: 0, lines: [], skip: false };
 function startStory(w, back = null) {
   const body = STORY[w] || [];
-  const lines = ['> abrindo diario/' + String(w + 1).padStart(2, '0') + '.txt', ''].concat(body, ['', '> salvo. o jogo continua.']);
+  const end = w === STORY.length - 1 ? '> carregando NEON FIGHTERS...' : '> salvo. o jogo continua.';
+  const lines = ['> abrindo diario/' + String(w + 1).padStart(2, '0') + '.txt', ''].concat(body, ['', end]);
   story = { w, back, t0: performance.now() / 1000, lines, skip: false, total: lines.reduce((a, l) => a + l.length + 6, 0) };
   setScene('story');
 }
@@ -1357,6 +1367,7 @@ function startCrash() {
   snap.width = canvas.width; snap.height = canvas.height;
   try { snap.getContext('2d').drawImage(canvas, 0, 0); } catch (e) { /* ignore */ }
   crash = { t0: performance.now() / 1000, snap };
+  store.set('nf', true);   // NEON FIGHTERS is open from now on
   sfx.crash();
   setScene('crash');
 }
@@ -1693,6 +1704,12 @@ function drawMenuIcon(c, kind, x, y, k) {
     }
     c.lineCap = 'round';
     neonStroke(c, k, k, 4, x - 24, y, x + 24, y, 0.8);
+  } else if (kind === 'ship') {
+    // the NEON FIGHTERS ship: the ARCO curve as wings and a pointed body
+    for (let i = 0; i <= 20; i++) { const u = -1 + i / 10; c[i ? 'lineTo' : 'moveTo'](x + u * 26, y + 4 + 12 * u * u); }
+    c.moveTo(x, y - 24); c.lineTo(x + 7, y - 2); c.lineTo(x + 5, y + 16); c.lineTo(x - 5, y + 16); c.lineTo(x - 7, y - 2); c.closePath();
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    neonStroke(c, k, k, 3, x - 26, y, x + 26, y, 0.8);
   } else if (kind === 'inf') {
     for (let i = 0; i <= 64; i++) {
       const t = (i / 64) * TAU, d = 1 + Math.sin(t) * Math.sin(t);
@@ -1826,10 +1843,14 @@ function layout() {
       // top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
       const { big, mid, top, y2 } = menuGrid(), B = bellRect();
       const lockedMsg = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
+      // with NEON FIGHTERS open, the three small icons share the row
+      const nf = store.get('nf', false), gap = nf ? (W - 3 * mid) / 4 - 10 : 0;
+      const xs = nf ? [cx - mid * 1.5 - gap, cx - mid / 2, cx + mid / 2 + gap] : [cx - 62 - mid, cx + 62];
       return [
         { x: cx - big / 2, y: top, w: big, h: big, label: 'JOGAR', fn: () => setScene('map'), icon: 'play', big: true },
-        { x: cx - 62 - mid, y: y2, w: mid, h: mid, label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
-        { x: cx + 62, y: y2, w: mid, h: mid, label: endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', fn: endlessOpen() ? startEndless : lockedMsg, icon: 'inf', off: !endlessOpen() },
+        { x: xs[0], y: y2, w: mid, h: mid, label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
+        { x: xs[1], y: y2, w: mid, h: mid, label: endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', fn: endlessOpen() ? startEndless : lockedMsg, icon: 'inf', off: !endlessOpen() },
+        ...(nf ? [{ x: xs[2], y: y2, w: mid, h: mid, label: 'FIGHTERS', fn: startFighters, icon: 'ship' }] : []),
         Object.assign(B, { label: '', fn: () => setScene('notif'), bell: true }),
         { x: W - B.x - B.w, y: B.y, w: B.w, h: B.h, label: '', fn: () => setScene('options'), icon: 'gear', round: true },
         { x: B.x - B.w - 14, y: B.y, w: B.w, h: B.h, label: '', fn: openScores, icon: 'trophy', round: true },
@@ -1840,9 +1861,25 @@ function layout() {
       list.push(btn(cx, H - 90, bw, bh, 'VOLTAR', () => setScene('menu')));
       return list;
     }
+    case 'fighters': {
+      const F = fighters;
+      if (!F || F.state === 'play' || F.endT < 1.6) return [];
+      return [
+        btn(cx, H * 0.7, bw, bh, F.state === 'won' ? 'JOGAR DE NOVO' : 'TENTAR DE NOVO', startFighters, { big: true }),
+        btn(cx, H * 0.7 + 96, bw, bh, 'MENU', () => setScene('menu')),
+      ];
+    }
+    case 'fpause': {
+      const { big, mid, top, y2 } = menuGrid();
+      return [
+        { x: cx - big / 2, y: top, w: big, h: big, label: 'CONTINUAR', fn: () => setScene('fighters'), icon: 'play', big: true },
+        { x: cx - 62 - mid, y: y2, w: mid, h: mid, label: 'RECOMEÇAR', fn: startFighters, icon: 'restart' },
+        { x: cx + 62, y: y2, w: mid, h: mid, label: 'MENU', fn: () => setScene('menu'), icon: 'home' },
+      ];
+    }
     case 'crash': {
       const t = performance.now() / 1000 - crash.t0;
-      return t > CRASH_END ? [btn(cx, H * 0.72, bw, bh, 'MENU', () => setScene('menu'), { big: true })] : [];
+      return t > CRASH_END ? [btn(cx, H * 0.72, bw, bh, 'CONTINUAR', () => startStory(STORY.length - 1), { big: true })] : [];
     }
     case 'options':
     case 'dev': {
@@ -1900,7 +1937,7 @@ function layout() {
       ];
     case 'story':
       return [storyDone(performance.now() / 1000)
-        ? btn(cx, H - 150, bw, bh, story.back ? 'VOLTAR' : 'CONTINUAR', () => { if (story.back) setScene(story.back); else if (!seen.perkTut) startPerkTut(); else setScene('world'); }, { big: true })
+        ? btn(cx, H - 150, bw, bh, story.back ? 'VOLTAR' : 'CONTINUAR', () => { if (story.back) setScene(story.back); else if (story.w === STORY.length - 1) startFighters(); else if (!seen.perkTut) startPerkTut(); else setScene('world'); }, { big: true })
         : btn(cx, H - 150, bw, bh, 'PULAR', () => { story.skip = true; })];
     case 'world': {
       const next = game.index + 1;
@@ -2013,9 +2050,20 @@ function startGame(index = 0, bonus = null) {
   card = null;
   freeze = false;
   setScene('play');
-  if (bonus) game.newBonus(bonus); else game.newGame(index);
+  if (bonus) game.newBonus(bonus, !!bonusWon[bonus.w]); else game.newGame(index);
 }
 const startBonus = (b) => startGame(0, b);
+
+// NEON FIGHTERS: the first stage of the next game, after the ending
+let fighters = null;
+function startFighters() {
+  fighters = new Fighters(H, game.top, plat, col());
+  fighters.best = store.get('nfBest', 0);
+  fighters.onEnd = (score) => {
+    if (score > fighters.best) { fighters.best = score; fighters.newBest = true; store.set('nfBest', score); }
+  };
+  setScene('fighters');
+}
 
 // ---------- input ----------
 function toLogical(e) {
@@ -2029,6 +2077,11 @@ canvas.addEventListener('pointerdown', (e) => {
   sfx.unlock();
   const p = toLogical(e);
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  if (scene === 'fighters' && fighters && (fighters.state === 'play' || fighters.endT < 1.6)) {
+    if (fighters.state === 'play' && p.x > W - 110 && p.y < game.top - 46) { setScene('fpause'); sfx.click(); return; }
+    fighters.press(p.x, p.y);
+    return;
+  }
   if (scene === 'play') {
     if (hitPause(p)) { setScene('pause'); sfx.click(); return; }
     if (opts.dev && inside(devToggleRect(), p)) { devOpen = !devOpen; sfx.click(); return; }
@@ -2065,6 +2118,7 @@ canvas.addEventListener('pointermove', (e) => {
     if (mapDrag.moved) mapScroll = clampScroll(mapDrag.s0 - dy);
     return;
   }
+  if (scene === 'fighters' && fighters) { const q = toLogical(e); if (e.pointerType !== 'mouse' || e.buttons) fighters.move(q.x, q.y, false); return; }
   if (scene !== 'play') return;
   const p = toLogical(e);
   if (e.pointerType === 'mouse') { game.paddle.tx = game.mirror ? W - p.x : p.x; return; }
@@ -2081,6 +2135,7 @@ canvas.addEventListener('pointerup', (e) => {
     if (drag && drag.id === e.pointerId) { game.launch(); drag = null; }
     return;
   }
+  if (scene === 'fighters' && fighters) fighters.release();
   if (mapDrag) { const moved = mapDrag.moved; mapDrag = null; if (moved) { pressed = null; return; } }
   if (swipe && scene === 'plat') {
     const dx = p.x - swipe.x, dy = p.y - swipe.y;
@@ -2127,6 +2182,7 @@ window.addEventListener('keyup', (e) => {
 function onFocusChange(on) {
   sfx.setFocus(on);
   if (!on && scene === 'play') setScene('pause');
+  if (!on && scene === 'fighters' && fighters && fighters.state === 'play') setScene('fpause');
 }
 // Sound only plays while the game is actually on screen. 'focus' can arrive
 // while the page is still hidden on some phones, so every event checks it.
@@ -2782,6 +2838,15 @@ function drawMechIcon(c, m, x, y, s, color) {
       c.beginPath(); c.moveTo(x - s * 0.9, y); c.lineTo(x + s * 0.9, y);
       c.moveTo(x - s * 0.4, y - s * 0.7); c.lineTo(x - s * 0.4, y - s * 0.35); c.moveTo(x + s * 0.4, y - s * 0.7); c.lineTo(x + s * 0.4, y - s * 0.35);
       break;
+    case 'update': // a refresh arrow around a download arrow
+      c.arc(x, y, s, -Math.PI * 0.35, Math.PI * 1.45);
+      c.moveTo(x + Math.cos(-Math.PI * 0.35) * s, y + Math.sin(-Math.PI * 0.35) * s);
+      c.lineTo(x + Math.cos(-Math.PI * 0.35) * s + s * 0.1, y + Math.sin(-Math.PI * 0.35) * s - s * 0.5);
+      c.moveTo(x + Math.cos(-Math.PI * 0.35) * s, y + Math.sin(-Math.PI * 0.35) * s);
+      c.lineTo(x + Math.cos(-Math.PI * 0.35) * s - s * 0.5, y + Math.sin(-Math.PI * 0.35) * s - s * 0.05);
+      c.moveTo(x, y - s * 0.45); c.lineTo(x, y + s * 0.4);
+      c.moveTo(x - s * 0.3, y + s * 0.12); c.lineTo(x, y + s * 0.42); c.lineTo(x + s * 0.3, y + s * 0.12);
+      break;
     case 'censor': // a block with a black bar across it
       c.strokeRect(x - s * 0.8, y - s * 0.75, s * 1.6, s * 1.5);
       c.stroke(); c.beginPath(); c.fillRect(x - s * 1.1, y - s * 0.22, s * 2.2, s * 0.44);
@@ -3182,6 +3247,9 @@ function render() {
     renderMap(ctx, now);
   } else if (scene === 'crash') {
     renderCrash(ctx, now);
+  } else if (scene === 'fighters' || scene === 'fpause') {
+    if (fighters) fighters.render(ctx, now);
+    if (scene === 'fpause') { dim(ctx, 0.7); neonTitle(ctx, 'PAUSA', W / 2, H * 0.32, 72, k, k, 12); }
   } else if (scene === 'story') {
     renderStory(ctx, now);
   } else if (scene === 'ad') {
@@ -3230,13 +3298,12 @@ function render() {
       glowText(ctx, `CAPÍTULO ${game.stage.w + 1}  ·  ${game.world.name}`, W / 2, H * 0.28, 22, rgba(k, 0.9), k, 'center', 700, 8);
       neonTitle(ctx, 'CONCLUÍDO', W / 2, H * 0.34, 62, k, k, 10);
       glowText(ctx, String(lastScore), W / 2, H * 0.45, 52, '#ffffff', k, 'center', 700, 3);
-      if (game.index + 1 >= TOTAL_STAGES) glowText(ctx, 'NOVOS CAPÍTULOS EM BREVE', W / 2, H * 0.545, 16, rgba(k, 0.9), k, 'center', 500, 5);
       if (newShape) glowText(ctx, 'NOVO FORMATO DE PLATAFORMA: ' + newShape, W / 2, H * 0.575, 15, '#ffffff', k, 'center', 700, 3);
       if (reward) renderCoinsWon(ctx, H * 0.49, k);
       renderChipsWon(ctx, reward ? H * 0.49 + 38 : H * 0.49, k);
     } else if (scene === 'reward') {
       dim(ctx, 0.72);
-      neonTitle(ctx, 'LIMPO', W / 2, H * 0.32, 66, k, k, 10);
+      neonTitle(ctx, game.bonus ? 'FIM DO BÔNUS' : 'LIMPO', W / 2, H * 0.32, game.bonus ? 54 : 66, k, k, 10);
       if (reward) renderCoinsWon(ctx, H * 0.43, k);
       renderChipsWon(ctx, H * 0.43 + 38, k);
       if (reward && !reward.done) glowText(ctx, 'ASSISTA A UM ANÚNCIO PARA DOBRAR AS MOEDAS', W / 2, H * 0.49 + 18, 15, rgba(k, 0.9), k, 'center', 500, 4);
@@ -3274,6 +3341,7 @@ function frame(now) {
   if (now - fpsT >= 1000) { fps = fpsN; fpsN = 0; fpsT = now; }
   while (acc >= STEP) {
     if (scene === 'play' && !freeze) game.update(STEP);
+    else if (scene === 'fighters' && fighters) fighters.update(STEP);
     else {
       // the screen shake still fades while the game is stopped (game over, pause...)
       if (game.shake > 0) game.shake = Math.max(0, game.shake - STEP * 3);

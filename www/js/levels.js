@@ -19,6 +19,7 @@ export const MECHS = {
   censor:   { name: 'VAZAMENTO', text: 'Tarjas rebatem o disco. Acerte a gota para derrubá-las.' },
   armor:    { name: 'BLINDAGEM', text: 'A placa protege por baixo. Acerte por cima ou pelo lado.' },
   alarm:    { name: 'SEGURANÇA', text: 'Feixes ligados rebatem o disco.' },
+  update:   { name: 'ATUALIZAÇÃO', text: 'A cada 15 s O SISTEMA troca a mecânica da fase. A barra no topo mostra qual vem.' },
 };
 
 export const WORLDS = [
@@ -332,43 +333,74 @@ export const WORLDS = [
       ] },
     ],
   },
-  { name: 'O SISTEMA', soon: true, final: true, music: 'w3', bossMusic: 'boss3', border: 'scan',
+  {
+    // The top of the tower: the system itself, which keeps updating the rules.
+    name: 'O SISTEMA', final: true, mech: 'update', music: 'w10', bossMusic: 'boss10', border: 'scan',
     boss: { type: 'system', name: 'O SISTEMA',
-      text: 'Acerte o olho que tudo vê. Dizem que ele é grande demais para cair.' } },
+      text: 'O rosto sorridente da empresa. Acerte a boca quando ela abrir; os balões que ele fala caem como blocos.' },
+    stages: [
+      { name: 'FIREWALL', pool: ['portals', 'gravity', 'slide'], rows: [
+        'X4444444X',
+        '.3333333.',
+        '222222222',
+        '.1111111.',
+        '..1.1.1..',
+      ] },
+      { name: 'BACKUP', pool: ['phase', 'alarm', 'viral'], rows: [
+        '333333333',
+        '2.2E2E2.2',
+        '222222222',
+        '.1111111.',
+        '1.1.1.1.1',
+      ] },
+      { name: 'KERNEL', pool: ['censor', 'gravity', 'armor', 'portals'], rows: [
+        '44.444.44',
+        '.3333333.',
+        'X2E222E2X',
+        '.2222222.',
+        '..11111..',
+      ] },
+      { name: 'ROOT', pool: ['slide', 'alarm', 'phase', 'descent', 'portals'], rows: [
+        '4.44444.4',
+        '.3333333.',
+        '3.2E2E2.3',
+        '222222222',
+        '.1111111.',
+        '..1...1..',
+      ] },
+    ],
+  },
 ];
 
 // Bonus stages: side streets on the map, in chapters 2, 5 and 8. They open
-// after the chapter's 2nd stage, have no chapter mechanic but a twist of their
-// own, and give one chance and 40 s to clear the field for the prize. Their
-// field is a pinball table (see Game.makeTable): no capsules, no coins from
-// the bricks and no perks; the bumpers and letters fill a pot paid at the end.
+// after the chapter's 2nd stage and are a coin rain (see Game.rainBrick): a
+// shield under the platform keeps the discs in, the bricks drop coins (more
+// with the combo) and the field refills until the 30 s run out. No chapter
+// mechanic, no capsules and no perks, but a twist of their own.
 export const BONUS = [
-  { w: 1, after: 1, kind: 'missiles', name: 'LAG', coins: 15, demo: 'cap:missile', slide: [0, 2, 4],
-    text: 'Um míssil sai da plataforma a cada 3 s. Uma chance só e 40 s para limpar tudo. Bumpers e letras enchem o pote de moedas.',
+  { w: 1, after: 1, kind: 'missiles', name: 'LAG', demo: 'cap:missile', slide: [0, 2],
+    text: 'Chuva de moedas! Um escudo segura o disco e um míssil sai da plataforma a cada 3 s. Quebre blocos sem deixar o disco tocar o escudo para subir o combo e pegue as moedas com a plataforma. São 30 s.',
     rows: [
-      '.3.3.3.3.',
-      '333333333',
-      '..44444..',
-      '222222222',
-      '.2.2.2.2.',
+      '.1.1.1.1.',
+      '111111111',
+      '..22222..',
+      '111111111',
     ] },
-  { w: 4, after: 1, kind: 'fork', name: 'FORK BOMB', coins: 20, demo: 'cap:multi', slide: [2, 4],
-    text: 'Cada bloco quebrado solta mais um disco (até 8). Uma chance só e 40 s para limpar tudo. Bumpers e letras enchem o pote.',
+  { w: 4, after: 1, kind: 'fork', name: 'FORK BOMB', demo: 'cap:multi', slide: [1, 3],
+    text: 'Chuva de moedas! Um escudo segura o disco e cada bloco quebrado solta mais um disco (até 8). Quebre blocos sem deixar o disco tocar o escudo para subir o combo e pegue as moedas com a plataforma. São 30 s.',
     rows: [
-      '3.3.3.3.3',
-      '333333333',
-      '.3.3.3.3.',
+      '1.1.1.1.1',
       '222222222',
-      '..33333..',
+      '.1.1.1.1.',
+      '111111111',
     ] },
-  { w: 7, after: 1, kind: 'bombs', name: 'BARRICADA', coins: 25, demo: 'cap:bomb', slide: [2, 4],
-    text: 'A cada duas batidas, uma explosão corre pela fileira. Uma chance só e 40 s para limpar tudo. Bumpers e letras enchem o pote.',
+  { w: 7, after: 1, kind: 'bombs', name: 'BARRICADA', demo: 'cap:bomb', slide: [1, 3],
+    text: 'Chuva de moedas! Um escudo segura o disco e, a cada duas batidas, uma explosão corre pela fileira. Quebre blocos sem deixar o disco tocar o escudo para subir o combo e pegue as moedas com a plataforma. São 30 s.',
     rows: [
-      'X3333333X',
-      '333333333',
-      '..44444..',
-      '333333333',
-      '.3333333.',
+      'X2222222X',
+      '111111111',
+      '..22222..',
+      '111111111',
     ] },
 ];
 export const bonusIndex = (b) => worldStart(b.w) + b.after;   // the stage it opens after
@@ -412,6 +444,7 @@ function stageMechs(world, st) {
   if (st.portals) m.add('portals');
   if (st.bars) m.add('censor');
   if (st.beams) m.add('alarm');
+  for (const k of st.pool || []) m.add(k);   // ATUALIZAÇÃO: the mechanics it swaps in
   const rows = (st.rows || []).join('');
   if (rows.includes('V')) m.add('viral');
   if (rows.includes('B')) m.add('armor');
@@ -435,5 +468,5 @@ export function getStage(i) {
   if (s === worldCount(w) - 1) return { w, s, world, mech: world.mech, mechs: all, boss: world.boss, rows: [] };
   const st = world.stages[s];
   const mech = st.mech === undefined ? world.mech : st.mech;
-  return { w, s, world, mech, mechs: stageMechs(world, st), rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, beams: st.beams, name: st.name };
+  return { w, s, world, mech, mechs: stageMechs(world, st), rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, beams: st.beams, pool: st.pool, name: st.name };
 }

@@ -2,11 +2,12 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.8.3** (13/11/2026)
+Versão atual publicada: **1.9** (16/11/2026)
 
 ## Objetivos
 
-- [ ] Finalizar o jogo com os 10 distritos e publicar na Play Store.
+- [x] Finalizar o jogo com os 10 capítulos.
+- [ ] Publicar na Play Store.
 
 ## Sugestões
 
@@ -14,7 +15,19 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
+### Ideias para o NEON FIGHTERS (jogo completo)
+
+- Cada breaker vira uma nave diferente, inspirada no formato, mantendo emblema e cores, com um tiro próprio: ARCO duplo e reto; LÂMINA um laser forte e rápido; PONTA leque de 3; FERRADURA das duas pontas curvando para dentro; ASA das pontas das asas, abrindo; ONDA em zigue-zague; FUNIL convergindo à frente.
+
 ## Histórico
+
+### 1.9 (16/11/2026)
+
+- [x] Fases bônus refeitas como chuva de moedas: escudo no chão, 30 s, combo e moedas para pegar.
+- [x] Capítulo 10 (O SISTEMA) com 4 fases e a mecânica ATUALIZAÇÃO, com a barra de download.
+- [x] Chefão final novo: o rosto de pixels que fala, dispara lasers e puxa o disco.
+- [x] Chefões 7, 8 e 9 liberam DEGRAU, ESCUDO e COROA; o chefão final não libera formato.
+- [x] Registro 10 e a demo do NEON FIGHTERS depois de zerar (nave do ARCO, hordas e a nave-mãe).
 
 ### 1.8.3 (13/11/2026)
 
@@ -179,8 +192,6 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 ### Pendências conhecidas
 
-- Falta a cápsula ruim (e a boa) do distrito 10.
-- Os chefões dos distritos 7, 8 e 9 ainda não liberam formato novo: só existem 7 formatos.
 - As capturas 03 a 17 da documentação são anteriores à 1.3 (numeração antiga das fases no topo da tela).
 - Os anúncios são de teste; os de verdade dependem de uma conta de anúncios na Play Store.
 - O placar online está desligado: falta criar o projeto no Supabase, rodar supabase/schema.sql e colocar a URL e a chave pública em www/js/online.js.

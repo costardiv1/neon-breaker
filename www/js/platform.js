@@ -20,6 +20,13 @@ export const SHAPES = [
     y: (u, hw) => 5 * (1 - Math.cos((2 * Math.PI * u) / hw)) },
   { name: 'FUNIL', desc: 'CENTRALIZA', curve: 1, aim: 0.3, max: 0.85,
     y: (u) => -0.22 * Math.abs(u) },
+  // chapters 7 to 9 (O CENSOR, O BLINDADO, O CONSELHO)
+  { name: 'DEGRAU', desc: 'TRÊS ÂNGULOS', curve: 2, aim: 0.8, max: 1,
+    y: (u, hw) => { const a = Math.abs(u) / hw, st = (v) => { const k = Math.max(0, Math.min(1, v)); return k * k * (3 - 2 * k); }; return 7 * (st((a - 0.33) / 0.08) + st((a - 0.68) / 0.08)); } },
+  { name: 'ESCUDO', desc: 'MAIS LARGO', curve: 2, aim: 0.55, max: 0.9, w: 1.14,
+    y: (u) => 0.0011 * u * u },
+  { name: 'COROA', desc: 'IMPREVISÍVEL', curve: 5, aim: 0.35, max: 1.2,
+    y: (u, hw) => 11 * (1 - Math.abs(1 - 2 * Math.min(1, Math.abs(u) / hw))) },
 ];
 
 export const PALETTES = [
@@ -98,7 +105,8 @@ export function outAngle(si, k, hw = 86) {
 
 // Each shape reacts to a hit in its own way. hit: 1 right after the hit -> 0.
 //   ARCO jumps, LÂMINA blinks, PONTA gets sharper and springs back,
-//   FERRADURA wobbles, ASA flaps its wings, ONDA ripples, FUNIL swallows.
+//   FERRADURA wobbles, ASA flaps its wings, ONDA ripples, FUNIL swallows,
+//   DEGRAU drops a step, ESCUDO takes the blow, COROA tips its points.
 // Applies a shape's hit animation to the context (origin = the platform's centre).
 // Shared with the game, so the light of a bounce follows the animated platform.
 export function hitTransform(c, si, hit) {
@@ -112,6 +120,9 @@ export function hitTransform(c, si, hit) {
     case 'ASA': { const f = Math.sin(u * 3 * Math.PI) * Math.pow(hit, 1.4); c.scale(1 + 0.12 * Math.abs(f), 1 - 0.4 * f); break; }
     case 'ONDA': c.transform(1, Math.sin(u * 4 * Math.PI) * 0.09 * fade, 0, 1, 0, 0); break;
     case 'FUNIL': c.translate(0, 9 * bell); c.scale(1 - 0.06 * bell, 1 + 0.25 * bell); break;
+    case 'DEGRAU': c.translate(0, 6 * Math.round(bell * 3) / 3); break;
+    case 'ESCUDO': c.translate(0, 5 * bell); c.scale(1 + 0.05 * bell, 1 - 0.2 * bell); break;
+    case 'COROA': c.rotate(Math.sin(u * 3 * Math.PI) * 0.05 * fade); c.scale(1, 1 + 0.3 * bell); break;
     default: break;
   }
 }
@@ -200,6 +211,40 @@ function platformBody(c, plat, x, y, hw, t, theme, hit) {
   drawEmblem(c, plat.emb, x, ey, t, g1, ga, gb);
 }
 
+// NEON FIGHTERS: a ship seen from above. Its wings are the ARCO breaker's
+// curve; the colors and the emblem are the player's. tilt: -1..1 when banking.
+export function drawShip(c, plat, x, y, t, theme, tilt = 0) {
+  const pal = paletteColors(plat.pal, theme), ph = t * 0.22;
+  const ga = samplePal(pal, ph), gb = samplePal(pal, ph + 0.5);
+  c.save();
+  c.translate(x, y);
+  c.scale(1 - Math.abs(tilt) * 0.14, 1);
+  const g1 = flowGradient(c, pal, -42, 42, ph), g2 = flowGradient(c, pal, -42, 42, ph + 0.33);
+  // the engine
+  const fl = 0.7 + 0.3 * Math.sin(t * 40);
+  c.beginPath(); c.moveTo(-6, 18); c.lineTo(0, 18 + 22 * fl); c.lineTo(6, 18); c.closePath();
+  c.fillStyle = gb; c.shadowColor = ga; c.shadowBlur = 18 * view.blur; c.fill(); c.shadowBlur = 0;
+  // wings: the ARCO curve, with a dashed rail inside
+  c.beginPath();
+  for (let i = 0; i <= 20; i++) { const u = -1 + i / 10; c[i ? 'lineTo' : 'moveTo'](u * 42, -2 + 18 * u * u); }
+  neon(c, g1, ga, gb, 5, 0.9);
+  c.save(); c.setLineDash([5, 6]); c.lineDashOffset = -t * 36;
+  c.beginPath();
+  for (let i = 0; i <= 16; i++) { const u = -1 + i / 8; c[i ? 'lineTo' : 'moveTo'](u * 30, 8 + 12 * u * u); }
+  neon(c, g2, gb, ga, 1.6, 0.4);
+  c.restore();
+  c.beginPath();
+  for (const s of [-1, 1]) { const px = s * 42, py = 16; c.moveTo(px, py - 6); c.lineTo(px + 5, py); c.lineTo(px, py + 6); c.lineTo(px - 5, py); c.closePath(); }
+  neon(c, g1, gb, ga, 2, 0.8);
+  // the body and the cockpit
+  c.beginPath(); c.moveTo(0, -32); c.lineTo(9, -6); c.lineTo(7, 18); c.lineTo(-7, 18); c.lineTo(-9, -6); c.closePath();
+  c.fillStyle = '#000'; c.fill();
+  neon(c, g1, ga, gb, 3, 0.9);
+  c.beginPath(); c.ellipse(0, -12, 3.5, 7, 0, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+  if (EMBLEMS[plat.emb] !== 'NENHUM') { c.save(); c.translate(0, 34); c.scale(0.6, 0.6); drawEmblem(c, plat.emb, 0, 0, t, g1, ga, gb); c.restore(); }
+  c.restore();
+}
+
 // Frame around the emblem, drawn in the style of each shape.
 function emblemFrame(c, si, x, y, t, grad, ga, gb) {
   const R = 21;
@@ -238,6 +283,15 @@ function emblemFrame(c, si, x, y, t, grad, ga, gb) {
       break;
     case 'FUNIL': // two walls leaning in, open at the top
       c.moveTo(-R - 6, -R + 2); c.lineTo(-7, R); c.lineTo(7, R); c.lineTo(R + 6, -R + 2);
+      break;
+    case 'DEGRAU': // stepped brackets
+      for (const s of [-1, 1]) { c.moveTo(s * 8, -R); c.lineTo(s * 15, -R); c.lineTo(s * 15, -7); c.lineTo(s * R, -7); c.lineTo(s * R, 7); c.lineTo(s * 15, 7); c.lineTo(s * 15, R); c.lineTo(s * 8, R); }
+      break;
+    case 'ESCUDO': // a shield
+      c.moveTo(-R, -R + 4); c.quadraticCurveTo(0, -R - 6, R, -R + 4); c.lineTo(R - 2, 2); c.quadraticCurveTo(R - 6, R - 2, 0, R + 6); c.quadraticCurveTo(-R + 6, R - 2, -R + 2, 2); c.closePath();
+      break;
+    case 'COROA': // a crown band over the emblem
+      c.moveTo(-R, R - 4); c.lineTo(R, R - 4); c.moveTo(-R, R - 4); c.lineTo(-R, -R + 6); c.lineTo(-R / 2, -4); c.lineTo(0, -R - 2); c.lineTo(R / 2, -4); c.lineTo(R, -R + 6); c.lineTo(R, R - 4);
       break;
   }
   neon(c, grad, ga, gb, 1.8, 0.55);
@@ -313,6 +367,33 @@ function shapeDetail(c, si, x, y, hw, t, g2, g3, ga, gb) {
       for (const s of [-1, 1]) dashed([[x + s * hw * 0.9, yAt(s * hw * 0.9) - 8], [x + s * 14, y - 6]], 4, 5, 34, 1.4, 0.45);
       c.beginPath(); c.moveTo(x - 6, y + 4); c.lineTo(x, y + 10); c.lineTo(x + 6, y + 4);
       neon(c, g2, gb, ga, 1.8, 0.6);
+      break;
+    }
+    case 'DEGRAU': { // a light on each step, blinking from the middle out
+      c.fillStyle = '#ffffff';
+      [0, 0.5, 0.85].forEach((k, q) => {
+        for (const s of q ? [-1, 1] : [1]) {
+          const u = s * k * hw;
+          c.globalAlpha = 0.35 + 0.65 * Math.max(0, Math.sin(t * 5 - q * 1.4));
+          c.beginPath(); c.arc(x + u, yAt(u) + 6, 1.8, 0, TAU); c.fill();
+        }
+      });
+      c.globalAlpha = 1;
+      break;
+    }
+    case 'ESCUDO': { // plates under the edge and rivets
+      dashed(shapePoints(si, x, y, hw, 16, 0.92, 6), 12, 5, 0, 1.6, 0.4);
+      c.fillStyle = '#ffffff';
+      for (const k of [-0.8, -0.4, 0, 0.4, 0.8]) { const u = k * hw; c.beginPath(); c.arc(x + u, yAt(u) + 12, 1.7, 0, TAU); c.fill(); }
+      break;
+    }
+    case 'COROA': { // a jewel on each point
+      for (const k of [-1, 0, 1]) {
+        const u = k * hw;
+        c.globalAlpha = 0.5 + 0.5 * Math.sin(t * 2.4 + k * 2);
+        c.beginPath(); c.arc(x + u, yAt(u) - 7, 2.6, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+      }
+      c.globalAlpha = 1;
       break;
     }
   }

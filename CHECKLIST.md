@@ -2,6 +2,47 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9 (16/11/2026)
+
+### Fases bônus (chuva de moedas)
+- [ ] Entre numa fase bônus: não há mesa de pinball, e uma linha tracejada (o escudo) fica embaixo da plataforma.
+- [ ] Deixe o disco passar da plataforma: ele bate no escudo e volta. Se havia combo, aparece COMBO PERDIDO.
+- [ ] Quebre blocos sem deixar o disco tocar o escudo: o combo sobe (x2, x3, x4, com um som), aparece no topo e mais moedas caem.
+- [ ] Pegue as moedas com a plataforma. Quando o campo esvazia, aparece NOVA LEVA e os blocos voltam.
+- [ ] Depois de 30 s: FIM DO BÔNUS com o total de moedas, e o anúncio dobra as moedas.
+- [ ] Jogue de novo a mesma fase: caem bem menos moedas (até 10).
+
+### Capítulo 10 e ATUALIZAÇÃO
+- [ ] No mapa, o capítulo 10 tem as fases 10-1 a 10-4 e o chefão. A rua vai reta até a torre, que fica ao lado das últimas fases.
+- [ ] Na 10-1, o cartão da ATUALIZAÇÃO mostra a animação da barra.
+- [ ] Depois do lançamento, aparece PRÓXIMA ATUALIZAÇÃO EM N s. Nos últimos 3 s, a barra BAIXANDO ATUALIZAÇÃO enche com o ícone e o nome. Então aparece ATUALIZADO e a mecânica troca (portais somem, entra a gravidade...).
+- [ ] KERNEL: com o VAZAMENTO, um bloco vira gota. Quando a mecânica troca, a gota volta a ser um bloco comum e a fase ainda pode ser limpa.
+- [ ] A música do capítulo 10 é alegre e "engasga" no fim.
+
+### Chefão final: O SISTEMA
+- [ ] Um rosto de pixels sorrindo, que olha para o disco e pisca.
+- [ ] Quando a boca abre (dentes e uma luz branca), acertar entre as bochechas tira vida. Fechada, ela só rebate.
+- [ ] Ele fala em balões ("ACEITE OS TERMOS"...). O balão cai e vira blocos; acertado antes, estoura (CALADO!).
+- [ ] Os olhos se acendem e disparam lasers. A boca vira um O e puxa o disco (ENGOLIDO), depois cospe de volta.
+- [ ] A cada acerto, pixels voam do rosto. Na fúria, ele dá defeito, fica bravo, muda as frases e solta atualizações (barra embaixo da vida).
+- [ ] Ao derrotá-lo: falso travamento → CONTINUAR → registro 10 → "carregando NEON FIGHTERS..." → CONTINUAR.
+
+### NEON FIGHTERS
+- [ ] Título NEON FIGHTERS, depois HORDA 1. A nave tem as cores e o emblema do seu breaker.
+- [ ] Arraste: a nave segue o dedo sem ficar embaixo dele, e o tiro é automático.
+- [ ] Os dardos miram e mergulham, e os tanques atiram em leque. A cápsula P dá TIRO TRIPLO e depois TIRO RÁPIDO.
+- [ ] Ao levar dano, a nave pisca e perde um escudo (são 3 no topo, à esquerda).
+- [ ] Aos 2 min 30: ALERTA, e a nave-mãe A COLMEIA (barra de vida no topo, FÚRIA na metade).
+- [ ] Vencendo: NAVE-MÃE DERRUBADA · NEON FIGHTERS · EM BREVE, com pontos e recorde. Perdendo: FIM DA DEMO.
+- [ ] O pause (II) e trocar de app pausam a demo. No menu inicial aparece o botão FIGHTERS.
+
+### Breakers
+- [ ] Derrotar O CENSOR, O BLINDADO e O CONSELHO libera DEGRAU, ESCUDO e COROA. O ESCUDO fica mais largo na partida.
+- [ ] Cada um tem a sua animação ao bater e a sua moldura do emblema.
+
+### INFINITO
+- [ ] Depois do CONSELHO, o próximo chefão é O SISTEMA. Ao derrotá-lo, o jogo continua normalmente.
+
 ## 1.8.3 (13/11/2026)
 
 ### Fases bônus (mesa de pinball)

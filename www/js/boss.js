@@ -528,16 +528,14 @@ class Singularity extends Boss {
   }
 }
 
-// ---------- WORLD 3 (FINAL): O SISTEMA (slide + gravity + pressure) ----------
+// ---------- CHAPTER 3: O SUPERVISOR (pressure) ----------
 // A stepped corporate pyramid with a floating capstone: the all-seeing eye on
 // top is the weak point, so the disc has to get ABOVE the pyramid to hit it.
-class System extends Boss {
-  // sup = O SUPERVISOR (district 3): a smaller pyramid without the confiscation.
-  constructor(g, sup = false) {
-    super(g, sup ? 'O SUPERVISOR' : 'O SISTEMA');
-    this.sup = sup;
-    this.nT = sup ? 3 : 4;
-    this.hpMax = sup ? 5 : 6;
+class Supervisor extends Boss {
+  constructor(g) {
+    super(g, 'O SUPERVISOR');
+    this.nT = 3;
+    this.hpMax = 5;
     this.hp = this.hpMax;
     this.coreR = 30;
     this.cx = W / 2;
@@ -554,7 +552,7 @@ class System extends Boss {
   get tiers() {
     const out = [];
     for (let k = 0; k < this.nT; k++) {
-      const w = (this.sup ? 250 : 300) - k * 66;
+      const w = 250 - k * 66;
       out.push({ x: this.cx - w / 2, y: this.baseY - (k + 1) * 32, w, h: 30 });
     }
     return out;
@@ -613,7 +611,7 @@ class System extends Boss {
   }
 
   pickAbility() {
-    const opts = this.sup ? ['lobby'] : ['lobby', 'confisco'];
+    const opts = ['lobby'];
     if (this.freeBalls().length) opts.push('acquire', 'acquire');
     if (!this.mini.length && this.g.mechs.includes('gravity')) opts.push('debt');
     if (!this.g.bricks.some((b) => b.row === 99) && this.t > 10) opts.push('summon');
@@ -631,13 +629,6 @@ class System extends Boss {
       this.beam = { b, t: 0.9 };
       g.float('ADQUIRIDO', this.cx, this.baseY + 40, 22);
       sfx.capture();
-    } else if (a === 'confisco') {
-      let took = 0;
-      for (const k in g.effects) if (g.effects[k].good) { delete g.effects[k]; took++; }
-      g.drops = g.drops.filter((d) => { const keep = !(d.y < g.paddle.y - 200); if (!keep) took++; return keep; });
-      g.ring(g.paddle.x, g.paddle.y, 160);
-      g.float(took ? 'CONFISCADO' : 'AUDITORIA', g.paddle.x, g.paddle.y - 90, 24);
-      sfx.hurt();
     } else if (a === 'debt') {
       for (let i = 0; i < 2; i++) {
         this.mini.push({ x: 150 + Math.random() * (W - 300), y: this.baseY + 160 + Math.random() * 120,
@@ -1591,6 +1582,347 @@ class Council extends Boss {
   }
 }
 
+// ---------- CHAPTER 10 (FINAL): O SISTEMA ----------
+// The smiling pixel face of the company. The mouth, a notch at the bottom of
+// the face between the cheeks, is the weak point: it opens to talk, and the
+// speech balloons fall and become bricks (a hit pops them first). The eyes
+// fire lasers, and a deep breath pulls the discs in and spits them back out.
+// Every hit knocks pixels off; in fury it glitches and pushes updates that
+// swap the field's mechanic.
+const FPX = 14;
+const FACE = [
+  '.....#######.....',
+  '...###########...',
+  '..#############..',
+  '.###############.',
+  '#################',
+  '#################',
+  '#################',
+  '#################',
+  '#################',
+  '.####.......####.',
+  '..###.......###..',
+  '...##.......##...',
+];
+const FACE_EYES = [[4, 5, 6], [10, 11, 12]];   // eye columns, on rows 4 and 5
+const FACE_TALK = ['SUA OPINIÃO É IMPORTANTE', 'ACEITE OS TERMOS', 'TUDO SOB CONTROLE', 'ESTAMOS MELHORANDO', 'SORRIA!', 'CONFIE EM NÓS', 'É PARA O SEU BEM', 'VOLTE SEMPRE'];
+const FACE_FURY = ['ERRO 0x0000', 'NÃO ME DESLIGUE', 'REINICIANDO...', 'ISSO NÃO É POSSÍVEL', 'ATUALIZANDO...'];
+const MOUTH_Y = 75, MOUTH_R = 32;   // the weak point, in the notch (it sticks out under the chin)
+const NOTCH = [5, 11];               // the mouth's columns, on rows 9 to 11
+
+class Face extends Boss {
+  constructor(g) {
+    super(g, 'O SISTEMA');
+    this.hpMax = 6;
+    this.hp = this.hpMax;
+    this.coreR = MOUTH_R;
+    this.cx = W / 2;
+    this.y0 = g.top + 200;   // the middle of the face
+    this.ph = 0;
+    this.open = 0;
+    this.cycle = 0;
+    this.balloons = [];
+    this.inhale = 0;
+    this.shock = 0;
+    this.talk = 0;
+    this.look = 0;
+    // the face's pixels, and the order they fall off in
+    this.cells = [];
+    FACE.forEach((row, r) => { for (let q = 0; q < row.length; q++) if (row[q] === '#') this.cells.push([q, r]); });
+    const feat = (q, r) => (r >= 1 && r <= 5 && (FACE_EYES[0].includes(q) || FACE_EYES[1].includes(q)));
+    let seed = 77;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    this.order = this.cells.filter(([q, r]) => !feat(q, r)).map((cl) => ({ cl, k: rnd() })).sort((a, b) => a.k - b.k).map((o) => o.cl[0] + ',' + o.cl[1]);
+    this.gone = 0;
+  }
+
+  get cy() { return this.y0 + MOUTH_Y; }
+  get bandY() { return this.g.top + 200 + 84 + 130; }
+  get coreOpen() { return this.open > 0.6 && this.inhale <= 0; }
+  // how many pixels are gone: more with every hit, all of them at the end
+  get lostCells() {
+    const taken = (this.lives === 2 ? 0 : this.hpMax) + (this.hpMax - this.hp);
+    const f = this.dead ? 0.55 + 0.45 * (1 - Math.max(0, this.deathT) / 2.6) : (taken / (2 * this.hpMax)) * 0.55;
+    return Math.floor(f * this.order.length);
+  }
+
+  move(dt) {
+    this.ph += dt * (this.fury ? 0.5 : 0.3);
+    this.cx = W / 2 + 140 * Math.sin(this.ph);
+    this.y0 = this.g.top + 200 + 10 * Math.sin(this.t * 1.3);
+    const openT = this.fury ? 2.6 : 3, closedT = this.fury ? 1.8 : 2.4;
+    this.cycle = (this.cycle + dt) % (openT + closedT);
+    const target = (this.cycle >= closedT && !this.charge) || this.inhale > 0 ? 1 : 0;
+    this.open += (target - this.open) * Math.min(1, dt * 8);
+    this.shock = Math.max(0, this.shock - dt);
+    this.talk = Math.max(0, this.talk - dt);
+    const b = this.freeBalls()[0];
+    if (b) this.look += (clamp((b.x - this.cx) / 220, -1, 1) - this.look) * Math.min(1, dt * 6);
+  }
+
+  damage(n, force, minor) {
+    const n0 = this.lostCells;
+    const ok = super.damage(n, force, minor);
+    if (!ok) return ok;
+    if (!minor) this.shock = 0.7;
+    this.shed(n0, this.lostCells);
+    return ok;
+  }
+
+  // the pixels between n0 and n1 fly off the face
+  shed(n0, n1) {
+    for (let i = n0; i < n1; i++) {
+      const [q, r] = this.order[i].split(',').map(Number);
+      const x = this.cx + (q - 8) * FPX, y = this.y0 + (r - 6) * FPX;
+      for (let k = 0; k < 3; k++) this.g.particles.push({ x, y, vx: (Math.random() - 0.5) * 260, vy: -60 + Math.random() * 280, life: 0.9, max: 0.9, col: k ? this.g.col : '#ffffff', sq: true });
+    }
+  }
+
+  enterFury() {
+    super.enterFury();
+    this.g.startUpd(['portals', 'gravity', 'alarm'], 11);
+  }
+
+  update(dt) {
+    const n0 = this.lostCells;
+    super.update(dt);
+    if (this.dead) this.shed(n0, this.lostCells);
+  }
+
+  updateExtra(dt) {
+    const g = this.g;
+    // the deep breath: the discs are pulled to the mouth
+    if (this.inhale > 0) {
+      this.inhale -= dt;
+      for (const b of this.freeBalls()) {
+        const dx = this.cx - b.x, dy = this.cy - b.y, d = Math.hypot(dx, dy) || 1;
+        if (d < MOUTH_R + b.r + 6) {
+          b.cap = { t: 0.6 };
+          this.inhale = 0;
+          g.float('ENGOLIDO', this.cx, this.cy + 70, 22);
+          sfx.capture();
+          break;
+        }
+        if (d > 560) continue;
+        b.vx += (dx / d) * 1300 * dt; b.vy += (dy / d) * 1300 * dt;
+        const s = Math.hypot(b.vx, b.vy) || 1;
+        b.vx = (b.vx / s) * b.s; b.vy = (b.vy / s) * b.s;
+      }
+    }
+    // speech balloons: they hang beside the face, then fall and become bricks
+    for (const L of this.balloons) {
+      if (L.t > 0) { L.t -= dt; continue; }
+      L.vy += 900 * dt;
+      L.y += L.vy * dt;
+      if (L.y + L.h >= this.bandY) { L.dead = true; this.drop(L); }
+    }
+    this.balloons = this.balloons.filter((L) => !L.dead);
+  }
+
+  // a balloon hit the bricks' band: up to 3 bricks under it
+  drop(L) {
+    const g = this.g, BWd = (W - 64 - 8 * 8) / 9, cols = [];
+    for (let c = 0; c < 9; c++) { const x = 32 + c * (BWd + 8); if (x + BWd > L.x && x < L.x + L.w) cols.push(c); }
+    let n = 0;
+    for (const c of cols) {
+      if (n >= 3) break;
+      for (const r of [100, 101]) {
+        if (g.bricks.some((b) => !b.dead && b.row === r && b.col === c)) continue;
+        const x = 32 + c * (BWd + 8);
+        g.bricks.push({ x, baseX: x, y: this.bandY + (r - 100) * 36, w: BWd, h: 28, hp: this.fury ? 2 : 1, kind: 'n', row: r, col: c, flash: 1, dead: false });
+        g.alive++; n++;
+        break;
+      }
+    }
+    g.ring(L.x + L.w / 2, L.y + L.h / 2, 90);
+    g.shake = Math.max(g.shake, 0.25);
+    sfx.clang();
+  }
+
+  pop(L) {
+    L.dead = true;
+    for (let k = 0; k < 14; k++) this.g.particles.push({ x: L.x + Math.random() * L.w, y: L.y + Math.random() * L.h, vx: (Math.random() - 0.5) * 220, vy: (Math.random() - 0.5) * 220, life: 0.6, max: 0.6, col: '#ffffff', sq: true });
+    this.g.ring(L.x + L.w / 2, L.y + L.h / 2, 60);
+    this.g.float('CALADO!', L.x + L.w / 2, L.y - 10, 18);
+    sfx.brk(3);
+  }
+
+  pickAbility() {
+    const opts = ['talk', 'talk', 'lasers'];
+    if (this.freeBalls().some((b) => b.y > this.cy + 120)) opts.push('inhale');
+    if (this.fury) opts.push('lasers', 'talk');
+    if (this.balloons.length >= 2) return opts.filter((a) => a !== 'talk')[0] || 'lasers';
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  exec(a) {
+    const g = this.g;
+    if (a === 'talk') {
+      const list = this.fury ? FACE_FURY : FACE_TALK;
+      const text = list[Math.floor(Math.random() * list.length)];
+      const w = Math.round(text.length * 8.6 + 28), h = 34;
+      const right = this.cx < W / 2;
+      let x = right ? this.cx + 130 : this.cx - 130 - w;
+      x = clamp(x, 18, W - 18 - w);
+      this.balloons.push({ text, x, y: this.y0 - 70, w, h, t: 1.8, vy: 0, right });
+      this.talk = 1.2;
+      sfx.charge();
+    } else if (a === 'lasers') {
+      const p = g.paddle;
+      for (const s of [-1, 1]) {
+        const ex = this.cx + s * 3 * FPX, ey = this.y0 - 1.5 * FPX;
+        const dx = p.x - ex, dy = p.y - ey, a0 = Math.atan2(dy, dx);
+        for (const o of this.fury ? [-0.18, 0.18] : [0]) g.enemyShot(ex, ey, Math.cos(a0 + o) * 420, Math.sin(a0 + o) * 420);
+      }
+      sfx.laser();
+    } else if (a === 'inhale') {
+      this.inhale = 2.2;
+      sfx.capture();
+    }
+  }
+
+  holdBall(b, dt) {
+    b.x += (this.cx - b.x) * Math.min(1, dt * 10);
+    b.y += (this.cy - b.y) * Math.min(1, dt * 10);
+    b.cap.t -= dt;
+    if (b.cap.t <= 0) { this.throwBall(b); b.s *= 1.15; }
+  }
+
+  collide(b) {
+    if (this.dead) return false;
+    for (const L of this.balloons) if (!L.dead && collideRect(b, L.x, L.y, L.w, L.h)) { this.pop(L); return true; }
+    if (collideCircle(b, this.cx, this.cy, MOUTH_R)) {
+      if (this.coreOpen && this.coreCool <= 0) { this.coreCool = 0.35; this.damage(this.g.ballDamage()); }
+      else { sfx.clang(); this.g.ring(b.x, b.y, 36); }
+      return true;
+    }
+    if (this.g.effects.pierce) return false;
+    const x = this.cx, y = this.y0;
+    if (collideRect(b, x - 119, y - 91, 238, 126) || collideRect(b, x - 105, y + 35, 56, 49) || collideRect(b, x + 49, y + 35, 56, 49)) {
+      sfx.clang(); this.g.ring(b.x, b.y, 36);
+      return true;
+    }
+    return false;
+  }
+
+  hitShot(x, y, rad) {
+    if (this.dead) return null;
+    if (Math.hypot(x - this.cx, y - this.cy) < MOUTH_R + rad) return this.coreOpen ? 'core' : 'armor';
+    const fx = this.cx, fy = this.y0;
+    if (x > fx - 119 - rad && x < fx + 119 + rad && y > fy - 91 - rad && y < fy + 84 + rad) return 'armor';
+    return null;
+  }
+
+  render(c) {
+    const col = this.g.col, t = this.t;
+    // in fury the face glitches: a shifted copy flickers beside it
+    if (this.fury && Math.sin(t * 11) > 0.6) {
+      c.save(); c.globalAlpha *= 0.3;
+      this.drawFace(c, this.cx + 9 * Math.sin(t * 37), this.y0 - 3, col);
+      c.restore();
+    }
+    this.drawFace(c, this.cx, this.y0, col);
+    // the deep breath: lines rushing into the mouth
+    if (this.inhale > 0) {
+      c.save(); c.setLineDash([10, 14]); c.lineDashOffset = t * 120;
+      c.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const a = Math.PI * 0.15 + (k / 7) * Math.PI * 0.7;
+        c.moveTo(this.cx + Math.cos(a) * 190, this.cy + Math.sin(a) * 190); c.lineTo(this.cx + Math.cos(a) * 44, this.cy + Math.sin(a) * 44);
+      }
+      c.strokeStyle = rgba(col, 0.55); c.lineWidth = 2; c.stroke();
+      c.restore();
+    }
+    for (const L of this.balloons) {
+      const fall = L.t <= 0;
+      c.save();
+      if (fall) c.globalAlpha *= 0.75 + 0.25 * Math.sin(t * 30);
+      roundRectPath2(c, L.x, L.y, L.w, L.h, 12);
+      c.fillStyle = '#000'; c.fill();
+      c.fillStyle = rgba(col, 0.14); c.fill();
+      if (fall) c.setLineDash([6, 5]);
+      neonStroke(c, col, col, 2.2, L.x, L.y, L.x + L.w, L.y + L.h, 0.8);
+      c.setLineDash([]);
+      if (!fall) {   // the tail points at the face
+        const tx = L.right ? L.x : L.x + L.w, s = L.right ? -1 : 1;
+        c.beginPath(); c.moveTo(tx, L.y + L.h - 12); c.lineTo(tx + s * 14, L.y + L.h + 6); c.lineTo(tx - s * 2, L.y + L.h - 2);
+        c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+      }
+      glowText(c, L.text, L.x + L.w / 2, L.y + L.h / 2 + 1, 11, '#ffffff', col, 'center', 800, 2);
+      c.restore();
+    }
+  }
+
+  drawFace(c, x0, y0, col) {
+    const t = this.t, lost = new Set(this.order.slice(0, this.lostCells));
+    const has = (q, r) => FACE[r] && FACE[r][q] === '#' && !lost.has(q + ',' + r);
+    const px = (q, r, inset = 1) => c.rect(x0 + (q - 8) * FPX - FPX / 2 + inset, y0 + (r - 6) * FPX - FPX / 2 + inset, FPX - inset * 2, FPX - inset * 2);
+    // body: inner pixels faint, edge pixels bright and glowing
+    const glow = 0.8 + this.flash * 1.2 + (this.charge ? 0.5 * Math.sin(t * 30) : 0);
+    c.beginPath();
+    for (const [q, r] of this.cells) if (has(q, r) && has(q - 1, r) && has(q + 1, r) && has(q, r - 1) && has(q, r + 1)) px(q, r);
+    c.fillStyle = rgba(col, 0.2 + this.flash * 0.35); c.fill();
+    c.beginPath();
+    for (const [q, r] of this.cells) if (has(q, r) && !(has(q - 1, r) && has(q + 1, r) && has(q, r - 1) && has(q, r + 1))) px(q, r);
+    c.fillStyle = rgba(col, Math.min(1, 0.6 + 0.2 * glow)); c.shadowColor = col; c.shadowBlur = 12 * glow * view.blur; c.fill(); c.shadowBlur = 0;
+    // the mood: smiling, angry (charging or in fury) or shocked (just hit)
+    const mood = this.shock > 0 ? 'shock' : this.charge || this.fury ? 'angry' : 'smile';
+    c.beginPath();
+    const brow = mood === 'shock' ? [[4, 1], [5, 1], [6, 1], [10, 1], [11, 1], [12, 1]]
+      : mood === 'angry' ? [[4, 2], [5, 2], [6, 3], [10, 3], [11, 2], [12, 2]]
+      : [[4, 2], [5, 2], [6, 2], [10, 2], [11, 2], [12, 2]];
+    for (const [q, r] of brow) px(q, r, 2);
+    // eyes (they follow the disc); they light up before the lasers
+    const laser = this.charge && this.charge.a === 'lasers';
+    for (const eye of FACE_EYES) for (const q of eye) for (const r of [4, 5]) px(q, r, 1);
+    c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = (laser ? 22 : 8) * view.blur; c.fill(); c.shadowBlur = 0;
+    const pq = Math.round(this.look), blink = !laser && mood !== 'shock' && (t % 4.2) > 4.05;
+    c.beginPath();
+    for (const eye of FACE_EYES) {
+      if (blink) { for (const q of eye) px(q, 4, 1); continue; }
+      px(eye[1] + pq, mood === 'shock' ? 4 : 5, 3);
+    }
+    c.fillStyle = blink ? rgba(col, 0.9) : '#000'; c.fill();
+    if (laser) for (const s of [-1, 1]) {
+      const k = 1 - this.charge.t / this.charge.max;
+      c.beginPath(); c.arc(x0 + s * 3 * FPX, y0 - 1.5 * FPX, 40 * (1 - k) + 8, 0, TAU);
+      c.strokeStyle = rgba('#ffffff', 0.8 * k); c.lineWidth = 2; c.stroke();
+    }
+    // the mouth, in the notch at the bottom
+    const my = y0 + MOUTH_Y;
+    const flap = this.talk > 0 ? 0.5 + 0.5 * Math.sin(t * 28) : 0;
+    const op = Math.max(this.open, flap * 0.5);
+    if (this.inhale > 0) {   // an O, teeth shut
+      c.beginPath(); c.arc(x0, my - 4, 18, 0, TAU);
+      c.fillStyle = '#000'; c.fill();
+      neonStroke(c, col, col, 3, x0 - 18, my, x0 + 18, my, 1);
+    } else if (op > 0.15) {   // open: a dark mouth with the core inside
+      const h = 18 + 48 * op;
+      roundRectPath2(c, x0 - 46, my - 36, 92, h, 12);
+      c.fillStyle = '#000'; c.fill();
+      c.strokeStyle = rgba(col, 0.9); c.lineWidth = 2.4; c.stroke();
+      c.fillStyle = '#ffffff';
+      for (const q of [-1, 0, 1]) c.fillRect(x0 + q * 22 - 6, my - 34, 12, 8);   // teeth
+      if (this.coreOpen) {
+        c.beginPath(); c.arc(x0, my, 12 + 2 * Math.sin(t * 8), 0, TAU);
+        c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = 24 * view.blur; c.fill(); c.shadowBlur = 0;
+        c.beginPath(); c.arc(x0, my, MOUTH_R - 4, 0, TAU);
+        c.strokeStyle = rgba(col, 0.5 + 0.3 * Math.sin(t * 6)); c.lineWidth = 2; c.stroke();
+      }
+    } else {   // shut: a pixel smile (a frown when angry) over a faint closed mouth
+      c.beginPath();
+      for (let q = NOTCH[0]; q <= NOTCH[1]; q++) for (let r = 9; r <= 11; r++) px(q, r, 1);
+      c.fillStyle = rgba(col, 0.12); c.fill();
+      c.beginPath();
+      const lips = mood === 'angry' ? [[5, 11], [6, 10], [7, 9], [8, 9], [9, 9], [10, 10], [11, 11]]
+        : mood === 'shock' ? [[7, 9], [8, 9], [9, 9], [6, 10], [10, 10], [7, 11], [8, 11], [9, 11]]
+        : [[5, 9], [6, 10], [7, 11], [8, 11], [9, 11], [10, 10], [11, 9]];
+      for (const [q, r] of lips) px(q, r, 1);
+      c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
+    }
+  }
+}
+
 export function createBoss(type, g) {
   if (type === 'armored') return new Armored(g);
   if (type === 'council') return new Council(g);
@@ -1598,7 +1930,7 @@ export function createBoss(type, g) {
   if (type === 'censor') return new Censor(g);
   if (type === 'clock') return new Clock(g);
   if (type === 'patent') return new Patent(g);
-  if (type === 'system') return new System(g);
-  if (type === 'supervisor') return new System(g, true);
+  if (type === 'system') return new Face(g);
+  if (type === 'supervisor') return new Supervisor(g);
   return type === 'sentinel' ? new Sentinel(g) : new Singularity(g);
 }

@@ -193,15 +193,27 @@ class Sfx {
     this.voice({ f: 330, to: 38, dur: 1.1, detune: [-20, 0, 20], vol: 0.2, ff: 3500, fto: 90, q: 16, send: 0.6 });
     this.noise({ dur: 0.9, vol: 0.16, ff: 6000, fto: 150, q: 3, send: 0.5 });
   }
-  // bonus stages (pinball table): a bright ping for the bumpers, a rising
-  // note for each letter of B-Ô-N-U-S
-  bumper() {
-    this.voice({ f: 1250, to: 1900, dur: 0.12, type: 'sine', vol: 0.12, ff: 8000, send: 0.5 });
-    this.voice({ f: 310, to: 150, dur: 0.1, type: 'square', vol: 0.05, ff: 2400, fto: 400, q: 3, send: 0.2 });
+  // bonus stages (coin rain): a soft hum when the shield sends a disc back, and
+  // a rising chime for each combo level
+  rainShield() {
+    this.voice({ f: 220, to: 330, dur: 0.14, type: 'sine', vol: 0.12, ff: 3000, send: 0.4 });
+    this.noise({ dur: 0.08, vol: 0.04, ff: 5000, fto: 1500, q: 2, send: 0.3 });
   }
-  target(i) {
-    const f = this.note(i * 2, 520);
-    this.voice({ f, dur: 0.18, detune: [-8, 8], type: 'triangle', vol: 0.12, ff: 6000, fto: 1500, q: 2, send: 0.6 });
+  // ATUALIZAÇÃO: a little download chirp, then a glitchy swoosh when it installs
+  download() {
+    [0, 7, 12].forEach((st, i) => this.voice({ f: this.note(st, 990), dur: 0.07, type: 'square', vol: 0.05, ff: 6000, fto: 2000, q: 2, send: 0.3, delay: i * 0.07 }));
+  }
+  update() {
+    this.voice({ f: 120, to: 1600, dur: 0.35, type: 'sawtooth', vol: 0.09, ff: 4000, fto: 800, q: 6, send: 0.5 });
+    this.noise({ dur: 0.25, vol: 0.08, ff: 7000, fto: 900, q: 4, send: 0.4 });
+    [12, 7, 0].forEach((st, i) => this.voice({ f: this.note(st, 660), dur: 0.08, type: 'square', vol: 0.05, ff: 5000, q: 2, send: 0.3, delay: 0.2 + i * 0.06 }));
+  }
+  // NEON FIGHTERS: the ship's twin lasers (soft, they fire all the time)
+  shipShot() {
+    this.voice({ f: 1700, to: 900, dur: 0.05, type: 'square', vol: 0.025, ff: 5000, q: 1, send: 0.1 });
+  }
+  rainCombo(m) {
+    [0, 4, 7].forEach((st, i) => this.voice({ f: this.note(st + m * 2, 660), dur: 0.14, type: 'triangle', vol: 0.1, ff: 7000, fto: 2500, q: 2, send: 0.6, delay: i * 0.05 }));
   }
   portal() {
     this.voice({ f: 180, to: 1400, dur: 0.22, type: 'sine', vol: 0.14, ff: 5000, send: 0.6 });
@@ -457,6 +469,42 @@ function towerTrack(s, step, t, d, fury, boss) {
   if (fury && i % 2 === 1) I.arp(s, t, root + 48 + iv[(step >> 1) % 3], 0.03, 'sawtooth', 4800);
 }
 
+// Chapter 10 "O SISTEMA": cheerful hold music in a major key that keeps
+// glitching, like a system updating itself: in the last bar the second half
+// stutters on two steps and drops an octave.
+const PROG10 = [[41, [0, 4, 7]], [38, [0, 3, 7]], [46, [0, 4, 7]], [48, [0, 4, 7]]]; // F Dm A# C
+function systemTrack(s, step, t, d, fury, boss) {
+  const bar = Math.floor(step / 16) % 4, i0 = step % 16;
+  const glitch = bar === 3 && i0 >= 8, i = glitch ? 8 + (i0 % 2) : i0;
+  const [root, iv] = PROG10[bar];
+  if (i0 % 4 === 0) I.kick(s, t, 0.55);
+  if (i0 === 4 || i0 === 12) I.snare(s, t);
+  if (boss && (i0 === 14 || i0 === 15)) I.snare(s, t);
+  if (i0 % 2 === 1) I.hat(s, t, false, 0.03);
+  if (i % 4 === 0 || i === 6) I.bass(s, t, root - (glitch ? 12 : 0), d * 1.6, 0.15, 900);
+  const tune = [0, 1, 2, 1, 0, 2, 1, 2];
+  if (i % 2 === 0 || glitch) I.arp(s, t, root + 24 + iv[tune[(i >> 1) % 8]] - (glitch ? 12 : 0), 0.04, 'triangle', 3600);
+  if (i0 === 0) I.pad(s, t, iv.map((x) => root + 12 + x), d * 16, 0.02);
+  if ((boss || fury) && i0 % 4 === 2) I.lead(s, t, root + 36 + iv[(step >> 2) % 3], d * 1.5);
+  if (fury && i0 % 2 === 0) I.arp(s, t, root + 48 + iv[(step >> 1) % 3], 0.03, 'square', 5200);
+}
+
+// NEON FIGHTERS (the demo after the ending): a fast synthwave chase in A minor,
+// an octave bass on every step and a lead when the mother ship comes.
+const PROGF = [[45, [0, 3, 7]], [41, [0, 4, 7]], [43, [0, 4, 7]], [40, [0, 4, 7]]]; // Am F G E
+function fighterTrack(s, step, t, d, fury, boss) {
+  const bar = Math.floor(step / 16) % 4, i = step % 16;
+  const [root, iv] = PROGF[bar];
+  if (i % 4 === 0) I.kick(s, t, 0.6);
+  if (i === 4 || i === 12) I.snare(s, t);
+  if (boss && (i === 10 || i === 15)) I.snare(s, t);
+  I.hat(s, t, i % 4 === 2, i % 4 === 2 ? 0.05 : 0.02);
+  I.bass(s, t, root + (i % 2 ? 12 : 0), d * 0.9, 0.12, 1300);
+  if (i % 2 === 0) I.arp(s, t, root + 24 + iv[(step >> 1) % 3] + (i % 8 === 6 ? 12 : 0), 0.035, 'sawtooth', 3000);
+  if (i === 0) I.pad(s, t, iv.map((x) => root + 12 + x), d * 16, 0.02);
+  if (boss && i % 4 === 0) I.lead(s, t, root + 36 + iv[(step >> 2) % 3], d * 3.5);
+}
+
 function mapTrack(s, step, t, d) {
   const bar = Math.floor(step / 16) % 4, i = step % 16;
   const [root, iv] = PROG1[bar];
@@ -491,6 +539,10 @@ const TRACKS = {
   boss8: { bpm: 136, fn: (s, st, t, d, f) => resistTrack(s, st, t, d, f, true) },
   w9:    { bpm: 112, fn: (s, st, t, d, f) => towerTrack(s, st, t, d, f, false) },
   boss9: { bpm: 120, fn: (s, st, t, d, f) => towerTrack(s, st, t, d, f, true) },
+  w10:   { bpm: 165, fn: (s, st, t, d, f) => systemTrack(s, st, t, d, f, false) },
+  boss10: { bpm: 173, fn: (s, st, t, d, f) => systemTrack(s, st, t, d, f, true) },
+  fighters: { bpm: 150, fn: (s, st, t, d, f) => fighterTrack(s, st, t, d, f, false) },
+  fighterBoss: { bpm: 156, fn: (s, st, t, d, f) => fighterTrack(s, st, t, d, f, true) },
 };
 
 class Music {

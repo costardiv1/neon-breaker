@@ -25,15 +25,18 @@ const COIN_CHANCE = 0.07;   // coins: rare drops, caught with the platform, spen
 const ENDLESS_COIN = 0.3;   // INFINITO: the bricks never end, so coins drop much less
 const MULTI_MAX = 4;        // MULTI stops dropping with this many discs in play
 const FORK_MAX = 8;         // FORK BOMB (bonus): at most this many discs
-const BONUS_TIME = 40;      // bonus stages: seconds to clear the field for the prize
-// bonus stages are a pinball table: bumpers and the B-Ô-N-U-S letters fill a
-// pot of coins (paid at the end), times a combo that resets on the platform
-const BUMPER_R = 28;
-const BUMP_COIN = 0.1;      // coins a bumper adds to the pot (times the combo)
-const WORD_COIN = 3;        // coins for lighting all five letters
-const POT_MAX = 12;         // the pot is full at this many coins
-const MULT_MAX = 5;
-const LAG_EVERY = 3;        // LAG (bonus): a missile every this many seconds
+// bonus stages are a coin rain: a shield under the platform keeps the discs in,
+// the bricks drop coins (more with the combo) and the field refills until the
+// clock runs out
+const BONUS_TIME = 30;      // seconds of coin rain
+const RAIN_P = 0.22;        // chance of a coin per broken brick, times the combo
+const RAIN_STEP = 4;        // bricks in a row (without touching the shield) per combo level
+const RAIN_MULT = 4;        // the combo goes up to x4
+export const RAIN_FIRST = 30, RAIN_AGAIN = 10;   // coins a run can drop: the first time / after that
+const LAG_EVERY = 3;
+// ATUALIZAÇÃO (chapter 10): every UPD_EVERY s the stage's mechanic is swapped
+// for the next one of its list; a download bar warns UPD_WARN s before
+const UPD_EVERY = 15, UPD_WARN = 3;        // LAG (bonus): a missile every this many seconds
 const COIN_R = 13;
 const PHASE_T = 2.8;   // FASE: seconds each group stays solid / out of phase
 const PORTAL_R = 24;
@@ -647,9 +650,10 @@ export class Game {
   }
 
   // a bonus stage (a side street on the map); index sets the disc speed
-  newBonus(b) {
+  newBonus(b, again = false) {
     this.endless = null;
     this.bonus = b;
+    this.rainMax = again ? RAIN_AGAIN : RAIN_FIRST;
     this.ability = null; this.passive = null;   // no perks in the bonus stages
     this.startRun(bonusIndex(b));
   }
@@ -679,7 +683,8 @@ export class Game {
   loadLevel() {
     const st = this.stage = this.endless ? this.endlessStage() : this.bonus ? getBonus(this.bonus) : getStage(this.index);
     this.mech = st.mech;
-    this.mechs = st.mechs;
+    this.mechs = st.pool ? ['update'] : st.mechs;   // ATUALIZAÇÃO turns its mechanics on one at a time
+    this.upd = null;
     if (!this.endless) this.score = 0;   // the campaign scores each stage on its own
     this.leakT = 0;
     this.mt = 0;
@@ -747,9 +752,10 @@ export class Game {
     this.bonusHits = 0;
     this.bonusEnd = null;
     if (st.bonus && st.bonus.slide) for (const r of st.bonus.slide) this.rows[r] = this.rowMotion(r);
-    this.table = st.bonus ? this.makeTable(lowY, span) : null;
-    this.pot = 0;
-    this.mult = 1;
+    if (st.pool) this.startUpd(st.pool);
+    this.streak = 0;
+    this.rainLeft = this.rainMax || 0;
+    this.shieldF = 0;
     if (this.endless && !st.boss) {
       this.endless.rowTop = 0; this.endless.rowY = y0;
       for (const m of this.endless.mechs) this.endlessFeature(m, true);
@@ -759,98 +765,142 @@ export class Game {
     this.emit('level');
   }
 
-  // ---------- bonus stages: the pinball table ----------
-  makeTable(lowY, span) {
-    const bumpers = [[0.25, 0.4], [0.75, 0.4], [0.5, 0.62]].map(([xf, yf]) => ({ x: W * xf, y: lowY + span * yf, r: BUMPER_R, f: 0 }));
-    const letters = ['B', 'Ô', 'N', 'U', 'S'].map((ch, i) => ({ ch, x: W * (0.16 + i * 0.17) - 22, y: lowY + span * 0.16, w: 44, h: 30, lit: false, f: 0 }));
-    return { bumpers, letters, flash: 0 };
-  }
+  // ---------- bonus stages: the coin rain ----------
+  get rainMul() { return Math.min(RAIN_MULT, 1 + Math.floor(this.streak / RAIN_STEP)); }
 
-  // a hit on the table pays with the current combo, then raises it
-  tableScore(coins, x, y) {
-    this.pot = Math.min(POT_MAX, this.pot + coins * this.mult);
-    if (this.mult < MULT_MAX) {
-      this.mult++;
-      this.float('x' + this.mult, x, y, 20);
+  // a brick broke: maybe a coin, and the combo grows
+  rainBrick(x, y) {
+    const m0 = this.rainMul;
+    this.streak++;
+    const m = this.rainMul;
+    if (m > m0) { this.float('x' + m, x, y - 26, 26); sfx.rainCombo(m); }
+    if (this.rainLeft > 0 && Math.random() < RAIN_P * m) {
+      this.rainLeft--;
+      this.coins.push({ x, y, vy: -160, t: Math.random() * 3 });
     }
   }
 
-  tableHit(b) {
-    const T = this.table;
-    for (const q of T.bumpers) {
-      const dx = b.x - q.x, dy = b.y - q.y, d = Math.hypot(dx, dy);
-      if (d >= q.r + b.r || d === 0) continue;
-      const nx = dx / d, ny = dy / d, dot = b.vx * nx + b.vy * ny;
-      if (dot < 0) { b.vx -= 2 * dot * nx; b.vy -= 2 * dot * ny; }
-      b.x = q.x + nx * (q.r + b.r + 0.5); b.y = q.y + ny * (q.r + b.r + 0.5);
-      b.s = Math.min(b.s * 1.3, this.baseSpeed * 1.7);   // the kick (it eases back)
-      this.fixAngle(b); this.mark(b);
-      q.f = 1;
-      this.ring(q.x, q.y, 60);
-      this.tableScore(BUMP_COIN, q.x, q.y - q.r - 18);
-      sfx.bumper(); vibrate(10);
+  // the field is empty: a new wave of bricks comes in from the top
+  rainRefill() {
+    const y0 = this.top + 60;
+    this.bonus.rows.forEach((row, r) => {
+      for (let c = 0; c < COLS; c++) {
+        if (this.bricks.some((q) => !q.dead && q.row === r && q.col === c)) continue;   // a wall still there
+        const br = makeBrick(row[c], c, y0 + r * (BH + GAP), r);
+        if (!br) continue;
+        br.flash = 1;
+        this.bricks.push(br);
+      }
+    });
+    this.alive = this.bricks.filter((q) => !q.dead && counts(q)).length;
+    for (const r of this.bonus.slide || []) this.rows[r] = this.rowMotion(r);
+    this.float('NOVA LEVA', W / 2, this.top + 300, 30);
+    this.ring(W / 2, this.top + 160, 420);
+    sfx.power(true);
+  }
+
+  get shieldY() { return this.paddle.y + 52; }
+
+  // ---------- ATUALIZAÇÃO ----------
+  startUpd(pool, every = UPD_EVERY) {
+    if (this.upd) this.stopUpd();
+    this.upd = { pool, i: 0, every, t: every, cur: null, go: !!this.boss };
+    this.updSwap(pool[0], true);
+  }
+
+  stopUpd() {
+    if (!this.upd) return;
+    if (this.upd.cur) this.updFeature(this.upd.cur, false);
+    this.upd = null;
+  }
+
+  get updNext() { const U = this.upd; return U.pool[(U.i + 1) % U.pool.length]; }
+
+  updSwap(m, first = false) {
+    const U = this.upd;
+    if (U.cur) this.updFeature(U.cur, false);
+    U.cur = m;
+    this.updFeature(m, true);
+    if (!this.boss) this.mechs = ['update', m];
+    if (first) return;
+    this.banner = { text: 'ATUALIZADO', sub: MECHS[m].name, t: 1.8, max: 1.8 };
+    this.ring(W / 2, this.top + 40, 500);
+    this.shake = Math.max(this.shake, 0.35);
+    sfx.update();
+    this.emit('update', m);
+  }
+
+  updateUpd(dt) {
+    const U = this.upd;
+    if (!U.go) { if (this.holding) return; U.go = true; }   // the clock starts with the first launch
+    const was = U.t;
+    U.t -= dt;
+    if (was > UPD_WARN && U.t <= UPD_WARN) sfx.download();
+    if (U.t <= 0) { U.i = (U.i + 1) % U.pool.length; U.t = U.every; this.updSwap(U.pool[U.i]); }
+  }
+
+  // turns the field pieces of a mechanic on or off in the middle of a stage
+  updFeature(m, on) {
+    const fy = (k) => this.dangerY - k;
+    const plain = () => this.bricks.filter((b) => !b.dead && b.kind === 'n' && !b.inf && !b.armor && b.row < 99);
+    const pick = (n) => { const l = plain(); const out = []; while (out.length < n && l.length) out.push(l.splice(Math.floor(Math.random() * l.length), 1)[0]); return out; };
+    if (m === 'slide') {
+      if (on) { for (const br of this.bricks) if (br.row < 99 && !this.rows[br.row]) this.rows[br.row] = this.rowMotion(br.row); }
+      else { for (const r in this.rows) if (+r < 99) delete this.rows[r]; for (const br of this.bricks) if (br.row < 99) br.x = br.baseX; }
+    }
+    if (m === 'gravity') this.wells = on ? this.wells.concat([{ bx: W * 0.5, by: fy(250), x: W * 0.5, y: fy(250), s: 9e6, core: true, orbit: true, upd: true }]) : this.wells.filter((w) => !w.upd);
+    if (m === 'portals') this.portals = on ? this.portals.concat([{ a: { x: W * 0.14, y: fy(170) }, b: { x: W * 0.86, y: fy(170) }, upd: true }]) : this.portals.filter((q) => !q.upd);
+    if (m === 'alarm') this.beams = on ? this.beams.concat([{ x0: LEFT + 4 + W * 0.1, x1: RIGHT - 4 - W * 0.1, y: fy(330), ph: 0, on: false, warn: false, upd: true }]) : this.beams.filter((q) => !q.upd);
+    if (m === 'phase') {
+      for (const br of this.bricks) {
+        if (br.kind !== 'n' || br.row >= 99) continue;
+        if (on && Math.abs(br.row) % 2 === 1) br.phase = br.col % 2;
+        if (!on) { delete br.phase; br.out = false; }
+      }
+    }
+    if (m === 'censor') {
+      if (on) {
+        const live = this.bricks.filter((b) => !b.dead && b.row < 99);
+        const y0 = live.length ? Math.min(...live.map((b) => b.y)) : this.top + 60, y1 = live.length ? Math.max(...live.map((b) => b.y + b.h)) : this.top + 200;
+        this.bars.push({ ph: 0, y: (y0 + y1) / 2 - BAR_H / 2, upd: true });
+        for (const br of pick(1)) { br.kind = 'leak'; br.hp = 1; br.flash = 1; this.alive--; }
+      } else {
+        this.bars = this.bars.filter((q) => !q.upd);
+        this.leakT = 0;
+        for (const br of this.bricks) if (!br.dead && br.kind === 'leak') { br.kind = 'n'; br.hp = 1; br.flash = 1; this.alive++; }
+      }
+    }
+    if (m === 'viral') {
+      if (on) { for (const br of pick(1)) { br.inf = true; br.hp = Math.max(br.hp, 2); br.flash = 1; } this.viralT = 4.2; }
+      else for (const br of this.bricks) br.inf = false;
+    }
+    if (m === 'armor') {
+      if (on) for (const br of pick(4)) { br.armor = true; br.upd = true; br.hp = Math.max(br.hp, 2); br.flash = 1; }
+      else for (const br of this.bricks) if (br.upd) { br.armor = false; br.upd = false; }
+    }
+    for (const br of this.bricks) if (on && m !== 'slide' && m !== 'descent') br.flash = Math.max(br.flash, 0.5);
+  }
+
+  renderUpd(c) {
+    const U = this.upd, col = this.col;
+    const y = this.top + (this.boss ? 74 : 26);
+    if (U.t > UPD_WARN) {
+      if (!U.go) return;
+      c.globalAlpha = 0.6;
+      glowText(c, 'PRÓXIMA ATUALIZAÇÃO EM ' + Math.ceil(U.t - UPD_WARN) + ' s', W / 2, y, 12, rgba(WHITE, 0.8), col, 'center', 600, 2);
+      c.globalAlpha = 1;
       return;
     }
-    for (const [i, L] of T.letters.entries()) {
-      if (!collideRect(b, L.x, L.y, L.w, L.h)) continue;
-      this.fixAngle(b); this.mark(b);
-      L.f = 1;
-      if (!L.lit && !T.flash) {
-        L.lit = true;
-        sfx.target(i);
-        if (T.letters.every((q) => q.lit)) {   // the whole word: a big bonus, then they go dark again
-          T.flash = 1.4;
-          this.pot = Math.min(POT_MAX, this.pot + WORD_COIN);
-          this.float('BÔNUS!  +' + WORD_COIN + ' NO POTE', W / 2, L.y - 30, 26);
-          for (const q of T.letters) this.ring(q.x + q.w / 2, q.y + q.h / 2, 70);
-          this.shake = Math.max(this.shake, 0.4);
-          sfx.coin();
-        }
-      } else sfx.wall();
-      this.tableScore(0, L.x + L.w / 2, L.y - 16);
-      return;
-    }
-  }
-
-  updateTable(dt) {
-    const T = this.table;
-    for (const q of T.bumpers) q.f = Math.max(0, q.f - dt * 4);
-    for (const q of T.letters) q.f = Math.max(0, q.f - dt * 4);
-    if (T.flash > 0) { T.flash -= dt; if (T.flash <= 0) { T.flash = 0; for (const q of T.letters) q.lit = false; } }
-  }
-
-  // the end of a bonus stage: the pot goes to the player's wallet
-  payPot() {
-    const n = Math.floor(this.pot + 1e-6);
-    this.pot = 0;
-    if (n <= 0) return 0;
-    this.stageCoins += n;
-    this.emit('coin', n);
-    this.float('POTE  +' + n + (n > 1 ? ' MOEDAS' : ' MOEDA'), W / 2, this.paddle.y - 120, 22);
-    sfx.coin();
-    return n;
-  }
-
-  renderTable(c) {
-    const T = this.table, col = this.col;
-    for (const q of T.bumpers) {
-      const r = q.r * (1 + 0.18 * q.f);
-      c.beginPath(); c.arc(q.x, q.y, r, 0, TAU);
-      c.fillStyle = rgba(col, 0.1 + 0.35 * q.f); c.fill();
-      neonStroke(c, col, col, 3, q.x - r, q.y, q.x + r, q.y, 0.9 + q.f);
-      c.beginPath(); c.arc(q.x, q.y, r * 0.55, 0, TAU);
-      c.strokeStyle = rgba(WHITE, 0.55 + 0.45 * q.f); c.lineWidth = 2; c.stroke();
-      c.beginPath(); c.arc(q.x, q.y, 4 + 2 * q.f, 0, TAU); c.fillStyle = WHITE; c.fill();
-    }
-    const blink = T.flash > 0 && Math.sin(this.t * 24) > 0;
-    for (const L of T.letters) {
-      const on = L.lit && (!T.flash || blink);
-      roundRectPath(c, L.x, L.y, L.w, L.h, 7);
-      c.fillStyle = rgba(col, on ? 0.45 : 0.06 + 0.3 * L.f); c.fill();
-      if (on) neonStroke(c, col, col, 2.6, L.x, L.y, L.x + L.w, L.y + L.h, 1.1);
-      else { c.strokeStyle = rgba(col, 0.55 + 0.4 * L.f); c.lineWidth = 1.8; c.stroke(); }
-      glowText(c, L.ch, L.x + L.w / 2, L.y + L.h / 2 + 1, 17, on ? WHITE : rgba(WHITE, 0.55), col, 'center', 800, 0);
-    }
+    const k = 1 - U.t / UPD_WARN, bw = 480, x = W / 2 - bw / 2, by = y + 8;
+    const next = this.updNext;
+    if (this.mechIcon) this.mechIcon(c, next, x + 12, y - 5, 10, WHITE);
+    glowText(c, 'BAIXANDO ATUALIZAÇÃO: ' + MECHS[next].name, x + 30, y - 2, 12, WHITE, col, 'left', 700, 3);
+    glowText(c, Math.floor(k * 100) + '%', x + bw, y - 2, 12, WHITE, col, 'right', 700, 3);
+    roundRectPath(c, x, by, bw, 12, 6);
+    c.fillStyle = 'rgba(0,0,0,0.6)'; c.fill();
+    c.strokeStyle = rgba(col, 0.7); c.lineWidth = 1.5; c.stroke();
+    roundRectPath(c, x + 2, by + 2, (bw - 4) * k, 8, 4);
+    c.fillStyle = col; c.shadowColor = col; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
   }
 
   // ---------- INFINITO ----------
@@ -1051,7 +1101,7 @@ export class Game {
 
   sizeFactor() {
     const e = this.effects.size;
-    const base = 1 + 0.08 * this.pLvl('width');
+    const base = (1 + 0.08 * this.pLvl('width')) * (this.shape.w || 1);   // ESCUDO is wider
     if (!e) return base;
     return base * (e.lvl > 0 ? 1 + 0.22 * e.lvl : Math.pow(0.8, -e.lvl));
   }
@@ -1143,6 +1193,7 @@ export class Game {
     }
 
     if (this.endless) { this.updateEndless(dt); if ((this.endless.boss !== null || this.endless.intro) && !this.boss) return; }
+    if (this.upd) this.updateUpd(dt);
     this.updateMechanics(dt);
     if (this.boss) {
       this.boss.update(dt);
@@ -1180,7 +1231,11 @@ export class Game {
     // bonus stages: the clock starts with the first launch
     if (this.bonus && (!this.holding || this.bonusTime < BONUS_TIME)) {
       this.bonusTime -= dt;
-      if (this.bonusTime <= 0) { this.bonusTime = 0; this.endBonus('TEMPO ESGOTADO'); return; }
+      if (this.bonusTime <= 0) { this.bonusTime = 0; this.endBonus(); return; }
+    }
+    if (this.bonus) {
+      this.shieldF = Math.max(0, this.shieldF - dt * 3);
+      if (this.alive <= 0 && !this.blasts.length && !this.bricks.some((q) => !q.dead && counts(q))) this.rainRefill();
     }
     this.updateWeapons(dt);
     this.updateAbility(dt);
@@ -1194,7 +1249,7 @@ export class Game {
     if (this.bricks.some((b) => b.dead)) this.bricks = this.bricks.filter((b) => !b.dead);
     for (const br of this.bricks) if (br.flash > 0) br.flash = Math.max(0, br.flash - dt * 5);
 
-    if (!this.boss && !this.endless && this.alive <= 0 && !this.blasts.length) {
+    if (!this.boss && !this.endless && !this.bonus && this.alive <= 0 && !this.blasts.length) {
       this.clearT = 1.6;
       this.score += 100 * (this.index + 1);
       for (const b of this.balls) this.burst(b.x, b.y, 16);
@@ -1204,14 +1259,13 @@ export class Game {
       this.collectCoins();
       sfx.clear();
       this.emit('chip', 10);
-      if (this.bonus) { this.payPot(); this.emit('bonusClear', this.bonus); return; }
       this.emit('stageClear', this.index);
       this.emit('clear');
       return;
     }
 
     this.balls = this.balls.filter((b) => !b.lost);
-    if (this.balls.length === 0) { if (this.bonus) this.endBonus('O DISCO CAIU'); else this.loseLife(); return; }
+    if (this.balls.length === 0) { if (this.bonus) this.endBonus(); else this.loseLife(); return; }
 
     for (const d of this.drops) {
       d.y += 230 * dt;
@@ -1320,7 +1374,6 @@ export class Game {
       for (const q of this.bars) if (q.t !== undefined) q.t -= dt;
       this.bars = this.bars.filter((q) => q.t === undefined || q.t > 0);
     }
-    if (this.table) this.updateTable(dt);
     // FASE: each group spends PHASE_T seconds solid and PHASE_T out of phase
     const cyc = this.mt % (PHASE_T * 2), cur = cyc < PHASE_T ? 0 : 1;
     this.phaseWarn = PHASE_T - (cyc % PHASE_T) < 0.5;
@@ -1666,8 +1719,14 @@ export class Game {
         b.y = this.paddle.y + 52 - r; b.vy = -Math.abs(b.vy); this.fixAngle(b); this.mark(b);
         this.ring(b.x, b.y + r, 60); sfx.wall();
       }
+      if (this.bonus && b.vy > 0 && b.y > this.shieldY - r) {   // the coin rain's shield
+        b.y = this.shieldY - r; b.vy = -Math.abs(b.vy); this.fixAngle(b); this.mark(b);
+        this.ring(b.x, this.shieldY, 60); this.shieldF = 1;
+        if (this.rainMul > 1) this.float('COMBO PERDIDO', b.x, this.shieldY - 40, 16);
+        this.streak = 0;
+        sfx.rainShield();
+      }
       this.brickHit(b, pierce);
-      if (this.table) this.tableHit(b);
       if (b.y > this.bottom + r * 2) { b.lost = true; break; }
     }
   }
@@ -1744,7 +1803,6 @@ export class Game {
     b.y = qy + ny * (r + PAD_TH / 2 + 0.5);
     this.mark(b);
     this.combo = 0;
-    this.mult = 1;   // bonus stages: the table combo ends on the platform
     sfx.paddle();
     this.padPulses.push({ u: qx - p.x, t: 0 });
     p.hit = 1;
@@ -1816,8 +1874,8 @@ export class Game {
       if (this.combo >= 3) this.float('x' + this.combo, cx, cy, 24);
       if (br.kind === 'exp') this.blasts.push({ br, t: 0.12 });
       if (this.bonus && this.bonus.kind === 'fork' && this.balls.length < FORK_MAX) this.forkBall(cx, cy);
-      // bonus stages drop nothing: their coins come from the pot, at the end
-      if (!this.tutorial && !this.bonus && Math.random() < COIN_CHANCE * GRANA_MUL[this.pLvl('grana')] * (this.endless ? ENDLESS_COIN : 1)) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
+      if (this.bonus) this.rainBrick(cx, cy);   // bonus stages: the coin rain, and no capsules
+      else if (!this.tutorial && Math.random() < COIN_CHANCE * GRANA_MUL[this.pLvl('grana')] * (this.endless ? ENDLESS_COIN : 1)) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
       if (this.tutorial && this.breaks === 3) this.spawnDrop(cx, cy, 'wide');
       else if (!this.tutorial && !this.bonus && Math.random() < this.dropChance) this.spawnDrop(cx, cy);
     } else {
@@ -1985,6 +2043,7 @@ export class Game {
   }
 
   onBossDeath(boss) {
+    this.stopUpd();
     this.score += 5000;
     this.shake = 1.2;
     for (const b of this.balls) this.burst(b.x, b.y, 12);
@@ -2002,11 +2061,11 @@ export class Game {
     if (!this.endless) this.emit('stageClear', this.index);
   }
 
-  // a bonus stage has one chance: when the disc falls or the time runs out it
-  // ends with no prize (and no life lost), paying only the pot
-  endBonus(why) {
-    this.bonusEnd = why;
-    this.bonusPot = this.payPot();
+  // the coin rain is over: the coins still falling go to the wallet
+  endBonus() {
+    this.collectCoins();
+    this.bonusEnd = true;
+    this.emit('bonusClear', this.bonus);
     this.clearT = 1.6;
     this.banner = null;
     for (const b of this.balls) this.burst(b.x, b.y, 16);
@@ -2015,7 +2074,7 @@ export class Game {
     this.bolts = []; this.missiles = []; this.shots = [];
     this.abil = null; this.effects = {};
     this.shake = Math.max(this.shake, 0.6);
-    sfx.lose(); vibrate(60);
+    sfx.clear(); vibrate(60);
   }
 
   loseLife() {
@@ -2544,6 +2603,16 @@ export class Game {
     }
   }
 
+  // the coin rain's shield: a line under the platform that flashes on a bounce
+  renderShield(c) {
+    const y = this.shieldY, col = this.col, f = this.shieldF;
+    c.beginPath(); c.moveTo(LEFT + 6, y); c.lineTo(RIGHT - 6, y);
+    c.save(); c.setLineDash([18, 10]); c.lineDashOffset = -this.t * 40;
+    neonStroke(c, col, col, 3 + 2 * f, LEFT, y, RIGHT, y, 0.7 + f);
+    c.restore();
+    c.globalAlpha = 0.08 + 0.2 * f; c.fillStyle = col; c.fillRect(LEFT + 6, y, RIGHT - LEFT - 12, 10); c.globalAlpha = 1;
+  }
+
   renderPadPulses(c) {
     if (!this.padPulses.length) return;
     const p = this.paddle, pal = this.palette(), sh = this.shape;
@@ -2579,7 +2648,7 @@ export class Game {
 
     this.renderField(c);
     this.renderMechanics(c);
-    if (this.table) this.renderTable(c);
+    if (this.bonus) this.renderShield(c);
     if (this.boss && (!this.boss.dead || this.boss.deathT > 1.2)) {
       c.globalAlpha = this.boss.dead ? (this.boss.deathT - 1.2) / 1.4 : 1;
       this.boss.render(c);
@@ -2801,13 +2870,14 @@ export class Game {
       c.globalAlpha = Math.min(1, (1.6 - this.clearT) / 0.3);
       if (this.bonusEnd) {
         neonTitle(c, 'FIM DO BÔNUS', W / 2, this.H * 0.5, 50, col, col, 10);
-        glowText(c, this.bonusEnd + (this.bonusPot ? '  ·  FICA O POTE' : '  ·  SEM PRÊMIO'), W / 2, this.H * 0.5 + 56, 18, WHITE, col, 'center', 600, 5);
+        glowText(c, this.stageCoins ? '+' + this.stageCoins + (this.stageCoins > 1 ? ' MOEDAS' : ' MOEDA') : 'NENHUMA MOEDA', W / 2, this.H * 0.5 + 56, 20, WHITE, COIN_COL, 'center', 700, 5);
       } else neonTitle(c, 'LIMPO', W / 2, this.H * 0.5, 66, col, col, 10);
       c.globalAlpha = 1;
     }
 
     if (this.endless && !this.boss && this.endless.bossT <= 5 && this.endless.bossT > 0) this.renderBossCount(c);
     if (showHud) this.renderHud(c);
+    if (showHud && this.upd && this.clearT <= 0 && !(this.boss && this.boss.dead)) this.renderUpd(c);
   }
 
   // INFINITO: the last 5 seconds before a boss, big in the middle of the field
@@ -2835,7 +2905,7 @@ export class Game {
       c.globalAlpha = 1;
     } else glowText(c, E ? fmtTime(E.t) : String(this.score), W / 2, hy, 36, WHITE, col, 'center', 700, 3);
     const sub = E ? this.score + ' PONTOS  ·  ' + (this.boss || E.intro ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
-      : this.bonus ? this.bonus.name + '  ·  POTE ' + Math.floor(this.pot + 1e-6) + (this.pot >= POT_MAX ? ' (CHEIO)' : '') + (this.mult > 1 ? '  ·  x' + this.mult : '') : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
+      : this.bonus ? this.bonus.name + (this.rainMul > 1 ? '  ·  COMBO x' + this.rainMul : '') : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
     glowText(c, sub, W / 2, hy + 36, 13, rgba(col, 0.85), col, 'center', 500, 4);
     const ds = discSprite(col, BALL_R, this.plat.disc || 0);
     for (let i = 0; i < Math.min(this.bonus ? 1 : this.lives, 6); i++) drawSprite(c, ds, 30 + i * 30, hy - 9, 0.55);
