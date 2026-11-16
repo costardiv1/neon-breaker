@@ -394,8 +394,8 @@ export const BONUS = [
       '.1.1.1.1.',
       '111111111',
     ] },
-  { w: 7, after: 1, kind: 'bombs', name: 'BARRICADA', demo: 'cap:bomb', slide: [1, 3],
-    text: 'Chuva de moedas! Um escudo segura o disco e, a cada duas batidas, uma explosão corre pela fileira. Quebre blocos sem deixar o disco tocar o escudo para subir o combo e pegue as moedas com a plataforma. São 30 s.',
+  { w: 7, after: 1, kind: 'pierce', name: 'BARRICADA', demo: 'cap:pierce', slide: [1, 3],
+    text: 'Chuva de moedas! Um escudo segura o disco, que fica com PERFURAR a fase inteira e atravessa os blocos. Quebre blocos sem deixar o disco tocar o escudo para subir o combo e pegue as moedas com a plataforma. São 30 s.',
     rows: [
       'X2222222X',
       '111111111',

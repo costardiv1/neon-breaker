@@ -2,6 +2,17 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9.1 (16/11/2026)
+
+### BARRICADA
+- [ ] O cartão fala do PERFURAR. Na fase, o disco fica claro e atravessa os blocos e as muralhas desde o primeiro lançamento até o fim dos 30 s.
+- [ ] Não há mais explosões correndo pela fileira.
+
+### Mapa
+- [ ] Jogue uma fase de um capítulo antigo (por exemplo o 8) e volte: o mapa abre nesse capítulo.
+- [ ] Role o mapa, volte ao menu e entre de novo: ele está onde você deixou. Feche e abra o jogo: continua lá.
+- [ ] Libere uma fase nova: o mapa vai até ela.
+
 ## 1.9 (16/11/2026)
 
 ### Fases bônus (chuva de moedas)

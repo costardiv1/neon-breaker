@@ -731,6 +731,8 @@ export class Game {
     this.drops = [];
     this.coins = [];
     this.effects = {};
+    // BARRICADA (bonus): the disc pierces the bricks for the whole stage
+    if (st.bonus && st.bonus.kind === 'pierce') this.effects.pierce = { type: 'pierce', t: 1, max: 1, good: true, perm: true };
     this.laserCd = 0;
     this.abil = null;
     this.combo = 0;
@@ -749,7 +751,6 @@ export class Game {
     this.banner = { text: st.boss ? 'CHEFÃO' : st.bonus ? 'BÔNUS' : stageLabel(this.index), sub: st.boss ? st.boss.name : sub, t: 2.4, max: 2.4 };
     this.bonusT = 1.5;
     this.bonusTime = BONUS_TIME;
-    this.bonusHits = 0;
     this.bonusEnd = null;
     if (st.bonus && st.bonus.slide) for (const r of st.bonus.slide) this.rows[r] = this.rowMotion(r);
     if (st.pool) this.startUpd(st.pool);
@@ -1143,7 +1144,7 @@ export class Game {
     this.borderGlow = Math.max(0, this.borderGlow - dt * 2.5);
 
     for (const k in this.effects) {
-      if (this.effects[k].ammo) continue;
+      if (this.effects[k].ammo || this.effects[k].perm) continue;   // perm: BARRICADA's pierce
       this.effects[k].t -= dt;
       if (this.effects[k].t <= 0) delete this.effects[k];
     }
@@ -1833,8 +1834,6 @@ export class Game {
         this.missileBlast(br.x + br.w / 2, br.y + br.h / 2);
         if (br.dead) return;
       }
-      // BARRICADA: every other hit blows up the bricks on each side
-      if (this.bonus && this.bonus.kind === 'bombs' && ++this.bonusHits % 2 === 0) { this.sideBlast(br); if (br.dead) return; }
       let amt = this.ballDamage();
       if (b.heavy > 0) { b.heavy--; amt *= 2; this.ring(br.x + br.w / 2, br.y + br.h / 2, 46); this.shake = Math.max(this.shake, 0.2); }
       this.damage(br, pierce, amt);
@@ -1900,27 +1899,6 @@ export class Game {
     for (const o of this.bricks) {
       if (o.dead || o === src) continue;
       if (Math.abs(o.x + o.w / 2 - cx) < (BW + GAP) * 1.5 && Math.abs(o.y + o.h / 2 - cy) < (BH + GAP) * 1.5) this.damage(o, false);
-    }
-  }
-
-  // BARRICADA: the blast runs along the row both ways, through every brick
-  // touching it, until a gap or a wall
-  sideBlast(src) {
-    const cy = src.y + src.h / 2;
-    this.ring(src.x + src.w / 2, cy, 90);
-    this.shake = Math.max(this.shake, 0.3);
-    sfx.blast();
-    const row = this.bricks.filter((o) => !o.dead && o.row === src.row);
-    for (const dir of [-1, 1]) {
-      let edge = src;
-      for (;;) {
-        const nx = edge.x + (dir > 0 ? edge.w + GAP : -GAP);
-        const o = row.find((q) => !q.dead && q !== edge && Math.abs((dir > 0 ? q.x : q.x + q.w) - nx) < GAP + 6);
-        if (!o || !counts(o)) break;
-        this.damage(o, true);
-        this.ring(o.x + o.w / 2, cy, 40);
-        edge = o;
-      }
     }
   }
 

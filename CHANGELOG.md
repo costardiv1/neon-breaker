@@ -2,6 +2,13 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9.1] · 16/11/2026 · BARRICADA perfurante e mapa que lembra a posição
+
+### Alterado
+
+- Fase bônus BARRICADA: em vez da explosão que corria pela fileira a cada duas batidas, o disco fica com PERFURAR a fase inteira e atravessa todos os blocos (e as muralhas).
+- Mapa: guarda a posição da tela, também depois de fechar o jogo. Ao voltar de uma fase, ele abre no capítulo da fase jogada; só vai para a fase mais avançada quando uma fase nova é liberada.
+
 ## [1.9] · 16/11/2026 · O jogo completo: capítulo 10, o chefão final e o NEON FIGHTERS
 
 ### Adicionado

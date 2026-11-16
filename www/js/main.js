@@ -20,7 +20,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.9';
+export const VERSION = '1.9.1';
 
 let H = 1280;
 let safeTop = 0;
@@ -299,6 +299,7 @@ const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story', 're
 function setScene(s) {
   if (s !== 'play') saveChips();
   if (s === 'map' && scene !== 'map') focusMap();
+  if (scene === 'map' && s !== 'map') store.set('mapY', Math.round(mapScroll));   // the map remembers where it was
   if (s === 'plat' && scene !== 'plat') openPlat();
   showGateInput(s === 'devgate' && !opts.dev);
   if (s !== 'scores') showNameInput(false);
@@ -671,12 +672,21 @@ function isoData() {
 const mapViewTop = () => safeTop + 130;
 const STRIP_H = 150;   // the chapter info strip under the map
 const mapViewH = () => H - 150 - STRIP_H - mapViewTop();
-let mapScroll = 0;
+let mapScroll = store.get('mapY', 0);
 const clampScroll = (v) => clampN(v, 0, Math.max(0, isoData().height - mapViewH()));
+// The map keeps where it was. It moves only to show a stage just unlocked or,
+// back from a stage, the chapter of the stage just played.
+let mapProg = store.get('mapProg', -1);   // progress the map last went to
+let mapBack = null;                         // { node } or { bonus }: the stage just played
 function focusMap() {
   lightUpMap();
-  const D = isoData(), n = D.nodes[Math.min(prog, D.nodes.length - 1)];
-  mapScroll = clampScroll(n.y - mapViewH() * 0.45);
+  const D = isoData();
+  let n = null;
+  if (prog !== mapProg) { n = D.nodes[Math.min(prog, D.nodes.length - 1)]; mapProg = prog; store.set('mapProg', prog); }
+  else if (mapBack) n = mapBack.bonus !== undefined ? D.bonus[mapBack.bonus] : D.nodes[mapBack.node];
+  mapBack = null;
+  if (n) mapScroll = clampScroll(n.y - mapViewH() * 0.45);
+  else mapScroll = clampScroll(mapScroll);
 }
 function nodePos(i) {
   const n = isoData().nodes[i];
@@ -2037,6 +2047,7 @@ function renderGuide(c, now) {
 }
 
 function startGame(index = 0, bonus = null) {
+  mapBack = bonus ? { bonus: BONUS.indexOf(bonus) } : { node: index };
   game.plat = plat;
   game.setColor(col());
   applyOpts();
