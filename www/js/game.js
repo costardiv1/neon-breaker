@@ -717,7 +717,8 @@ export class Game {
     this.viralT = 5;
     this.holdT = 0;
     this.boss = st.boss ? createBoss(st.boss.type, this) : null;
-    if (this.boss && this.endless && this.endless.round) { this.boss.hpMax *= 1 + this.endless.round; this.boss.hp = this.boss.hpMax; }
+    // INFINITO: the bosses come with 60% of their life (no perks needed), more on each lap
+    if (this.boss && this.endless) { this.boss.hpMax = Math.max(3, Math.ceil(this.boss.hpMax * 0.6 * (1 + (this.endless.round || 0)))); this.boss.hp = this.boss.hpMax; }
     this.bandT = 9;
     if (this.boss) this.fillBand(12);
     this.worldDone = false;
@@ -906,7 +907,7 @@ export class Game {
   }
 
   // ---------- INFINITO ----------
-  endlessSpeed() { return Math.min(900, 620 + this.endless.t * 0.9); }
+  endlessSpeed() { return Math.min(860, 620 + this.endless.t * 0.5); }
 
   endlessStage() {
     const E = this.endless, mechs = ['descent', ...E.mechs];
@@ -924,8 +925,8 @@ export class Game {
   // a row of bricks as a string, with the specials of the active mechanics
   endlessRow(maxHp) {
     const E = this.endless, has = (m) => E.mechs.includes(m);
-    // the rows start sparse and fill up over ~3 minutes (again after each boss)
-    const gap = Math.max(0.25, 0.62 - (E.t - (E.since || 0)) / 480);
+    // the rows start sparse and fill up over ~4 minutes (again after each boss)
+    const gap = Math.max(0.3, 0.62 - (E.t - (E.since || 0)) / 720);
     let row = '';
     for (let c = 0; c < COLS; c++) {
       if (Math.random() < gap) { row += '.'; continue; }
@@ -945,7 +946,7 @@ export class Game {
 
   endlessSpawn(y) {
     const E = this.endless, r = --E.rowTop;
-    const row = this.endlessRow(Math.min(4, 1 + Math.floor(E.t / 75)));
+    const row = this.endlessRow(Math.min(4, 1 + Math.floor(E.t / 120)));
     for (let c = 0; c < COLS; c++) {
       const br = makeBrick(row[c], c, y, r);
       if (!br) continue;
@@ -1317,10 +1318,10 @@ export class Game {
     // PRESSÃO: every brick creeps down; touching the alert line costs a life
     // (INFINITO keeps going with an empty field, faster, so new rows come in)
     if (this.endless && this.endless.purge) this.updatePurge(dt);
-    else if (this.mechs.includes('descent') && !this.boss && (this.bricks.length || this.endless)) {
+    else if (this.mechs.includes('descent') && !this.boss && !this.holding && (this.bricks.length || this.endless)) {   // paused while the disc waits on the platform
       const E = this.endless;
       const empty = E && !this.bricks.some((b) => !b.dead && counts(b));
-      const v = (E ? Math.min(26, 10 + E.t * 0.04) : 6 + this.stage.s * 0.7) * (empty ? 8 : 1);
+      const v = (E ? Math.min(22, 10 + E.t * 0.025) : 6 + this.stage.s * 0.7) * (empty ? 8 : 1);
       let low = 0, high = Infinity;
       for (const br of this.bricks) {
         if (br.dead) continue;
@@ -1337,12 +1338,12 @@ export class Game {
       if (E) E.rowY += v * dt;
       else { for (const q of this.beams) if (q.t === undefined) q.y += v * dt; for (const q of this.bars) if (q.t === undefined) q.y += v * dt; }
       this.press = clamp((low - (this.top + 200)) / (this.dangerY - (this.top + 200)), 0, 1);
-      if (low >= this.dangerY && !this.holding && E) {
+      if (low >= this.dangerY && E) {
         this.startPurge();
         this.float('PRESSÃO', W / 2, this.dangerY - 30, 30);
         this.balls = [];
         this.loseLife();
-      } else if (low >= this.dangerY && !this.holding) {
+      } else if (low >= this.dangerY) {
         const shift = Math.min(240, high - (this.top + 60));
         for (const br of this.bricks) br.y -= shift;
         if (E) E.rowY -= shift;

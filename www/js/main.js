@@ -1,6 +1,7 @@
 import { view, rgba, mix, roundRectPath, neonStroke, neonTitle, glowText, drawSprite, TAU, drawVirus } from './render.js';
 import { Game, W, BALL_R, BASE_HW, POWERS, ABILITIES, PASSIVES, drawAbilityIcon, gfx, HIT_T, coinSprite, DISCS, TRAILS, discSprite, drawTrail, trimTrail, clearSprites, tierTone, dropSprite, fmtTime, drawChipIcon } from './game.js';
 import { drawDemo, hasDemo } from './demo.js';
+import { createBoss } from './boss.js';
 import { SHAPES, PALETTES, EMBLEMS, drawPlatform, outAngle, paletteColors } from './platform.js';
 import { MECHS, WORLDS, TOTAL_STAGES, getStage, stageLabel, districtMechs, worldStart, worldCount, BONUS, bonusIndex } from './levels.js';
 import { THEMES } from './themes.js';
@@ -20,11 +21,11 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.9.5';
+export const VERSION = '1.9.6';
 
 let H = 1280;
 let safeTop = 0;
-let scene = 'menu';   // menu | map | plat | notif | perktut | colors | options | dev | play | pause | over | card | world | story | crash
+let scene = 'menu', sceneT0 = 0;   // sceneT0: when the scene opened (the buttons pop in)   // menu | map | plat | notif | perktut | colors | options | dev | play | pause | over | card | world | story | crash
 let colorIndex = Math.min(store.get('color', 0), THEMES.length - 1);
 const savedPlat = store.get('plat', {});
 const plat = {
@@ -304,6 +305,7 @@ function setScene(s) {
   if (s === 'plat' && scene !== 'plat') openPlat();
   showGateInput(s === 'devgate' && !opts.dev);
   if (s !== 'scores') showNameInput(false);
+  if (s !== scene) sceneT0 = performance.now() / 1000;
   scene = s;
   sfx.setPlaying(s === 'play' || s === 'fighters');
   if (s === 'crash') music.play(null);
@@ -399,9 +401,6 @@ function toggleMusic() { sfx.setMusic(!sfx.musicOn); store.set('music', sfx.musi
 function optionRows() {
   if (scene === 'options') {
     const rows = [
-      { label: 'EFEITOS SONOROS', val: () => onOff(sfx.enabled), tap: toggleSfx },
-      { label: 'MÚSICA', val: () => onOff(sfx.musicOn, true), tap: toggleMusic },
-      { label: 'VIBRAÇÃO', val: () => onOff(opts.vibe, true), tap: () => { opts.vibe = !opts.vibe; } },
       { label: 'SENSIBILIDADE', val: () => opts.sens.toFixed(1) + 'x', step: (d) => { opts.sens = clampN(Math.round((opts.sens + d * 0.1) * 10) / 10, 0.5, 2.5); } },
       { label: 'QUALIDADE', val: () => (qualityIndex() < 0 ? 'PERSONAL.' : QUALITY[qualityIndex()].name), step: (d) => {
         const i = qualityIndex(), n = QUALITY.length;
@@ -412,9 +411,6 @@ function optionRows() {
         const i = neonIndex(), n = NEON.length;
         presetGfx({ glow: NEON[i < 0 ? 2 : (i + d + n) % n].v });
       }, wide: true },
-      { label: 'TUTORIAL', val: () => 'REVER', tap: () => { store.set('tutDone', false); startGame(0); } },
-      { label: 'COR DO JOGO', val: () => THEMES[colorIndex].name + '  ›', tap: () => setScene('colors') },
-      { label: 'CRÉDITOS', val: () => 'ABRIR  ›', tap: () => setScene('credits') },
     ];
     if (opts.dev) {
       rows.push({ label: 'MODO DEV', val: () => onOff(true), tap: () => { opts.dev = false; } });
@@ -443,18 +439,36 @@ function resetProgress() {
   Object.assign(owned, { pal: [PALETTES.length - 1], emb: [0, 1], disc: [0], trail: [0] });
   Object.assign(plat, { shape: 0, pal: PALETTES.length - 1, emb: 1, disc: 0, trail: 0, dash: false, detail: true });
   store.set('seen', {}); store.set('tutDone', false); store.set('prog', 0); store.set('plat', plat);
+  litD = -1; store.set('litD', -1); mapProg = -1; store.set('mapProg', -1);   // the map lights the chapters up again
   saveChips();
   optMsg = { text: 'PROGRESSO RESETADO', t: performance.now() / 1000 };
 }
 let resetArm = 0;          // first tap arms the reset, the second confirms it
 let optMsg = null;
 
+// OPÇÕES: the on/off switches and the screens it opens are icons, the settings with values are rows
+function optionIcons() {
+  const done = (fn) => () => { fn(); applyOpts(); };
+  const top = safeTop + 170;
+  return [
+    ...iconMenu(top, null, [
+      { label: 'EFEITOS', fn: done(toggleSfx), icon: sfx.enabled ? 'sfx' : 'sfxOff', dim: !sfx.enabled },
+      { label: 'MÚSICA', fn: done(toggleMusic), icon: sfx.musicOn ? 'music' : 'musicOff', dim: !sfx.musicOn },
+      { label: 'VIBRAÇÃO', fn: done(() => { opts.vibe = !opts.vibe; }), icon: opts.vibe ? 'vibe' : 'vibeOff', dim: !opts.vibe },
+    ]),
+    ...iconMenu(top + 154, null, [
+      { label: 'COR', fn: () => setScene('colors'), icon: 'pal' },
+      { label: 'TUTORIAL', fn: () => { store.set('tutDone', false); startGame(0); }, icon: 'help' },
+      { label: 'CRÉDITOS', fn: () => setScene('credits'), icon: 'star' },
+    ]),
+  ];
+}
 function optionButtons() {
-  const list = [];
-  const rows = optionRows();
-  const stepY = Math.min(scene === 'options' ? 84 : 90, (H - 190 - (safeTop + 200)) / Math.max(1, rows.length - 1));
+  const list = scene === 'options' ? optionIcons() : [];
+  const rows = optionRows(), y0 = scene === 'options' ? safeTop + 540 : safeTop + 200;
+  const stepY = Math.min(scene === 'options' ? 84 : 90, (H - 190 - y0) / Math.max(1, rows.length - 1));
   rows.forEach((row, i) => {
-    const y = safeTop + 200 + i * stepY;
+    const y = y0 + i * stepY;
     const done = (fn) => () => { fn(); applyOpts(); };
     if (row.slider) {
       list.push({ x: W / 2 - 320, y: y - 37, w: 640, h: 74, label: row.label, slider: row.slider, fn: () => {} });
@@ -711,8 +725,10 @@ function mapButtons() {
 
 // ---------- BREAKERS > PERKS: a carousel of cards ----------
 // Two kinds: ATIVOS (fired in play) and PASSIVOS (always on). One of each is equipped.
-const ACTIVE_KEYS = ['shield', 'shock', 'slow', 'magnet', 'megalaser', 'bolt'];
-const PASSIVE_KEYS = ['width', 'grana', 'recarga', 'sorte', 'vida', 'pesado'];
+// both in order of price (cheapest first)
+const byPrice = (keys, info) => keys.slice().sort((a, b) => info[a].cost[0] - info[b].cost[0]);
+const ACTIVE_KEYS = byPrice(['shield', 'magnet', 'shock', 'megalaser', 'slow', 'bolt'], ABILITIES);
+const PASSIVE_KEYS = byPrice(['grana', 'sorte', 'recarga', 'pesado', 'width', 'vida'], PASSIVES);
 let buyMsg = null;
 let perkKind = 0;                  // 0 ATIVOS, 1 PASSIVOS
 const perkSel = [0, 0];
@@ -747,6 +763,7 @@ const perkCard = () => {
 };
 function perkButtons() {
   const list = [], cx = W / 2, cd = perkCard();
+  list.push({ x: cd.x + cd.w - 62, y: cd.y + 8, w: 56, h: 56, label: '', fn: startPerkTut, icon: 'help', bare: true });   // the perks tutorial, any time
   ['ATIVOS', 'PASSIVOS'].forEach((t, i) => list.push(btn(cx + (i ? 150 : -150), safeTop + 302, 280, 50, t, () => { perkKind = i; }, { small: true, sel: perkKind === i, fs: 14, bang: perkAlert(i) })));
   list.push(btn(cx - 300, cd.y + cd.h / 2, 84, 84, '', () => browsePerk(-1), { arrow: -1 }));
   list.push(btn(cx + 300, cd.y + cd.h / 2, 84, 84, '', () => browsePerk(1), { arrow: 1 }));
@@ -844,6 +861,7 @@ function openBreakers(tab, back = 'menu', kind = null, sel = null) {
   if (sel !== null) perkSel[perkKind] = sel;
   platBack = back;
   setScene('plat');
+  perkTabOpened();
 }
 
 // ---------- notifications ----------
@@ -897,7 +915,9 @@ function drawNote(c, b) {
   glowText(c, '›', b.x + b.w - 28, b.y + b.h / 2 + 2, 26, rgba(k, 0.9), k, 'center', 700, 2);
 }
 
-// ---------- tutorial: how perks work (after the first boss) ----------
+// ---------- tutorial: how perks work ----------
+// After the first boss a single card offers the BREAKERS screen; the full
+// tutorial plays the first time the PERKS tab opens, and again from its ?.
 const PERK_TUT = [
   { title: 'PERKS', demo: 'ptPerks', text: 'Chips compram perks no menu BREAKERS.' },
   { title: 'CHIPS', demo: 'ptChips', text: '1 por bloco, 10 por fase, 60 por chefão.' },
@@ -905,22 +925,27 @@ const PERK_TUT = [
   { title: 'PASSIVOS', demo: 'ptPassive', text: 'Vale o tempo todo, sem disparar.' },
   { title: 'EVOLUA', demo: 'ptLevels', text: '3 níveis por perk. O ! avisa quando dá para comprar.' },
 ];
-let perkTut = 0;
-function startPerkTut() { perkTut = 0; markSeen('perkTut'); setScene('perktut'); }
+const PERK_OFFER = { title: 'PERKS LIBERADOS', demo: 'ptPerks', text: 'Você já tem chips para gastar. Quer personalizar sua plataforma agora?' };
+let perkTut = 0, perkTutBack = 'plat';   // perkTut -1: the offer card after the first boss
+const perkPage = () => (perkTut < 0 ? PERK_OFFER : PERK_TUT[perkTut]);
+function startPerkOffer() { perkTut = -1; markSeen('perkOffer'); setScene('perktut'); }
+function startPerkTut() { perkTut = 0; perkTutBack = scene === 'perktut' ? perkTutBack : scene; markSeen('perkTut'); setScene('perktut'); }
+// the PERKS tab: the first time, the tutorial comes first
+function perkTabOpened() { if (scene === 'plat' && platTab === PERK_TAB && !seen.perkTut) startPerkTut(); }
 const demoH = () => Math.round(Math.min(190, H * 0.14));
 function perkTutBox() {
   ctx.font = `500 25px ${BODY_FONT}`;
-  const lines = wrap(ctx, PERK_TUT[perkTut].text, 520), h = 200 + demoH() + 24 + lines.length * 36 + 100;
+  const lines = wrap(ctx, perkPage().text, 520), h = 200 + demoH() + 24 + lines.length * 36 + 100;
   return { x: W / 2 - 300, y: H * 0.5 - h / 2, w: 600, h, lines };
 }
 function renderPerkTut(c, now) {
-  const k = col(), pg = PERK_TUT[perkTut], b = perkTutBox(), { x, y, h, lines } = b;
-  game.render(c, false);
+  const k = col(), pg = perkPage(), b = perkTutBox(), { x, y, h, lines } = b;
+  if (perkTut >= 0 && perkTutBack === 'plat') renderPlatScreen(c, now); else game.render(c, false);
   dim(c, 0.8);
   roundRectPath(c, x, y, 600, h, 26);
   c.fillStyle = 'rgba(0,0,0,0.9)'; c.fill();
   neonStroke(c, k, k, 2.6, x, y, x + 600, y + h, 0.9);
-  glowText(c, `TUTORIAL  ·  PERKS  ${perkTut + 1}/${PERK_TUT.length}`, W / 2, y + 44, 14, rgba(k, 0.9), k, 'center', 500, 6);
+  glowText(c, perkTut < 0 ? 'CHEFÃO DERROTADO' : `TUTORIAL  ·  PERKS  ${perkTut + 1}/${PERK_TUT.length}`, W / 2, y + 44, 14, rgba(k, 0.9), k, 'center', 500, 6);
   neonTitle(c, pg.title, W / 2, y + 100, 38, k, k, 6);
   drawDemo(c, pg.demo, x + 50, y + 136, 500, demoH(), now, k);
   c.save(); c.font = `500 25px ${BODY_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = 'rgba(255,255,255,0.92)';
@@ -929,11 +954,12 @@ function renderPerkTut(c, now) {
 }
 function perkTutButtons() {
   const b = perkTutBox(), by = b.y + b.h - 62, cx = W / 2;
-  if (perkTut < PERK_TUT.length - 1) return [btn(cx, by, 340, 70, 'CONTINUAR', () => { perkTut++; }, { big: true })];
-  return [
+  if (perkTut < 0) return [
     btn(cx - 140, by, 250, 70, 'DEPOIS', () => setScene('world'), { fs: 16 }),
-    btn(cx + 140, by, 250, 70, 'BREAKERS', () => openBreakers(PERK_TAB, 'world'), { big: true, fs: 20 }),
+    btn(cx + 140, by, 250, 70, 'PERSONALIZAR', () => openBreakers(PERK_TAB, 'world'), { big: true, fs: 18 }),
   ];
+  if (perkTut < PERK_TUT.length - 1) return [btn(cx, by, 340, 70, 'CONTINUAR', () => { perkTut++; }, { big: true })];
+  return [btn(cx, by, 340, 70, 'ENTENDI', () => setScene(perkTutBack), { big: true })];
 }
 
 function platMsg(c, now, y) {
@@ -963,6 +989,8 @@ const catKey = () => ['shape', 'pal', 'emb', 'disc', 'trail'][platTab];
 const catN = (key) => CATS[key].n();
 const catName = (key, i) => CATS[key].name(i);
 const itemCost = (key, i) => CATS[key].cost(i);
+// the carousel goes in order of price (cheapest first); the shapes in the order they unlock
+const catOrder = (key) => { const ix = [...Array(catN(key)).keys()]; return key === 'shape' ? ix : ix.sort((a, b) => itemCost(key, a) - itemCost(key, b) || a - b); };
 function itemOpen(key, i) {
   if (opts.dev && opts.unlock) return true;
   return key === 'shape' ? i <= bossesBeaten() : itemCost(key, i) === 0 || owned[key].includes(i);
@@ -974,7 +1002,8 @@ function shapeNeed(i) {
 function openPlat() { for (const k in browse) browse[k] = plat[k]; }
 function browseItem(d) {
   const key = catKey(), n = catN(key);
-  browse[key] = (browse[key] + d + n) % n;
+  const ord = catOrder(key), p = ord.indexOf(browse[key]);
+  browse[key] = ord[(p + d + n) % n];
   if (itemOpen(key, browse[key])) { plat[key] = browse[key]; store.set('plat', plat); }
 }
 function buyItem() {
@@ -990,7 +1019,7 @@ function buyItem() {
 const platSelY = () => safeTop + 700;
 function platButtons() {
   const list = [], cx = W / 2, per = Math.ceil(PLAT_TABS.length / 2), tw = (W - 48) / per;
-  PLAT_TABS.forEach((t, i) => list.push({ x: 24 + (i % per) * tw + 4, y: safeTop + 150 + Math.floor(i / per) * 58, w: tw - 8, h: 50, label: t, fn: () => { platTab = i; openPlat(); }, ptab: i, bang: tabAlert(i) }));
+  PLAT_TABS.forEach((t, i) => list.push({ x: 24 + (i % per) * tw + 4, y: safeTop + 150 + Math.floor(i / per) * 58, w: tw - 8, h: 50, label: t, fn: () => { platTab = i; openPlat(); perkTabOpened(); }, ptab: i, bang: tabAlert(i) }));
   if (opts.dev) list.push(btn(cx, safeTop + 124, 120, 36, '+ DEV', () => { chips += 500; coins += 100; saveChips(); }, { small: true }));
   if (platTab === PERK_TAB) list.push(...perkButtons());
   else {
@@ -1063,7 +1092,7 @@ function renderPlatScreen(c, now) {
     glowText(c, 'DESVIO', W / 2 + 40, safeTop + 588, 14, rgba(k, 0.85), k, 'right', 500, 4);
   }
   const y = platSelY();
-  glowText(c, PLAT_TABS[platTab] + '  ' + (i + 1) + '/' + n, W / 2, y - 34, 13, rgba(k, 0.75), k, 'center', 500, 5);
+  glowText(c, PLAT_TABS[platTab] + '  ' + (catOrder(key).indexOf(i) + 1) + '/' + n, W / 2, y - 34, 13, rgba(k, 0.75), k, 'center', 500, 5);
   glowText(c, catName(key, i), W / 2, y + 2, 26, open ? '#ffffff' : rgba('#ffffff', 0.55), k, 'center', 700, 4);
   for (let q = 0; q < n; q++) {
     const x = W / 2 + (q - (n - 1) / 2) * 20, yy = y + 44;
@@ -1338,7 +1367,7 @@ function renderStory(c, now) {
   const k = col();
   c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
   glowText(c, 'CAPÍTULO ' + (story.w + 1) + ' · ' + (WORLDS[story.w] ? WORLDS[story.w].name : ''), 40, safeTop + 92, 13, rgba(k, 0.8), k, 'left', 700, 4);
-  c.font = '21px Consolas, "Courier New", monospace';
+  c.font = '24px Consolas, "Courier New", monospace';
   c.textAlign = 'left';
   c.fillStyle = '#c8c8c8';
   let left = storyChars(now), y = safeTop + 160, cx = 40, cy = y;
@@ -1349,9 +1378,9 @@ function renderStory(c, now) {
     c.fillText(shown, 40, y);
     cx = 40 + c.measureText(shown).width + 4; cy = y;
     left -= ln.length + 6;   // a short pause at the end of each line
-    y += 37;
+    y += 41;
   }
-  if (Math.floor(now * 2.5) % 2 === 0) { c.fillStyle = '#c8c8c8'; c.fillRect(cx, cy - 18, 12, 23); }
+  if (Math.floor(now * 2.5) % 2 === 0) { c.fillStyle = '#c8c8c8'; c.fillRect(cx, cy - 20, 13, 26); }
 }
 
 // ---------- ending: the game pretends to crash ----------
@@ -1464,16 +1493,60 @@ function pixelBot(c, x, y, s) {
 const bossOf = (w) => getStage(worldStart(w) + worldCount(w) - 1).boss;
 const beaten = (w) => prog > worldStart(w) + worldCount(w) - 1;
 const ARCH_W = STORY.length;
+const ARCH_COLS = 5, ARCH_GAP = 12, ARCH_S = Math.floor((W - 48 - (ARCH_COLS - 1) * ARCH_GAP) / ARCH_COLS);
+const archBottom = () => safeTop + 232 + Math.ceil(ARCH_W / ARCH_COLS) * (ARCH_S + ARCH_GAP);
+// a portrait of each boss: the real boss drawn once on its own canvas, cropped to a square
+const portraits = {};
+const portraitGame = (k) => new Proxy({ top: 0, H: 1440, col: k, effects: {}, bricks: [], balls: [], beams: [], bars: [], wells: [], portals: [], paddle: { x: W / 2, y: 1300, hw: 80 }, t: 0, shake: 0, alive: 0, mt: 0 },
+  { get: (o, key) => (key in o ? o[key] : typeof key === 'string' ? () => {} : undefined) });
+function bossPortrait(type, k) {
+  const id = type + k;
+  if (portraits[id] !== undefined) return portraits[id];
+  portraits[id] = null;
+  try {
+    const b = createBoss(type, portraitGame(k));
+    for (let i = 0; i < 30; i++) b.update(1 / 60);
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = 640;
+    const c = cv.getContext('2d'); c.fillStyle = '#000'; c.fillRect(0, 0, W, 640);
+    b.render(c);
+    const d = c.getImageData(0, 0, W, 640).data;
+    let x0 = W, y0 = 640, x1 = 0, y1 = 0;
+    for (let y = 0; y < 640; y += 2) for (let x = 0; x < W; x += 2) {
+      const i = (y * W + x) * 4;
+      if (d[i] + d[i + 1] + d[i + 2] > 60) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    }
+    if (x1 <= x0) return null;
+    const side = Math.max(x1 - x0, y1 - y0) + 24, out = document.createElement('canvas');
+    out.width = out.height = 200;
+    out.getContext('2d').drawImage(cv, (x0 + x1 - side) / 2, (y0 + y1 - side) / 2, side, side, 0, 0, 200, 200);
+    portraits[id] = out;
+  } catch (e) { /* no portrait: the square shows the name */ }
+  return portraits[id];
+}
+function drawArchive(c, b) {
+  const k = col(), down = pressed === b, ok = !b.off;
+  roundRectPath(c, b.x, b.y, b.w, b.h, 16);
+  c.fillStyle = rgba(k, down ? 0.2 : ok ? 0.06 : 0.02); c.fill();
+  if (ok) neonStroke(c, k, k, 2, b.x, b.y, b.x + b.w, b.y + b.h, 0.6);
+  else { c.strokeStyle = rgba(k, 0.25); c.lineWidth = 1.5; c.stroke(); }
+  if (!ok) { glowText(c, '?', b.x + b.w / 2, b.y + b.h / 2 + 2, 30, rgba(k, 0.45), k, 'center', 800, 1); return; }
+  const img = bossPortrait(b.arch.type, k), m = 8, ih = b.h - 30;
+  if (img) c.drawImage(img, b.x + (b.w - ih) / 2 + m / 2, b.y + m / 2 + 2, ih - m, ih - m);
+  c.font = `700 10px "Orbitron", sans-serif`;
+  let fs = 10; while (fs > 7 && c.measureText(b.arch.name).width + b.arch.name.length * 1.5 > b.w - 10) { fs--; c.font = `700 ${fs}px "Orbitron", sans-serif`; }
+  glowText(c, b.arch.name, b.x + b.w / 2, b.y + b.h - 15, fs, '#ffffff', k, 'center', 700, 1);
+}
 function creditButtons() {
   const cx = W / 2, list = [];
+  const x0 = (W - (ARCH_COLS * ARCH_S + (ARCH_COLS - 1) * ARCH_GAP)) / 2;
   for (let w = 0; w < ARCH_W; w++) {
     const ok = beaten(w) || devAll();
-    list.push({ x: cx + ((w % 3) - 1) * 216 - 102, y: safeTop + 232 + Math.floor(w / 3) * 70, w: 204, h: 60,
-      label: ok ? bossOf(w).name : '? ? ?', fn: ok ? () => startStory(w, 'credits') : null, small: true, fs: 12, off: !ok });
+    list.push({ x: x0 + (w % ARCH_COLS) * (ARCH_S + ARCH_GAP), y: safeTop + 232 + Math.floor(w / ARCH_COLS) * (ARCH_S + ARCH_GAP), w: ARCH_S, h: ARCH_S,
+      label: '', arch: bossOf(w), fn: ok ? () => startStory(w, 'credits') : null, off: !ok });
   }
-  const ly = H - 190;
-  list.push(btn(cx - 158, ly, 300, 62, 'REPOSITÓRIO  ↗', () => openUrl(REPO_URL), { small: true, fs: 14 }));
-  list.push(btn(cx + 158, ly, 300, 62, 'INSTAGRAM  ↗', () => openUrl(INSTA_URL), { small: true, fs: 14 }));
+  const ly = H - 222;
+  list.push({ x: cx - 44 - 70, y: ly - 44, w: 88, h: 88, label: 'GITHUB', icon: 'github', fn: () => openUrl(REPO_URL) });
+  list.push({ x: cx - 44 + 70, y: ly - 44, w: 88, h: 88, label: 'INSTAGRAM', icon: 'insta', fn: () => openUrl(INSTA_URL) });
   list.push(btn(cx, H - 90, 400, 76, 'VOLTAR', () => setScene('options')));
   return list;
 }
@@ -1482,7 +1555,7 @@ function renderCredits(c) {
   neonTitle(c, 'CRÉDITOS', cx, safeTop + 105, 46, k, k, 12);
   glowText(c, 'ARQUIVOS DOS CHEFÕES', cx, safeTop + 180, 16, k, k, 'center', 700, 5);
   glowText(c, 'toque num chefão derrotado para reler o diário', cx, safeTop + 206, 13, rgba('#ffffff', 0.6), k, 'center', 500, 1);
-  let y = safeTop + 500;
+  let y = archBottom() + 40;
   // "Feito por Vinícius Costardi e Claude Code"
   const parts = [['Feito por ', 400], ['Vinícius Costardi', 700], [' e ', 400], ['Claude Code', 700]];
   c.textBaseline = 'middle';
@@ -1699,6 +1772,42 @@ function drawMenuIcon(c, kind, x, y, k) {
     if (kind === 'musicOff') { c.moveTo(x - 22, y - 20); c.lineTo(x + 22, y + 22); }
     c.lineJoin = 'round'; c.lineCap = 'round';
     neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'vibe' || kind === 'vibeOff') {
+    // a phone shaking
+    roundRectPath(c, x - 10, y - 20, 20, 40, 5);
+    neonStroke(c, k, k, 3, x - 10, y, x + 10, y, 0.8);
+    c.beginPath();
+    for (const sd of [-1, 1]) { c.moveTo(x + sd * 17, y - 10); c.lineTo(x + sd * 21, y - 4); c.lineTo(x + sd * 17, y + 2); c.lineTo(x + sd * 21, y + 8); }
+    if (kind === 'vibeOff') { c.moveTo(x - 22, y - 20); c.lineTo(x + 22, y + 22); }
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    neonStroke(c, k, k, 2.6, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'ad') {
+    // an ad: a little screen with play, and x2
+    roundRectPath(c, x - 24, y - 18, 48, 34, 7);
+    neonStroke(c, k, k, 3, x - 24, y, x + 24, y, 0.8);
+    c.beginPath(); c.moveTo(x - 6, y - 9); c.lineTo(x + 8, y - 1); c.lineTo(x - 6, y + 7); c.closePath();
+    c.fillStyle = k; c.fill();
+    glowText(c, '×2', x + 18, y + 22, 14, '#ffffff', k, 'center', 800, 1);
+  } else if (kind === 'github') {
+    // the octocat's head inside a ring
+    c.arc(x, y, 23, 0, TAU);
+    neonStroke(c, k, k, 2.6, x - 23, y, x + 23, y, 0.8);
+    c.beginPath();
+    c.moveTo(x - 12, y + 9); c.quadraticCurveTo(x - 17, y + 2, x - 15, y - 5);
+    c.lineTo(x - 15, y - 15); c.lineTo(x - 8, y - 10); c.quadraticCurveTo(x, y - 12, x + 8, y - 10);
+    c.lineTo(x + 15, y - 15); c.lineTo(x + 15, y - 5); c.quadraticCurveTo(x + 17, y + 2, x + 12, y + 9);
+    c.quadraticCurveTo(x + 6, y + 12, x + 4, y + 16); c.lineTo(x + 4, y + 22); c.lineTo(x - 4, y + 22); c.lineTo(x - 4, y + 16);
+    c.quadraticCurveTo(x - 6, y + 12, x - 12, y + 9); c.closePath();
+    c.fillStyle = k; c.shadowColor = k; c.shadowBlur = 8 * view.blur; c.fill(); c.shadowBlur = 0;
+    c.beginPath(); c.moveTo(x - 4, y + 18); c.quadraticCurveTo(x - 12, y + 19, x - 15, y + 12);
+    c.strokeStyle = k; c.lineWidth = 2.6; c.lineCap = 'round'; c.stroke();
+  } else if (kind === 'insta') {
+    // the camera: a rounded square, the lens and the flash
+    roundRectPath(c, x - 21, y - 21, 42, 42, 12);
+    neonStroke(c, k, k, 3, x - 21, y, x + 21, y, 0.8);
+    c.beginPath(); c.arc(x, y, 9.5, 0, TAU);
+    neonStroke(c, k, k, 3, x - 10, y, x + 10, y, 0.8);
+    c.beginPath(); c.arc(x + 12, y - 12, 2.6, 0, TAU); c.fillStyle = k; c.fill();
   } else if (kind === 'help') {
     c.arc(x, y - 8, 12, Math.PI * 1.05, Math.PI * 2.3);
     c.quadraticCurveTo(x, y - 1, x, y + 8);
@@ -1730,6 +1839,15 @@ function drawMenuIcon(c, kind, x, y, k) {
 }
 function drawIconButton(c, b) {
   const k = col(), down = pressed === b, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  // the buttons pop in, one after the other, when the screen opens
+  const pop = Math.min(1, Math.max(0, (performance.now() / 1000 - sceneT0 - (b.big ? 0.15 : 0.3 + (b.x / W) * 0.2)) / 0.35));
+  if (pop < 1 && !b.popDone) {
+    const e = 1 + 2.7 * Math.pow(pop - 1, 3) + 1.7 * Math.pow(pop - 1, 2);   // ease out, with a small overshoot
+    c.save(); c.globalAlpha = pop; c.translate(cx, cy); c.scale(e, e); c.translate(-cx, -cy);
+    drawIconButton(c, Object.assign({}, b, { popDone: true }));
+    c.restore(); c.globalAlpha = 1;
+    return;
+  }
   if (b.off) c.globalAlpha = 0.4;
   else if (b.dim) c.globalAlpha = 0.6;
   if (b.round || b.bare) {
@@ -1842,6 +1960,17 @@ function menuGrid() {
   const big = 150, mid = 104, top = H * 0.42;
   return { big, mid, top, y2: top + big + 56 };
 }
+// a big icon with a row of smaller ones under it (the end screens, like the pause)
+// the scores on the end screens count up as the screen opens
+const countUp = (v, now) => Math.round(v * (1 - Math.pow(1 - Math.min(1, Math.max(0, now - sceneT0 - 0.1) / 0.9), 3)));
+function iconMenu(top, main, row) {
+  const cx = W / 2, big = 150, mid = 104, y2 = top + big + 56, n = row.length;
+  const gap = n > 2 ? (W - n * mid) / (n + 1) - 10 : 124, x0 = cx - (n * mid + (n - 1) * gap) / 2;
+  return [
+    ...(main ? [Object.assign({ x: cx - big / 2, y: top, w: big, h: big, big: true }, main)] : []),
+    ...row.map((r, i) => Object.assign({ x: x0 + i * (mid + gap), y: main ? y2 : top, w: mid, h: mid }, r)),
+  ];
+}
 
 function layout() {
   const cx = W / 2, bw = 400, bh = 76;
@@ -1873,10 +2002,8 @@ function layout() {
     case 'fighters': {
       const F = fighters;
       if (!F || F.state === 'play' || F.endT < 1.6) return [];
-      return [
-        btn(cx, H * 0.7, bw, bh, F.state === 'won' ? 'JOGAR DE NOVO' : 'TENTAR DE NOVO', startFighters, { big: true }),
-        btn(cx, H * 0.7 + 96, bw, bh, 'MENU', () => setScene('menu')),
-      ];
+      return iconMenu(H * 0.6, { label: F.state === 'won' ? 'JOGAR DE NOVO' : 'TENTAR DE NOVO', fn: startFighters, icon: 'restart' },
+        [{ label: 'MENU', fn: () => setScene('menu'), icon: 'home' }]);
     }
     case 'fpause': {
       const { big, mid, top, y2 } = menuGrid();
@@ -1935,36 +2062,24 @@ function layout() {
       ];
     }
     case 'over':
-      if (game.endless) return [
-        btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', startEndless, { big: true }),
-        btn(cx, H * 0.6 + 100, bw, bh, 'PLACAR', openScores),
-        btn(cx, H * 0.6 + 200, bw, bh, 'MENU', () => setScene('menu')),
-      ];
-      return [
-        btn(cx, H * 0.6, bw, bh, 'TENTAR DE NOVO', () => startGame(game.index), { big: true }),
-        btn(cx, H * 0.6 + 100, bw, bh, 'MAPA', () => setScene('map')),
-      ];
+      return iconMenu(H * 0.56, { label: 'TENTAR DE NOVO', fn: game.endless ? startEndless : () => startGame(game.index), icon: 'restart' },
+        game.endless ? [{ label: 'PLACAR', fn: openScores, icon: 'trophy' }, { label: 'MENU', fn: () => setScene('menu'), icon: 'home' }]
+          : [{ label: 'MAPA', fn: () => setScene('map'), icon: 'pin' }, { label: 'MENU', fn: () => setScene('menu'), icon: 'home' }]);
     case 'story':
       return [storyDone(performance.now() / 1000)
-        ? btn(cx, H - 150, bw, bh, story.back ? 'VOLTAR' : 'CONTINUAR', () => { if (story.back) setScene(story.back); else if (story.w === STORY.length - 1) startFighters(); else if (!seen.perkTut) startPerkTut(); else setScene('world'); }, { big: true })
+        ? btn(cx, H - 150, bw, bh, story.back ? 'VOLTAR' : 'CONTINUAR', () => { if (story.back) setScene(story.back); else if (story.w === STORY.length - 1) startFighters(); else if (!seen.perkTut && !seen.perkOffer) startPerkOffer(); else setScene('world'); }, { big: true })
         : btn(cx, H - 150, bw, bh, 'PULAR', () => { story.skip = true; })];
     case 'world': {
-      const next = game.index + 1;
-      const list = [];
-      let y = H * 0.62;
-      if (next < TOTAL_STAGES) { list.push(btn(cx, y, bw, bh, 'PRÓXIMO CAPÍTULO', () => startGame(next), { big: true, fs: 20 })); y += 100; }
-      if (reward && !reward.done) { list.push(btn(cx, y, bw, bh, 'DOBRAR MOEDAS  ·  ANÚNCIO', startAd, { fs: 17, ad: true })); y += 100; }
-      list.push(btn(cx, y, bw, bh, 'BREAKERS', () => openBreakers(null, 'world'), { bang: breakersAlert() }));
-      list.push(btn(cx, y + 100, bw, bh, 'MAPA', () => setScene('map')));
-      return list;
+      const next = game.index + 1, row = [];
+      if (reward && !reward.done) row.push({ label: 'MOEDAS ×2', fn: startAd, icon: 'ad' });
+      row.push({ label: 'BREAKERS', fn: () => openBreakers(null, 'world'), icon: 'breakers', bang: breakersAlert() });
+      if (next < TOTAL_STAGES) row.push({ label: 'MAPA', fn: () => setScene('map'), icon: 'pin' });
+      return iconMenu(H * 0.6, next < TOTAL_STAGES ? { label: 'PRÓXIMO CAPÍTULO', fn: () => startGame(next), icon: 'play' } : { label: 'MAPA', fn: () => setScene('map'), icon: 'pin' }, row);
     }
     case 'reward': {
       const go = () => (reward && reward.back === 'crash' ? startCrash() : setScene('play'));
-      if (!reward || reward.done) return [btn(cx, H * 0.6, bw, bh, 'CONTINUAR', go, { big: true })];
-      return [
-        btn(cx, H * 0.6, bw, bh, 'DOBRAR MOEDAS  ·  ANÚNCIO', startAd, { big: true, fs: 17, ad: true }),
-        btn(cx, H * 0.6 + 100, bw, bh, 'CONTINUAR', go),
-      ];
+      return iconMenu(H * 0.56, { label: 'CONTINUAR', fn: go, icon: 'play' },
+        reward && !reward.done ? [{ label: 'MOEDAS ×2', fn: startAd, icon: 'ad' }] : []);
     }
     case 'ad': {
       const list = adDone(performance.now() / 1000) ? [btn(W - 110, safeTop + 60, 170, 56, 'FECHAR  ✕', finishAd, { fs: 15 })] : [];
@@ -3308,17 +3423,17 @@ function render() {
       neonTitle(ctx, 'FIM DE JOGO', W / 2, H * 0.3, 60, k, k, 12);
       if (game.endless) {
         glowText(ctx, fmtTime(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
-        glowText(ctx, game.score + ' PONTOS', W / 2, H * 0.42 + 50, 20, '#ffffff', k, 'center', 600, 3);
+        glowText(ctx, countUp(game.score, now) + ' PONTOS', W / 2, H * 0.42 + 50, 20, '#ffffff', k, 'center', 600, 3);
         glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + fmtTime(bestT), W / 2, H * 0.42 + 92, 18, rgba(k, 0.9), k, 'center', 500, 5);
       } else {
-        glowText(ctx, String(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
+        glowText(ctx, String(countUp(lastScore, now)), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
         if (sbest[game.index]) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
       }
     } else if (scene === 'world') {
       dim(ctx, 0.7);
       glowText(ctx, `CAPÍTULO ${game.stage.w + 1}  ·  ${game.world.name}`, W / 2, H * 0.28, 22, rgba(k, 0.9), k, 'center', 700, 8);
       neonTitle(ctx, 'CONCLUÍDO', W / 2, H * 0.34, 62, k, k, 10);
-      glowText(ctx, String(lastScore), W / 2, H * 0.45, 52, '#ffffff', k, 'center', 700, 3);
+      glowText(ctx, String(countUp(lastScore, now)), W / 2, H * 0.45, 52, '#ffffff', k, 'center', 700, 3);
       if (newShape) glowText(ctx, 'NOVO FORMATO DE PLATAFORMA: ' + newShape, W / 2, H * 0.575, 15, '#ffffff', k, 'center', 700, 3);
       if (reward) renderCoinsWon(ctx, H * 0.49, k);
       renderChipsWon(ctx, reward ? H * 0.49 + 38 : H * 0.49, k);
@@ -3340,6 +3455,7 @@ function render() {
     else if (b.bonusNode !== undefined) drawBonusNode(ctx, b, now);
     else if (b.theme !== undefined) drawColorTile(ctx, b);
     else if (b.bell) drawBell(ctx, b);
+    else if (b.arch) drawArchive(ctx, b);
     else if (b.icon) drawIconButton(ctx, b);
     else if (b.note) drawNote(ctx, b);
     else drawButton(ctx, b);

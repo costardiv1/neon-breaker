@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.9.5** (16/11/2026)
+Versão atual publicada: **1.9.6** (16/11/2026)
 
 ## Objetivos
 
@@ -20,6 +20,20 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - Cada breaker vira uma nave diferente, inspirada no formato, mantendo emblema e cores, com um tiro próprio: ARCO duplo e reto; LÂMINA um laser forte e rápido; PONTA leque de 3; FERRADURA das duas pontas curvando para dentro; ASA das pontas das asas, abrindo; ONDA em zigue-zague; FUNIL convergindo à frente.
 
 ## Histórico
+
+### 1.9.6 (16/11/2026)
+
+- [x] Bonequinho do final mais parecido com O ACIONISTA.
+- [x] Fonte do diário maior no celular.
+- [x] Tela de chefão concluído dinâmica, com ícones.
+- [x] BREAKERS em ordem de preço.
+- [x] Tutorial dos perks na primeira vez que abre PERKS, cartão único depois do SENTINELA e botão ?.
+- [x] Créditos com o desenho dos chefões, bem distribuídos.
+- [x] Ícones do GitHub e do Instagram nos créditos.
+- [x] FIM DE JOGO com ícones.
+- [x] OPÇÕES com ícones.
+- [x] INFINITO mais justo sem perks.
+- [x] Correções: mesa do ACIONISTA prendendo o disco, blocos descendo com o disco parado, animação dos capítulos depois do reset.
 
 ### 1.9.5 (16/11/2026)
 

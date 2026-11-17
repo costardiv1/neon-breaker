@@ -1593,7 +1593,7 @@ class Council extends Boss {
 const FACE_TALK = ['COMPRE!', 'O MERCADO SE AUTORREGULA', 'LUCRO RECORDE', 'VOLATILIDADE É OPORTUNIDADE', 'RISCO ZERO', 'INVISTA EM VOCÊ', 'SÓ SOBE!', 'CONFIE NO MERCADO'];
 const FACE_FURY = ['VENDAM TUDO!', 'É SÓ UMA CORREÇÃO', 'NÃO ENTREM EM PÂNICO', 'CIRCUIT BREAKER!', 'RESGATE JÁ!'];
 const FACE_DEATH = 6.5;            // seconds of the market crash, before the ending
-const DESK_X0 = 56, DESK_X1 = W - 56, DESK_H = 34;
+const DESK_HW = 230, DESK_H = 34;   // the desk moves with him, so the disc can always fall past its ends
 const HEAD_W = 124, HEAD_H = 116, MOUTH_R = 30;
 const smoothstep = (k) => k * k * (3 - 2 * k);
 
@@ -1794,7 +1794,7 @@ class Shareholder extends Boss {
 
   // the boxes that bounce the disc: the desk, the head and the body
   solids() {
-    const hw = (HEAD_W / 2) * this.hs, hh = (HEAD_H / 2) * this.hs, list = [[DESK_X0, this.deskY, DESK_X1 - DESK_X0, DESK_H]];
+    const hw = (HEAD_W / 2) * this.hs, hh = (HEAD_H / 2) * this.hs, list = [[this.cx - DESK_HW, this.deskY, DESK_HW * 2, DESK_H]];
     list.push([this.cx - 158, this.torsoY, 316, this.deskY - this.torsoY]);
     list.push([this.cx - hw, this.headY - hh, hw * 2, this.lean > 0.5 ? hh * 2 - 34 * this.hs : hh * 2]);   // leaning, the chin is the mouth
     return list;
@@ -1900,18 +1900,18 @@ class Shareholder extends Boss {
   }
 
   drawDesk(c, col, crack) {
-    const y = this.deskY, mid = W / 2;
+    const y = this.deskY, mid = this.cx, X0 = mid - DESK_HW, X1 = mid + DESK_HW;
     for (const s of crack ? [-1, 1] : [0]) {   // whole, or two halves falling apart
       c.save();
       if (s) { c.translate(mid + s * 40 * crack, 200 * crack * crack); c.rotate(s * 0.5 * crack); c.translate(-mid, 0); }
-      const x0 = s > 0 ? mid : DESK_X0, x1 = s < 0 ? mid : DESK_X1;
+      const x0 = s > 0 ? mid : X0, x1 = s < 0 ? mid : X1;
       c.beginPath(); c.rect(x0, y, x1 - x0, DESK_H);
       c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(col, 0.12); c.fill();
       neonStroke(c, col, col, 3, x0, y, x1, y, 1);
       c.beginPath(); c.moveTo(x0 + 10, y + 3); c.lineTo(x1 - 10, y + 3); c.strokeStyle = rgba('#ffffff', 0.5); c.lineWidth = 1.5; c.stroke();
       c.beginPath();
-      if (x0 === DESK_X0) { c.moveTo(x0 + 18, y + DESK_H); c.lineTo(x0 + 18, y + DESK_H + 26); }
-      if (x1 === DESK_X1) { c.moveTo(x1 - 18, y + DESK_H); c.lineTo(x1 - 18, y + DESK_H + 26); }
+      if (x0 === X0) { c.moveTo(x0 + 18, y + DESK_H); c.lineTo(x0 + 18, y + DESK_H + 26); }
+      if (x1 === X1) { c.moveTo(x1 - 18, y + DESK_H); c.lineTo(x1 - 18, y + DESK_H + 26); }
       c.strokeStyle = rgba(col, 0.8); c.lineWidth = 3; c.stroke();
       if (!s) {   // the nameplate
         roundRectPath2(c, mid - 78, y + 8, 156, 18, 4);
@@ -2063,16 +2063,29 @@ Shareholder.prototype.renderCrash = function (c, col) {
   if (shrink >= 1) {
     const run = k - 2, dir = this.cx > W / 2 ? -1 : 1, x = this.cx + dir * (run * run * 60 + run * 120), y = this.deskY - 20, step = Math.sin(t * 26);
     if (x > -40 && x < W + 40) {
-      c.save(); c.translate(x, y); c.scale(dir * 1.7, 1.7);
-      c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(0, 6); c.lineTo(-7 * step, 20); c.moveTo(0, 6); c.lineTo(7 * step, 20);   // legs
-      c.moveTo(0, -6); c.lineTo(-9, 2 + 4 * step); c.moveTo(0, -6); c.lineTo(9, 2 - 4 * step); c.stroke();   // arms
-      c.beginPath(); c.rect(-6, -10, 12, 17); c.fillStyle = col; c.fill();   // the little suit
-      c.beginPath(); c.rect(-6, -24, 12, 12); c.fillStyle = col; c.fill();   // the little head
-      c.fillStyle = '#000'; c.fillRect(-3, -20, 2, 3); c.fillRect(2, -20, 2, 3);
-      c.fillStyle = '#ffffff'; c.fillRect(-1, -9, 2, 9);   // the tie
-      c.beginPath(); c.arc(-12, -20 - 4 * Math.abs(step), 2.5, 0, TAU); c.fill();   // a drop of sweat
+      // a mini ACIONISTA: his own head (hair, dollar eyes, in shock), suit, tie and briefcase
+      c.save(); c.translate(x, y + Math.abs(step) * -3); c.scale(dir, 1);
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(-4, 14); c.lineTo(-4 - 12 * step, 34); c.lineTo(-10 - 12 * step, 35);   // legs and shoes
+      c.moveTo(4, 14); c.lineTo(4 + 12 * step, 34); c.lineTo(-2 + 12 * step, 35);
+      c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.stroke();
+      c.beginPath(); c.moveTo(-13, -10); c.lineTo(-22, 4 + 6 * step); c.moveTo(13, -10); c.lineTo(22, 4 - 6 * step);   // arms
+      c.strokeStyle = col; c.lineWidth = 5; c.stroke();
+      const bx = 22, by = 4 - 6 * step;   // the briefcase, in the front hand
+      c.beginPath(); c.rect(bx - 2, by + 2, 18, 13); c.fillStyle = '#000'; c.fill(); c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.stroke();
+      c.beginPath(); c.moveTo(bx + 3, by + 2); c.lineTo(bx + 3, by - 1); c.lineTo(bx + 11, by - 1); c.lineTo(bx + 11, by + 2); c.stroke();
+      c.font = '900 9px "Orbitron", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#ffffff';
+      c.fillText('$', bx + 7, by + 9);
+      c.beginPath(); c.moveTo(-15, -12); c.lineTo(15, -12); c.lineTo(11, 15); c.lineTo(-11, 15); c.closePath();   // the suit
+      c.fillStyle = '#000'; c.fill(); c.fillStyle = rgba(col, 0.5); c.fill(); c.strokeStyle = col; c.lineWidth = 2; c.stroke();
+      c.beginPath(); c.moveTo(-6, -12); c.lineTo(0, -2); c.lineTo(6, -12); c.closePath(); c.fillStyle = '#ffffff'; c.fill();   // shirt
+      c.beginPath(); c.moveTo(0, -9); c.lineTo(-2.5, -4); c.lineTo(0, 6); c.lineTo(2.5, -4); c.closePath(); c.fillStyle = col; c.fill();   // tie
       c.restore();
+      const keep = this.shock, keepL = this.lean;
+      this.shock = 1; this.lean = 1;   // shocked face, no neck
+      this.drawHead(c, x, y - 32 + Math.abs(step) * -3, 0.3, col);
+      this.shock = keep; this.lean = keepL;
+      c.beginPath(); c.arc(x - dir * 26, y - 42 - 6 * Math.abs(step), 2.5, 0, TAU); c.fillStyle = '#ffffff'; c.fill();   // a drop of sweat
       if (run < 1.6) glowText(c, 'NÃO FOI CULPA MINHA!', Math.max(130, Math.min(W - 130, x)), y - 64, 13, '#ffffff', col, 'center', 800, 3);
     }
   }

@@ -2,6 +2,29 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9.6] · 16/11/2026 · Menus com ícones, créditos com os chefões e INFINITO mais justo
+
+### Adicionado
+
+- CRÉDITOS: os arquivos dos chefões viraram quadrados com o desenho de cada chefão (5 por linha), e os links do repositório e do Instagram viraram os ícones do GitHub e do Instagram.
+- A aba PERKS ganhou um botão ? que mostra o tutorial dos perks a qualquer hora.
+
+### Alterado
+
+- O tutorial dos perks agora aparece na primeira vez que o jogador abre a aba PERKS, mesmo antes do SENTINELA. Depois do SENTINELA vem só um cartão perguntando se ele quer personalizar a plataforma.
+- FIM DE JOGO, capítulo concluído e a tela de moedas ganharam ícones no lugar dos botões de texto, como a pausa. Os botões entram com uma animação e a pontuação conta até o total.
+- OPÇÕES: efeitos, música, vibração, cor, tutorial e créditos viraram ícones; as configurações com valor continuam em linhas.
+- BREAKERS: cores, emblemas, discos, rastros e perks aparecem em ordem de preço, do mais barato ao mais caro.
+- O bonequinho que foge no final do ACIONISTA agora é um mini ACIONISTA: a mesma cabeça (cabelo, olhos de cifrão, cara de susto), terno, gravata e uma maleta.
+- A mesa do ACIONISTA é mais curta e anda junto com ele, então o disco que passa por cima dela volta a descer rápido.
+- INFINITO mais justo sem perks: os chefões vêm com 60% da vida (mais a cada volta), e a velocidade do disco, a descida dos blocos e a quantidade de blocos sobem mais devagar.
+- O texto do diário está maior.
+
+### Corrigido
+
+- Com o disco esperando na plataforma, os blocos continuavam descendo e passavam da linha sem tirar vida. Agora eles esperam o lançamento (INFINITO e fases com PRESSÃO).
+- Depois de resetar o progresso, o mapa não fazia de novo a animação de neon dos capítulos que já tinham acendido antes. Agora o reset zera isso também.
+
 ## [1.9.5] · 16/11/2026 · PERFURAR na medida e a torre no lugar
 
 ### Alterado

@@ -2,6 +2,38 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9.6 (16/11/2026)
+
+### O ACIONISTA
+- [ ] No final, quem sai correndo é um mini ACIONISTA: cabelo penteado, olhos de cifrão, cara de susto, terno, gravata e maleta.
+- [ ] A mesa é mais curta e anda junto com ele. Quando o disco passa por cima dela, ele volta a descer em poucos segundos.
+
+### Menus com ícones
+- [ ] FIM DE JOGO (campanha e INFINITO): TENTAR DE NOVO é um ícone grande, com MAPA ou PLACAR e MENU menores embaixo. Os ícones entram com animação e a pontuação sobe até o total.
+- [ ] Capítulo concluído: PRÓXIMO CAPÍTULO grande, com MOEDAS ×2 (quando dá), BREAKERS e MAPA embaixo.
+- [ ] Tela de moedas (LIMPO, DERROTADO, FIM DO BÔNUS): CONTINUAR e MOEDAS ×2 viraram ícones.
+- [ ] OPÇÕES: EFEITOS, MÚSICA, VIBRAÇÃO, COR, TUTORIAL e CRÉDITOS são ícones; os três primeiros ligam e desligam (o ícone fica riscado e apagado).
+
+### Créditos
+- [ ] Os arquivos dos chefões são quadrados com o desenho de cada chefão (5 por linha) e o nome embaixo. Os que você não derrotou mostram ?. Tocar num derrotado abre o diário.
+- [ ] Nada fica por cima do "Feito por". Os ícones do GitHub e do Instagram abrem os links.
+
+### Perks e BREAKERS
+- [ ] Com o progresso resetado, abra BREAKERS > PERKS antes de derrotar o SENTINELA: o tutorial dos perks aparece e, no fim, ENTENDI volta para a aba.
+- [ ] O botão ? no canto da carta de perk mostra o tutorial de novo.
+- [ ] Depois de derrotar o SENTINELA (e ler o diário), aparece só um cartão PERKS LIBERADOS, com DEPOIS e PERSONALIZAR.
+- [ ] Cores, emblemas, discos, rastros e perks estão em ordem de preço, do mais barato ao mais caro.
+
+### Diário
+- [ ] No celular, o texto do diário está maior e nenhuma linha passa da borda.
+
+### INFINITO
+- [ ] Sem perks, o primeiro chefão cai bem mais rápido, e dá para passar dos 7 minutos.
+- [ ] Segure o disco na plataforma sem lançar: os blocos não descem. Ao lançar, voltam a descer.
+
+### Mapa
+- [ ] Resete o progresso e derrote o SENTINELA: no mapa, o capítulo 2 acende piscando como neon.
+
 ## 1.9.5 (16/11/2026)
 
 ### PERFURAR
@@ -232,23 +264,23 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 ## 1.7 (12/11/2026)
 
 ### Mapa
-- [ ] Os distritos fechados aparecem escuros e o distrito 10 (O SISTEMA) também.
+- [x] Os distritos fechados aparecem escuros e o distrito 10 (O SISTEMA) também.
 - [ ] Derrote um chefão e abra o mapa: o distrito novo acende em uns 2 segundos, piscando como um neon ligando.
 - [ ] Abra o mapa de novo: o distrito continua aceso e não acende outra vez.
-- [ ] Role o mapa inteiro: nenhuma caixa de distrito fica em cima de uma fase. Olhe com atenção os distritos 4, 6 e 8.
+- [x] Role o mapa inteiro: nenhuma caixa de distrito fica em cima de uma fase. Olhe com atenção os distritos 4, 6 e 8.
 
 ### Tutoriais
-- [ ] Reset de progresso (OPÇÕES) e comece do zero: os cartões BEM-VINDO, MOVER, LANÇAR, BLOCOS, ÂNGULO e CÁPSULAS têm texto curto e uma animação.
-- [ ] Entre na primeira fase do distrito 2: o cartão da GRAVIDADE tem animação e mostra as cápsulas novas (LASER e RÁPIDO) com o desenho de cada uma.
-- [ ] Depois do SENTINELA, o tutorial dos perks tem 5 cartões curtos, cada um com animação.
-- [ ] BREAKERS > PERKS: cada carta mostra o perk em ação no lugar do ícone grande (ativos e passivos).
-- [ ] Os textos não passam da borda dos cartões.
+- [x] Reset de progresso (OPÇÕES) e comece do zero: os cartões BEM-VINDO, MOVER, LANÇAR, BLOCOS, ÂNGULO e CÁPSULAS têm texto curto e uma animação.
+- [x] Entre na primeira fase do distrito 2: o cartão da GRAVIDADE tem animação e mostra as cápsulas novas (LASER e RÁPIDO) com o desenho de cada uma.
+- [x] Depois do SENTINELA, o tutorial dos perks tem 5 cartões curtos, cada um com animação.
+- [x] BREAKERS > PERKS: cada carta mostra o perk em ação no lugar do ícone grande (ativos e passivos).
+- [x] Os textos não passam da borda dos cartões.
 
 ### INFINITO
-- [ ] Embaixo do relógio aparece "N PONTOS · CHEFÃO EM m:ss".
-- [ ] No fim de jogo aparecem o tempo, os pontos e o recorde.
-- [ ] PLACAR > AQUI: as partidas novas mostram os pontos.
-- [ ] Jogue uns 3 minutos e compare com antes: caem bem menos moedas, e o chefão dá 10.
+- [x] Embaixo do relógio aparece "N PONTOS · CHEFÃO EM m:ss".
+- [x] No fim de jogo aparecem o tempo, os pontos e o recorde.
+- [x] PLACAR > AQUI: as partidas novas mostram os pontos.
+- [x] Jogue uns 3 minutos e compare com antes: caem bem menos moedas, e o chefão dá 10.
 - [ ] Com o progresso só até o distrito 2 ou 3, jogue até cair uma cápsula de um distrito mais adiante (APAGÃO, INVERTIDO, BOMBA...): aparece um cartão "CÁPSULA NOVA" explicando. Na segunda vez que ela cai, não aparece mais.
 
 ### Cápsulas
