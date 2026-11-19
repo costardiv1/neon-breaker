@@ -2,6 +2,25 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9.7] · 19/11/2026 · Modo 1x1 contra a IA e os mega lasers do ACIONISTA
+
+### Adicionado
+
+- Modo 1x1 no menu inicial: frente a frente contra a IA. A sua plataforma fica embaixo, a da IA em cima e uma faixa de blocos no meio. Quem deixa o disco passar perde uma vida (3 para cada um). O disco fica na cor de quem tocou nele por último, os blocos dão pontos para essa pessoa e a faixa volta quando é limpa. Vitórias e derrotas ficam salvas.
+- Tutoriais com setas: os cartões do tutorial e do tutorial dos perks têm botões redondos ‹ e › para voltar e passar as dicas, com PULAR no meio.
+
+### Alterado
+
+- O ACIONISTA: os lasers em zigue-zague viraram dois mega lasers que saem dos olhos. Antes, uma linha tracejada pisca mostrando onde eles vão cair, e dá tempo de sair da frente. Na fúria são duas rajadas seguidas.
+- O disco acelera mais devagar ao longo da campanha: começa em 600 e ganha 5 por fase (845 na última). Antes chegava a 900 já no capítulo 4.
+- O sino de novidades fica na cor do tema, como os outros ícones.
+
+### Corrigido
+
+- O INFINITO mostrava o tutorial BEM-VINDO toda vez, e CONTINUAR fechava tudo.
+- O pisca-pisca dos capítulos no mapa quase não aparecia. Agora o neon pisca de verdade, com um clarão e um estalo.
+- A ponta da mesa do ACIONISTA passava da moldura do campo quando ele ia para o canto.
+
 ## [1.9.6] · 16/11/2026 · Menus com ícones, créditos com os chefões e INFINITO mais justo
 
 ### Adicionado

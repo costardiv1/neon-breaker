@@ -1594,6 +1594,7 @@ const FACE_TALK = ['COMPRE!', 'O MERCADO SE AUTORREGULA', 'LUCRO RECORDE', 'VOLA
 const FACE_FURY = ['VENDAM TUDO!', 'É SÓ UMA CORREÇÃO', 'NÃO ENTREM EM PÂNICO', 'CIRCUIT BREAKER!', 'RESGATE JÁ!'];
 const FACE_DEATH = 6.5;            // seconds of the market crash, before the ending
 const DESK_HW = 230, DESK_H = 34;   // the desk moves with him, so the disc can always fall past its ends
+const deskEnds = (cx) => [Math.max(20, cx - DESK_HW), Math.min(W - 20, cx + DESK_HW)];   // it never goes past the frame
 const HEAD_W = 124, HEAD_H = 116, MOUTH_R = 30;
 const smoothstep = (k) => k * k * (3 - 2 * k);
 
@@ -1660,6 +1661,7 @@ class Shareholder extends Boss {
     this.g.bricks = []; this.g.alive = 0;
     this.balloons = [];
     this.inhale = 0;
+    this.eyes = null;
     sfx.marketCrash();
   }
 
@@ -1677,6 +1679,7 @@ class Shareholder extends Boss {
 
   updateExtra(dt) {
     const g = this.g;
+    if (this.eyes) this.updateEyes(dt);
     // the deep breath: the discs are pulled to the mouth
     if (this.inhale > 0) {
       this.inhale -= dt;
@@ -1763,14 +1766,8 @@ class Shareholder extends Boss {
       this.balloons.push({ text, lines, x, y: this.g.top + 82, w, h, t: 1.8, vy: 0, right });
       this.talk = 1.2;
       sfx.charge();
-    } else if (a === 'lasers') {
-      const p = g.paddle;
-      for (const s of [-1, 1]) {
-        const ex = this.cx + s * 26 * this.hs, ey = this.headY - 10 * this.hs;
-        const a0 = Math.atan2(p.y - ey, p.x - ex);
-        for (const o of this.fury ? [-0.18, 0.18] : [0]) { g.enemyShot(ex, ey, Math.cos(a0 + o) * 380, Math.sin(a0 + o) * 380); g.shots[g.shots.length - 1].zig = 22; }   // a chart line
-      }
-      sfx.laser();
+    } else if (a === 'lasers') {   // two mega lasers from the eyes: they aim first, then fire
+      this.aimEyes(this.fury ? 2 : 1);
     } else if (a === 'punch') {   // a fist on the desk: candlesticks jump off it
       this.punch = 1;
       g.shake = Math.max(g.shake, 0.7);
@@ -1785,6 +1782,48 @@ class Shareholder extends Boss {
     }
   }
 
+  // the eye lasers lock on where the platform is now; there is time to move away
+  aimEyes(left) {
+    this.eyes = { t: 0, aim: this.fury ? 0.95 : 1.25, fire: 0.5, tx: this.g.paddle.x, hit: false, fired: false, left };
+    sfx.charge();
+  }
+  eyePos() { return [-1, 1].map((s) => ({ x: this.cx + s * 26 * this.hs, y: this.headY - 8 * this.hs })); }
+  // the beam from an eye through the locked point, to the bottom of the field
+  beamEnd(e) {
+    const g = this.g, dx = this.eyes.tx - e.x, dy = Math.max(1, g.paddle.y - e.y), k = (g.bottom - 6 - e.y) / dy;
+    return { x: e.x + dx * k, y: e.y + dy * k };
+  }
+  updateEyes(dt) {
+    const E = this.eyes, g = this.g, p = g.paddle;
+    E.t += dt;
+    if (E.t >= E.aim && !E.fired) { E.fired = true; sfx.laser(); sfx.blast(); g.shake = Math.max(g.shake, 0.35); }
+    if (E.fired && !E.hit && Math.abs(p.x - E.tx) < p.hw + 12) { E.hit = true; g.hurtPaddle(E.tx, p.y); }
+    if (E.t >= E.aim + E.fire) { this.eyes = null; if (E.left > 1) this.aimEyes(E.left - 1); }
+  }
+  renderEyes(c, col) {
+    const E = this.eyes, t = this.t, py = this.g.paddle.y;
+    for (const e of this.eyePos()) {
+      const end = this.beamEnd(e);
+      c.save();
+      if (!E.fired) {   // the warning: a blinking dashed line and a mark where it will hit
+        const k = E.t / E.aim, on = Math.sin(t * (14 + 20 * k)) > -0.2;
+        c.beginPath(); c.moveTo(e.x, e.y); c.lineTo(end.x, end.y);
+        c.setLineDash([14, 10]); c.lineDashOffset = -t * 160;
+        c.strokeStyle = rgba(on ? '#ffffff' : col, 0.35 + 0.5 * k); c.lineWidth = 1.5 + 2.5 * k; c.stroke();
+        c.setLineDash([]);
+        c.beginPath(); c.arc(E.tx, py, 30 - 16 * k, 0, TAU); c.strokeStyle = rgba('#ffffff', 0.4 + 0.5 * k); c.lineWidth = 2; c.stroke();
+        c.beginPath(); c.arc(e.x, e.y, 6 + 10 * k, 0, TAU); c.fillStyle = rgba('#ffffff', 0.5 + 0.5 * k); c.shadowColor = col; c.shadowBlur = 20 * view.blur; c.fill();
+      } else {   // the mega laser
+        const f = 1 - (E.t - E.aim) / E.fire, w = 8 + 12 * Math.min(1, f * 2.5);
+        c.globalAlpha *= Math.min(1, f * 3);
+        c.beginPath(); c.moveTo(e.x, e.y); c.lineTo(end.x, end.y); c.lineCap = 'round';
+        neonStroke(c, col, '#ffffff', w, e.x, e.y, end.x, end.y, 1.6);
+        c.beginPath(); c.arc(e.x, e.y, w * 0.55, 0, TAU); c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = 30 * view.blur; c.fill();
+      }
+      c.restore();
+    }
+  }
+
   holdBall(b, dt) {
     b.x += (this.cx - b.x) * Math.min(1, dt * 10);
     b.y += (this.mouthY - b.y) * Math.min(1, dt * 10);
@@ -1794,7 +1833,7 @@ class Shareholder extends Boss {
 
   // the boxes that bounce the disc: the desk, the head and the body
   solids() {
-    const hw = (HEAD_W / 2) * this.hs, hh = (HEAD_H / 2) * this.hs, list = [[this.cx - DESK_HW, this.deskY, DESK_HW * 2, DESK_H]];
+    const hw = (HEAD_W / 2) * this.hs, hh = (HEAD_H / 2) * this.hs, [dx0, dx1] = deskEnds(this.cx), list = [[dx0, this.deskY, dx1 - dx0, DESK_H]];
     list.push([this.cx - 158, this.torsoY, 316, this.deskY - this.torsoY]);
     list.push([this.cx - hw, this.headY - hh, hw * 2, this.lean > 0.5 ? hh * 2 - 34 * this.hs : hh * 2]);   // leaning, the chin is the mouth
     return list;
@@ -1831,6 +1870,7 @@ class Shareholder extends Boss {
       c.restore();
     }
     this.drawBoss(c, col, 0);
+    if (this.eyes) this.renderEyes(c, col);
     // the deep breath: lines rushing into the mouth
     if (this.inhale > 0) {
       c.save(); c.setLineDash([10, 14]); c.lineDashOffset = t * 120;
@@ -1900,7 +1940,7 @@ class Shareholder extends Boss {
   }
 
   drawDesk(c, col, crack) {
-    const y = this.deskY, mid = this.cx, X0 = mid - DESK_HW, X1 = mid + DESK_HW;
+    const y = this.deskY, mid = this.cx, [X0, X1] = deskEnds(mid);
     for (const s of crack ? [-1, 1] : [0]) {   // whole, or two halves falling apart
       c.save();
       if (s) { c.translate(mid + s * 40 * crack, 200 * crack * crack); c.rotate(s * 0.5 * crack); c.translate(-mid, 0); }
@@ -1959,14 +1999,14 @@ class Shareholder extends Boss {
     for (const [a, b2, d, e] of bro) { c.moveTo(a, b2); c.lineTo(d, e); }
     c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.lineCap = 'round'; c.stroke();
     // eyes with dollar signs for pupils; they light up before the lasers
-    const laser = this.charge && this.charge.a === 'lasers', blink = !laser && mood !== 'shock' && (t % 4.2) > 4.05;
+    const laser = (this.charge && this.charge.a === 'lasers') || (this.eyes && !this.eyes.fired), blink = !laser && mood !== 'shock' && (t % 4.2) > 4.05;
     for (const ex of [-26, 26]) {
       if (blink) { c.beginPath(); c.moveTo(ex - 15, -8); c.lineTo(ex + 15, -8); c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.stroke(); continue; }
       c.beginPath(); c.ellipse(ex, -8, 17, mood === 'shock' ? 16 : 13, 0, 0, TAU);
       c.fillStyle = '#ffffff'; c.shadowColor = col; c.shadowBlur = (laser ? 22 : 6) * view.blur; c.fill(); c.shadowBlur = 0;
       c.font = '900 19px "Orbitron", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillStyle = '#000'; c.fillText('$', ex + this.look * 5, -7);
-      if (laser) { const k = 1 - this.charge.t / this.charge.max; c.beginPath(); c.arc(ex, -8, 36 * (1 - k) + 8, 0, TAU); c.strokeStyle = rgba('#ffffff', 0.8 * k); c.lineWidth = 2; c.stroke(); }
+      if (laser && this.charge) { const k = 1 - this.charge.t / this.charge.max; c.beginPath(); c.arc(ex, -8, 36 * (1 - k) + 8, 0, TAU); c.strokeStyle = rgba('#ffffff', 0.8 * k); c.lineWidth = 2; c.stroke(); }
     }
     c.textBaseline = 'alphabetic';
     // nose

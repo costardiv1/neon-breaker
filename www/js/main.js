@@ -9,6 +9,7 @@ import { sfx, music, haptics } from './audio.js';
 import { createDevPanel } from './devpanel.js';
 import { ONLINE, submitRun, fetchTop, getName, setName, NAME_RE } from './online.js';
 import { Fighters } from './fighters.js';
+import { Versus } from './versus.js';
 
 // ---------- persistence ----------
 const store = {
@@ -21,7 +22,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.9.6';
+export const VERSION = '1.9.7';
 
 let H = 1280;
 let safeTop = 0;
@@ -151,11 +152,22 @@ function fire(e) {
 function nextTut() {
   const i = TUT.findIndex((s, k) => !tut.shown.has(k) && tut.fired.has(s.on));
   if (i < 0) return false;
-  card = { ...TUT[i], kicker: `TUTORIAL  ${i + 1}/${TUT.length}`, idx: i };
+  tut.hist.push(i);
+  tutCard(tut.hist.length - 1);
   showCard();
   return true;
 }
 
+// a tutorial card from the pages already seen (the arrows go back and forth)
+function tutCard(pos) {
+  const i = tut.hist[pos];
+  card = { ...TUT[i], kicker: `TUTORIAL  ${i + 1}/${TUT.length}`, idx: i, pos };
+}
+function tutPrev() { if (card && card.pos > 0) tutCard(card.pos - 1); }
+function tutNext() {
+  if (card && card.pos < tut.hist.length - 1) tutCard(card.pos + 1);
+  else closeCard();
+}
 function showCard() { drag = null; setScene('card'); }
 
 function closeCard() {
@@ -281,7 +293,7 @@ game.mechIcon = drawMechIcon;   // ATUALIZAÇÃO shows the next mechanic's icon
 game.wallet = () => coins;
 game.chipWallet = () => chips;
 game.setColor(col());
-window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), nf: () => startFighters(), get fighters() { return fighters; }, scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
+window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), nf: () => startFighters(), get fighters() { return fighters; }, vs: () => startVersus(), get versus() { return versus; }, scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
 
 function applyOpts() {
   store.set('opts', opts);
@@ -297,7 +309,7 @@ let devOpen = false;
 let freeze = false;
 let drag = null;
 
-const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story', 'reward', 'ad', 'guide', 'fighters', 'fpause'];
+const IN_GAME = ['play', 'pause', 'over', 'card', 'world', 'crash', 'story', 'reward', 'ad', 'guide', 'fighters', 'fpause', 'versus', 'vpause'];
 function setScene(s) {
   if (s !== 'play') saveChips();
   if (s === 'map' && scene !== 'map') focusMap();
@@ -307,7 +319,7 @@ function setScene(s) {
   if (s !== 'scores') showNameInput(false);
   if (s !== scene) sceneT0 = performance.now() / 1000;
   scene = s;
-  sfx.setPlaying(s === 'play' || s === 'fighters');
+  sfx.setPlaying(s === 'play' || s === 'fighters' || s === 'versus');
   if (s === 'crash') music.play(null);
   else if (!IN_GAME.includes(s)) music.play('map');
   music.duck(s === 'pause' || s === 'fpause' || s === 'guide' || s === 'card' || s === 'over' || s === 'story' || s === 'reward' || s === 'ad');
@@ -887,7 +899,7 @@ function drawBell(c, b) {
   c.beginPath(); c.arc(cx, cy, 30, 0, TAU);
   c.fillStyle = rgba(k, pressed === b ? 0.2 : 0.05); c.fill();
   neonStroke(c, k, k, 2, cx - 30, cy, cx + 30, cy, 0.6);
-  c.save(); c.strokeStyle = '#ffffff'; c.lineWidth = 2.4; c.lineJoin = 'round'; c.lineCap = 'round';
+  c.save(); c.strokeStyle = k; c.shadowColor = k; c.shadowBlur = 10 * view.blur; c.lineWidth = 2.6; c.lineJoin = 'round'; c.lineCap = 'round';
   c.beginPath();
   c.moveTo(cx - 13, cy + 8); c.quadraticCurveTo(cx - 11, cy - 15, cx, cy - 15); c.quadraticCurveTo(cx + 11, cy - 15, cx + 13, cy + 8); c.closePath();
   c.stroke();
@@ -958,8 +970,16 @@ function perkTutButtons() {
     btn(cx - 140, by, 250, 70, 'DEPOIS', () => setScene('world'), { fs: 16 }),
     btn(cx + 140, by, 250, 70, 'PERSONALIZAR', () => openBreakers(PERK_TAB, 'world'), { big: true, fs: 18 }),
   ];
-  if (perkTut < PERK_TUT.length - 1) return [btn(cx, by, 340, 70, 'CONTINUAR', () => { perkTut++; }, { big: true })];
-  return [btn(cx, by, 340, 70, 'ENTENDI', () => setScene(perkTutBack), { big: true })];
+  const done = () => setScene(perkTutBack), last = perkTut === PERK_TUT.length - 1;
+  return pageButtons(by, perkTut > 0 ? () => { perkTut--; } : null, last ? done : () => { perkTut++; }, last ? 'ENTENDI' : 'PULAR', done, last);
+}
+// ‹ PULAR › : round arrows to turn the pages, the skip in the middle
+function pageButtons(y, prev, next, label, skip, bigMid = false) {
+  const cx = W / 2, s = 84, list = [];
+  list.push({ x: cx - 300 + 28, y: y - s / 2, w: s, h: s, label: '', fn: prev || (() => {}), icon: 'prev', round: true, off: !prev, popDone: true });
+  list.push(btn(cx, y, 260, 66, label, skip, bigMid ? { big: true } : { fs: 15 }));
+  if (!bigMid) list.push({ x: cx + 300 - 28 - s, y: y - s / 2, w: s, h: s, label: '', fn: next, icon: 'next', round: true, popDone: true });
+  return list;
 }
 
 function platMsg(c, now, y) {
@@ -1808,6 +1828,17 @@ function drawMenuIcon(c, kind, x, y, k) {
     c.beginPath(); c.arc(x, y, 9.5, 0, TAU);
     neonStroke(c, k, k, 3, x - 10, y, x + 10, y, 0.8);
     c.beginPath(); c.arc(x + 12, y - 12, 2.6, 0, TAU); c.fillStyle = k; c.fill();
+  } else if (kind === 'vs') {   // 1x1: two platforms face to face, a disc between them
+    c.moveTo(x - 20, y - 20); c.quadraticCurveTo(x, y - 12, x + 20, y - 20);
+    c.moveTo(x - 20, y + 20); c.quadraticCurveTo(x, y + 12, x + 20, y + 20);
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 3.4, x - 22, y, x + 22, y, 0.8);
+    c.beginPath(); c.arc(x + 4, y, 5, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+  } else if (kind === 'prev' || kind === 'next') {   // the arrows that turn the tutorial pages
+    const d = kind === 'next' ? 1 : -1;
+    c.moveTo(x - d * 8, y - 18); c.lineTo(x + d * 10, y); c.lineTo(x - d * 8, y + 18);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    neonStroke(c, k, k, 4, x - 10, y, x + 10, y, 0.9);
   } else if (kind === 'help') {
     c.arc(x, y - 8, 12, Math.PI * 1.05, Math.PI * 2.3);
     c.quadraticCurveTo(x, y - 1, x, y + 8);
@@ -1981,14 +2012,17 @@ function layout() {
       // top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
       const { big, mid, top, y2 } = menuGrid(), B = bellRect();
       const lockedMsg = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
-      // with NEON FIGHTERS open, the three small icons share the row
-      const nf = store.get('nf', false), gap = nf ? (W - 3 * mid) / 4 - 10 : 0;
-      const xs = nf ? [cx - mid * 1.5 - gap, cx - mid / 2, cx + mid / 2 + gap] : [cx - 62 - mid, cx + 62];
+      // the small icons share the row under JOGAR (FIGHTERS after the ending)
+      const row = [
+        { label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
+        { label: endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', fn: endlessOpen() ? startEndless : lockedMsg, icon: 'inf', off: !endlessOpen() },
+        { label: '1x1', fn: startVersus, icon: 'vs' },
+      ];
+      if (store.get('nf', false)) row.push({ label: 'FIGHTERS', fn: startFighters, icon: 'ship' });
+      const gap = Math.min(124 - mid + 20, (W - 40 - row.length * mid) / (row.length - 1)), x0 = cx - (row.length * mid + (row.length - 1) * gap) / 2;
       return [
         { x: cx - big / 2, y: top, w: big, h: big, label: 'JOGAR', fn: () => setScene('map'), icon: 'play', big: true },
-        { x: xs[0], y: y2, w: mid, h: mid, label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
-        { x: xs[1], y: y2, w: mid, h: mid, label: endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', fn: endlessOpen() ? startEndless : lockedMsg, icon: 'inf', off: !endlessOpen() },
-        ...(nf ? [{ x: xs[2], y: y2, w: mid, h: mid, label: 'FIGHTERS', fn: startFighters, icon: 'ship' }] : []),
+        ...row.map((b, i) => Object.assign({ x: x0 + i * (mid + gap), y: y2, w: mid, h: mid }, b)),
         Object.assign(B, { label: '', fn: () => setScene('notif'), bell: true }),
         { x: W - B.x - B.w, y: B.y, w: B.w, h: B.h, label: '', fn: () => setScene('options'), icon: 'gear', round: true },
         { x: B.x - B.w - 14, y: B.y, w: B.w, h: B.h, label: '', fn: openScores, icon: 'trophy', round: true },
@@ -2004,6 +2038,20 @@ function layout() {
       if (!F || F.state === 'play' || F.endT < 1.6) return [];
       return iconMenu(H * 0.6, { label: F.state === 'won' ? 'JOGAR DE NOVO' : 'TENTAR DE NOVO', fn: startFighters, icon: 'restart' },
         [{ label: 'MENU', fn: () => setScene('menu'), icon: 'home' }]);
+    }
+    case 'versus': {
+      const V = versus;
+      if (!V || V.state === 'play' || V.endT < 1.4) return [];
+      return iconMenu(H * 0.6, { label: 'JOGAR DE NOVO', fn: startVersus, icon: 'restart' },
+        [{ label: 'MENU', fn: () => setScene('menu'), icon: 'home' }]);
+    }
+    case 'vpause': {
+      const { big, mid, top, y2 } = menuGrid();
+      return [
+        { x: cx - big / 2, y: top, w: big, h: big, label: 'CONTINUAR', fn: () => setScene('versus'), icon: 'play', big: true },
+        { x: cx - 62 - mid, y: y2, w: mid, h: mid, label: 'RECOMEÇAR', fn: startVersus, icon: 'restart' },
+        { x: cx + 62, y: y2, w: mid, h: mid, label: 'MENU', fn: () => setScene('menu'), icon: 'home' },
+      ];
     }
     case 'fpause': {
       const { big, mid, top, y2 } = menuGrid();
@@ -2089,12 +2137,7 @@ function layout() {
     case 'card': {
       const box = cardBox();
       const y = box.y + box.h - 62;
-      if (card && card.idx !== undefined) {
-        return [
-          btn(cx - 140, y, 250, 70, 'PULAR TUTORIAL', skipTutorial, { fs: 15 }),
-          btn(cx + 140, y, 250, 70, 'CONTINUAR', closeCard, { big: true }),
-        ];
-      }
+      if (card && card.idx !== undefined && tut) return pageButtons(y, card.pos > 0 ? tutPrev : null, tutNext, 'PULAR TUTORIAL', skipTutorial);
       return [btn(cx, y, 340, 70, 'CONTINUAR', closeCard, { big: true })];
     }
     default:
@@ -2106,8 +2149,7 @@ function inside(b, p) { return p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p
 
 let menuMsg = null;
 function startEndless() {
-  startGame(0);
-  tut = null; game.tutorial = false;
+  startGame(0, null, true);
   endlessDev = opts.dev;
   game.newEndless();
   if (!seen.endlessIntro) {   // one card, the first time only
@@ -2162,7 +2204,7 @@ function renderGuide(c, now) {
   glowText(c, (guide.i + 1) + ' / ' + guide.items.length, W / 2, b.y + b.h + 34, 14, rgba('#ffffff', 0.7), k, 'center', 600, 3);
 }
 
-function startGame(index = 0, bonus = null) {
+function startGame(index = 0, bonus = null, endless = false) {
   mapBack = bonus ? { bonus: BONUS.indexOf(bonus) } : { node: index };
   game.plat = plat;
   game.setColor(col());
@@ -2171,8 +2213,8 @@ function startGame(index = 0, bonus = null) {
   game.passive = equipP && perkLvl(equipP) ? { type: equipP, lvl: perkLvl(equipP) } : null;
   newShape = null;
   reward = null;
-  const firstTime = !bonus && index === 0 && !store.get('tutDone', false);
-  tut = firstTime ? { fired: new Set(), shown: new Set() } : null;
+  const firstTime = !bonus && !endless && index === 0 && !store.get('tutDone', false);   // never in the INFINITO
+  tut = firstTime ? { fired: new Set(), shown: new Set(), hist: [] } : null;
   game.tutorial = firstTime;
   card = null;
   freeze = false;
@@ -2192,6 +2234,16 @@ function startFighters() {
   setScene('fighters');
 }
 
+// 1x1: face to face against the AI
+let versus = null;
+function startVersus() {
+  versus = new Versus(H, game.top, plat, col());
+  const rec = store.get('vsRec', { w: 0, l: 0 });
+  versus.record = rec;
+  versus.onEnd = (won) => { if (won) rec.w++; else rec.l++; store.set('vsRec', rec); };
+  setScene('versus');
+}
+
 // ---------- input ----------
 function toLogical(e) {
   const r = canvas.getBoundingClientRect();
@@ -2204,6 +2256,11 @@ canvas.addEventListener('pointerdown', (e) => {
   sfx.unlock();
   const p = toLogical(e);
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  if (scene === 'versus' && versus && (versus.state === 'play' || versus.endT < 1.4)) {
+    if (versus.state === 'play' && p.x > W - 110 && p.y < game.top - 46) { setScene('vpause'); sfx.click(); return; }
+    versus.press(p.x);
+    return;
+  }
   if (scene === 'fighters' && fighters && (fighters.state === 'play' || fighters.endT < 1.6)) {
     if (fighters.state === 'play' && p.x > W - 110 && p.y < game.top - 46) { setScene('fpause'); sfx.click(); return; }
     fighters.press(p.x, p.y);
@@ -2246,6 +2303,7 @@ canvas.addEventListener('pointermove', (e) => {
     return;
   }
   if (scene === 'fighters' && fighters) { const q = toLogical(e); if (e.pointerType !== 'mouse' || e.buttons) fighters.move(q.x, q.y, false); return; }
+  if (scene === 'versus' && versus) { const q = toLogical(e); versus.move(q.x, e.pointerType === 'mouse', opts.sens); return; }
   if (scene !== 'play') return;
   const p = toLogical(e);
   if (e.pointerType === 'mouse') { game.paddle.tx = game.mirror ? W - p.x : p.x; return; }
@@ -2263,6 +2321,7 @@ canvas.addEventListener('pointerup', (e) => {
     return;
   }
   if (scene === 'fighters' && fighters) fighters.release();
+  if (scene === 'versus' && versus && (versus.state === 'play' || versus.endT < 1.4)) { versus.release(); return; }
   if (mapDrag) { const moved = mapDrag.moved; mapDrag = null; if (moved) { pressed = null; return; } }
   if (swipe && scene === 'plat') {
     const dx = p.x - swipe.x, dy = p.y - swipe.y;
@@ -2310,6 +2369,7 @@ function onFocusChange(on) {
   sfx.setFocus(on);
   if (!on && scene === 'play') setScene('pause');
   if (!on && scene === 'fighters' && fighters && fighters.state === 'play') setScene('fpause');
+  if (!on && scene === 'versus' && versus && versus.state === 'play') setScene('vpause');
 }
 // Sound only plays while the game is actually on screen. 'focus' can arrive
 // while the page is still hidden on some phones, so every event checks it.
@@ -2449,6 +2509,9 @@ const DARK = 0.6;
 const openCount = () => WORLDS.filter((_, w) => districtOpen(w)).length;
 let litD = store.get('litD', -1);   // districts already shown lit
 let lightAnim = null;
+// the switch-on: dark, a few quick flashes like a neon tube catching, then it stays lit
+const LIGHT_BLINKS = [[0.5, 0.6], [0.78, 0.86], [1.0, 1.06], [1.22, 1.3], [1.42, 1.48]], LIGHT_ON = 1.6;
+const mapFlash = {};        // the glow of a district switching on (0..1)
 function lightUpMap() {
   if (devAll()) return;
   const n = openCount();
@@ -2473,13 +2536,18 @@ function updateMapDim(D, now, cy) {
   for (const d of D.dist) {
     const w = d.w, target = !districtOpen(w) ? DARK : w === mapFocus ? 0 : FOCUS_DIM;
     let v = mapDim[w] === undefined ? target : mapDim[w] + (target - mapDim[w]) * Math.min(1, dt * 5);
+    mapFlash[w] = 0;
     if (lightAnim && w >= lightAnim.from && w < lightAnim.to) {   // just opened: a neon tube switching on
-      const f = clampN((now - lightAnim.t0 - 0.6) / 1.6, 0, 1);
-      const flick = f > 0 && f < 1 && Math.sin(now * 37) > 0.4 ? 0.25 : 0;
-      v = Math.max(v, DARK * (1 - f) - flick);
+      const e = now - lightAnim.t0, on = LIGHT_BLINKS.some(([a, b]) => e >= a && e < b);
+      if (e < LIGHT_ON) { v = on ? 0 : DARK; mapFlash[w] = on ? 1 : 0; }
+      else { v = Math.min(v, target); mapFlash[w] = Math.max(0, 1 - (e - LIGHT_ON) / 0.9); }
+      // a click each time the tube catches
+      const bi = LIGHT_BLINKS.findIndex(([a, b]) => e >= a && e < b);
+      if (bi >= 0 && lightAnim.played !== bi) { lightAnim.played = bi; sfx.click(); }
     }
     mapDim[w] = v;
   }
+  if (lightAnim && now - lightAnim.t0 > LIGHT_ON + 1) lightAnim = null;
 }
 
 // one isometric box (footprint inset f) with floors, optional neon band
@@ -3121,6 +3189,18 @@ function renderMap(c, now) {
     g.addColorStop(1 - e, `rgba(0,0,0,${dk})`); g.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = g; c.fillRect(0, yA - 50, W, yB - yA + 100);
   });
+  // a district switching on: each flash lights its whole band in the theme color
+  D.dist.forEach((d) => {
+    const fl = mapFlash[d.w] || 0;
+    if (fl <= 0.01) return;
+    const [yA, yB] = districtBand(D, d.w), kc = col();
+    if (yB < mapScroll - 100 || yA > mapScroll + vh + 100) return;
+    const g = c.createLinearGradient(0, yA - 50, 0, yB + 50);
+    g.addColorStop(0, rgba(kc, 0)); g.addColorStop(0.2, rgba(kc, 0.22 * fl)); g.addColorStop(0.8, rgba(kc, 0.22 * fl)); g.addColorStop(1, rgba(kc, 0));
+    c.save(); c.globalCompositeOperation = 'lighter';
+    c.fillStyle = g; c.fillRect(0, yA - 50, W, yB - yA + 100);
+    c.restore();
+  });
   // beacons, landmarks and fountains
   for (const b of L.beacons) {
     if (!vis(b.y) || Math.sin(now * 2.4 + b.ph) < 0.45) continue;
@@ -3383,6 +3463,9 @@ function render() {
     renderMap(ctx, now);
   } else if (scene === 'crash') {
     renderCrash(ctx, now);
+  } else if (scene === 'versus' || scene === 'vpause') {
+    if (versus) versus.render(ctx, now);
+    if (scene === 'vpause') { dim(ctx, 0.7); neonTitle(ctx, 'PAUSA', W / 2, H * 0.32, 72, k, k, 12); }
   } else if (scene === 'fighters' || scene === 'fpause') {
     if (fighters) fighters.render(ctx, now);
     if (scene === 'fpause') { dim(ctx, 0.7); neonTitle(ctx, 'PAUSA', W / 2, H * 0.32, 72, k, k, 12); }
@@ -3479,6 +3562,7 @@ function frame(now) {
   while (acc >= STEP) {
     if (scene === 'play' && !freeze) game.update(STEP);
     else if (scene === 'fighters' && fighters) fighters.update(STEP);
+    else if (scene === 'versus' && versus) versus.update(STEP);
     else {
       // the screen shake still fades while the game is stopped (game over, pause...)
       if (game.shake > 0) game.shake = Math.max(0, game.shake - STEP * 3);

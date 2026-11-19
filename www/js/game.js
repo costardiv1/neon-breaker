@@ -743,8 +743,8 @@ export class Game {
     this.stageChips = 0;     // chips earned in this stage
     this.offered = false;
     this.rewardHold = false;
-    // +1% disc speed per district on top of the per-stage ramp
-    this.baseSpeed = this.endless ? this.endlessSpeed() : Math.min(620 + this.index * 14, 880) * (1 + 0.01 * st.w);
+    // a gentle ramp: 600 on the first stage, +5 per stage (845 on the last)
+    this.baseSpeed = this.endless ? this.endlessSpeed() : 600 + this.index * 5;
     this.resetBall();
     const vl = this.pLvl('vida');
     if (vl && this.lives < 3 + vl) { this.lives++; this.float('+1 VIDA', W / 2, this.H - PADDLE_OFF - 120, 22); }
@@ -1529,6 +1529,15 @@ export class Game {
     }
   }
 
+  // a boss shot or beam hit the platform: it shrinks for a while
+  hurtPaddle(x, y) {
+    const p = this.paddle;
+    this.addSize(-1, 6);
+    this.float('ATINGIDO', p.x, p.y - 70, 22);
+    this.ring(x, y, 70);
+    this.shake = Math.max(this.shake, 0.4);
+    sfx.hurt(); vibrate(40);
+  }
   enemyShot(x, y, vx, vy) { this.shots.push({ x, y, vx, vy, t: 0 }); }
 
   updateWeapons(dt) {
@@ -1604,11 +1613,7 @@ export class Game {
       } else { s.x += s.vx * dt; s.y += s.vy * dt; }
       if (Math.abs(s.x - p.x) < p.hw + 6 && Math.abs(s.y - (p.y + 4)) < 16) {
         s.dead = true;
-        this.addSize(-1, 6);
-        this.float('ATINGIDO', p.x, p.y - 70, 22);
-        this.ring(s.x, s.y, 70);
-        this.shake = Math.max(this.shake, 0.4);
-        sfx.hurt(); vibrate(40);
+        this.hurtPaddle(s.x, s.y);
       } else if (s.y > this.bottom + 20 || s.x < 0 || s.x > W) s.dead = true;
     }
     this.shots = this.shots.filter((s) => !s.dead);
