@@ -2674,6 +2674,10 @@ export class Game {
         if (blink) c.globalAlpha = 1 - 0.45 * blink;
       }
       if (br.kind === 'leak') c.globalAlpha = this.leakT > 0 ? 0.35 : 0.8 + 0.2 * Math.sin(this.t * 5);
+      else if (br.kind !== 'wall') {   // the glow fades with each hit, against the life the brick started with
+        br.max = Math.max(br.max || 1, br.hp);
+        c.globalAlpha *= 0.45 + 0.55 * Math.max(0, br.hp) / br.max;
+      }
       drawSprite(c, s, br.x, br.y);
       c.globalAlpha = 1;
       if (br.inf) {   // CONTÁGIO: a pulsing virus mark

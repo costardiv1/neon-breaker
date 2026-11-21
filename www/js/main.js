@@ -22,7 +22,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.9.7';
+export const VERSION = '1.9.8';
 
 let H = 1280;
 let safeTop = 0;
@@ -1887,7 +1887,7 @@ function drawIconButton(c, b) {
     if (b.round) { c.fillStyle = rgba(k, down ? 0.2 : 0.05); c.fill(); neonStroke(c, k, k, 2, cx - r, cy, cx + r, cy, 0.6); }
     else if (down) { c.fillStyle = rgba(k, 0.2); c.fill(); }
     c.save(); c.translate(cx, cy); c.scale(0.68, 0.68); drawMenuIcon(c, b.icon, 0, 0, k); c.restore();
-    if (b.bare && b.label) glowText(c, b.label, cx, b.y + b.h + 8, 10, rgba('#ffffff', 0.75), k, 'center', 700, 1);
+    if ((b.bare || b.tag) && b.label) glowText(c, b.label, cx, b.y + b.h + 8, b.tag ? 12 : 10, rgba('#ffffff', 0.75), k, 'center', 700, 1);
     c.globalAlpha = 1;
     return;
   }
@@ -2007,16 +2007,14 @@ function layout() {
   const cx = W / 2, bw = 400, bh = 76;
   switch (scene) {
     case 'menu': {
-      // JOGAR (big icon) with BREAKERS and INFINITO under it, each with its name
+      // JOGAR (big icon) with BREAKERS under it, each with its name
       // below, like the pause; OPÇÕES and PLACAR are small round icons in the
       // top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
       const { big, mid, top, y2 } = menuGrid(), B = bellRect();
-      const lockedMsg = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
-      // the small icons share the row under JOGAR (FIGHTERS after the ending)
+      // the small icons share the row under JOGAR (FIGHTERS after the ending);
+      // INFINITO and 1x1 are on the map, beside VOLTAR
       const row = [
         { label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
-        { label: endlessOpen() ? 'INFINITO' : 'INFINITO  🔒', fn: endlessOpen() ? startEndless : lockedMsg, icon: 'inf', off: !endlessOpen() },
-        { label: '1x1', fn: startVersus, icon: 'vs' },
       ];
       if (store.get('nf', false)) row.push({ label: 'FIGHTERS', fn: startFighters, icon: 'ship' });
       const gap = Math.min(124 - mid + 20, (W - 40 - row.length * mid) / (row.length - 1)), x0 = cx - (row.length * mid + (row.length - 1) * gap) / 2;
@@ -2029,8 +2027,12 @@ function layout() {
       ];
     }
     case 'map': {
-      const list = mapButtons();
-      list.push(btn(cx, H - 90, bw, bh, 'VOLTAR', () => setScene('menu')));
+      // VOLTAR between the other modes: INFINITO and 1x1
+      const list = mapButtons(), s = 84, y = H - 100 - s / 2, open = endlessOpen();
+      const locked = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
+      list.push(btn(cx, H - 90, 300, bh, 'VOLTAR', () => setScene('menu')));
+      list.push({ x: cx - 166 - s, y, w: s, h: s, label: open ? 'INFINITO' : 'INFINITO 🔒', fn: open ? startEndless : locked, icon: 'inf', round: true, tag: true, off: !open });
+      list.push({ x: cx + 166, y, w: s, h: s, label: '1x1', fn: startVersus, icon: 'vs', round: true, tag: true });
       return list;
     }
     case 'fighters': {
@@ -2043,14 +2045,14 @@ function layout() {
       const V = versus;
       if (!V || V.state === 'play' || V.endT < 1.4) return [];
       return iconMenu(H * 0.6, { label: 'JOGAR DE NOVO', fn: startVersus, icon: 'restart' },
-        [{ label: 'MENU', fn: () => setScene('menu'), icon: 'home' }]);
+        [{ label: 'MAPA', fn: () => setScene('map'), icon: 'pin' }]);
     }
     case 'vpause': {
       const { big, mid, top, y2 } = menuGrid();
       return [
         { x: cx - big / 2, y: top, w: big, h: big, label: 'CONTINUAR', fn: () => setScene('versus'), icon: 'play', big: true },
         { x: cx - 62 - mid, y: y2, w: mid, h: mid, label: 'RECOMEÇAR', fn: startVersus, icon: 'restart' },
-        { x: cx + 62, y: y2, w: mid, h: mid, label: 'MENU', fn: () => setScene('menu'), icon: 'home' },
+        { x: cx + 62, y: y2, w: mid, h: mid, label: 'MAPA', fn: () => setScene('map'), icon: 'pin' },
       ];
     }
     case 'fpause': {
@@ -2137,7 +2139,8 @@ function layout() {
     case 'card': {
       const box = cardBox();
       const y = box.y + box.h - 62;
-      if (card && card.idx !== undefined && tut) return pageButtons(y, card.pos > 0 ? tutPrev : null, tutNext, 'PULAR TUTORIAL', skipTutorial);
+      // with more than one tutorial card seen: ‹ PULAR TUTORIAL ›; a lone card just continues
+      if (card && card.idx !== undefined && tut && tut.hist.length > 1) return pageButtons(y, card.pos > 0 ? tutPrev : null, tutNext, 'PULAR TUTORIAL', skipTutorial);
       return [btn(cx, y, 340, 70, 'CONTINUAR', closeCard, { big: true })];
     }
     default:
@@ -2263,7 +2266,7 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   if (scene === 'fighters' && fighters && (fighters.state === 'play' || fighters.endT < 1.6)) {
     if (fighters.state === 'play' && p.x > W - 110 && p.y < game.top - 46) { setScene('fpause'); sfx.click(); return; }
-    fighters.press(p.x, p.y);
+    fighters.press(p.x, p.y, e.pointerType === 'mouse');
     return;
   }
   if (scene === 'play') {
@@ -2302,7 +2305,7 @@ canvas.addEventListener('pointermove', (e) => {
     if (mapDrag.moved) mapScroll = clampScroll(mapDrag.s0 - dy);
     return;
   }
-  if (scene === 'fighters' && fighters) { const q = toLogical(e); if (e.pointerType !== 'mouse' || e.buttons) fighters.move(q.x, q.y, false); return; }
+  if (scene === 'fighters' && fighters) { const q = toLogical(e); fighters.move(q.x, q.y, e.pointerType === 'mouse'); return; }
   if (scene === 'versus' && versus) { const q = toLogical(e); versus.move(q.x, e.pointerType === 'mouse', opts.sens); return; }
   if (scene !== 'play') return;
   const p = toLogical(e);
@@ -3461,6 +3464,11 @@ function render() {
     glowText(ctx, 'v' + VERSION, W - 24, H - 22, 12 + vt, rgba(k, 0.6 + vt * 0.08), k, 'right', 500, 2);
   } else if (scene === 'map') {
     renderMap(ctx, now);
+    if (menuMsg && now - menuMsg.t < 2) {
+      ctx.globalAlpha = Math.min(1, (2 - (now - menuMsg.t)) * 2);
+      glowText(ctx, menuMsg.text, W / 2, H - 172, 14, '#ffffff', k, 'center', 700, 3);
+      ctx.globalAlpha = 1;
+    }
   } else if (scene === 'crash') {
     renderCrash(ctx, now);
   } else if (scene === 'versus' || scene === 'vpause') {

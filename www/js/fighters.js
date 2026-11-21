@@ -47,9 +47,13 @@ export class Fighters {
     music.play('fighters');
   }
 
-  // drag: the ship follows the finger's movement (not its position, so the
-  // finger never covers it)
-  press(x, y) { this.drag = { x, y, sx: this.ship.tx, sy: this.ship.ty }; }
+  // a touch sends the ship to the finger (a bit above it, so the finger never
+  // covers it) and then it follows the drag; the mouse is followed without a click
+  press(x, y, mouse) {
+    if (mouse) return;
+    this.move(x, y, true);
+    this.drag = { x, y, sx: this.ship.tx, sy: this.ship.ty };
+  }
   move(x, y, mouse) {
     const s = this.ship;
     if (mouse) { s.tx = x; s.ty = y - 80; }

@@ -2,6 +2,23 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9.8 (21/11/2026)
+
+### Menu e mapa
+- [ ] O menu inicial tem só JOGAR e BREAKERS (e FIGHTERS, depois de zerar).
+- [ ] No mapa, INFINITO fica à esquerda do VOLTAR e 1x1 à direita, com o nome embaixo. Com o INFINITO bloqueado, tocar mostra DERROTE O SENTINELA PARA LIBERAR.
+- [ ] No fim do 1x1 e na pausa dele, MAPA volta para o mapa.
+
+### Blocos
+- [ ] Os blocos de várias batidas perdem o brilho a cada batida, e os detalhes por dentro continuam mostrando quantas faltam. Os de 1 batida não mudam.
+
+### Tutorial
+- [ ] O primeiro cartão (BEM-VINDO) mostra só CONTINUAR. A partir do segundo aparecem ‹ PULAR TUTORIAL ›.
+
+### NEON FIGHTERS
+- [ ] Tocar na tela leva a nave até o dedo, e depois ela segue o arrasto.
+- [ ] No PC, a nave segue o mouse sem segurar o clique.
+
 ## 1.9.7 (19/11/2026)
 
 ### Modo 1x1
