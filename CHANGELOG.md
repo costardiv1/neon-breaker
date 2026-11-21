@@ -2,6 +2,20 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.10.1] · 21/11/2026 · 1x1 com o visual da campanha
+
+### Adicionado
+
+- Contagem regressiva antes da NOVA LEVA no 1x1: quando a faixa é limpa, aparece NOVA LEVA EM 3, 2, 1 no meio do campo, e depois os blocos acendem um de cada vez, em ordem aleatória. Os discos só batem nos blocos que já apareceram.
+
+### Alterado
+
+- O 1x1 ganhou o visual da campanha: os mesmos blocos das fases (com os detalhes de batidas e o brilho apagando a cada batida), o quadriculado do fundo e a moldura com os cantos arredondados. Cada metade do campo fica na cor do seu lado, com luzes correndo pelas bordas e um brilho quando um disco bate nelas.
+
+### Corrigido
+
+- A cápsula VELOZ deixava o disco rápido nas duas direções. Agora ele só fica mais rápido indo para o lado do adversário; voltando de um bloco ou do escudo, retoma a velocidade normal.
+
 ## [1.10.0] · 21/11/2026 · 1x1 com dois discos e cápsulas
 
 ### Adicionado

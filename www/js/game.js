@@ -223,7 +223,7 @@ export function discSprite(col, r = BALL_R, style = 0) {
   }));
 }
 
-function brickSprite(kind, hp, col) {
+export function brickSprite(kind, hp, col) {
   return cached('brick' + kind + hp + col, (res) => makeSprite(BW, BH, 24, res, (c) => {
     if (kind === 'leak') {   // VAZAMENTO: a dark block with a drop
       roundRectPath(c, 1.5, 1.5, BW - 3, BH - 3, 5);

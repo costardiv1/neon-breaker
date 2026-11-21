@@ -5,8 +5,9 @@
 // life and serves it again; the first to lose all of them loses the match.
 // Breaking bricks gives points to whoever touched the disc last, sometimes
 // drops a capsule toward them, and the band comes back when it is cleared.
-import { TAU, rgba, mix, neonStroke, glowText, neonTitle, view } from './render.js';
+import { TAU, rgba, neonStroke, glowText, neonTitle, view, roundRectPath, drawSprite } from './render.js';
 import { drawPlatform, outAngle } from './platform.js';
+import { brickSprite } from './game.js';
 import { sfx, music, vibrate } from './audio.js';
 
 const W = 720, LEFT = 14, RIGHT = W - 14;
@@ -22,6 +23,8 @@ const AI_VMAX = 700;         // top speed of the AI platform (px/s)
 const AI_ACC = 2600;         // how hard it can speed up or brake (px/s²)
 const AI_REACT = [0.12, 0.24];   // reaction time when a disc turns toward it (s)
 const COLS = 9, ROWS = 4, BW = (W - 64 - 8 * (COLS - 1)) / COLS, BH = 28, GAP = 8;
+const CR = 34;               // the rounded corners of the field, like the campaign's
+const COUNT = 3;             // the countdown before a new band (s)
 
 // the capsules: they fall from a broken brick toward whoever broke it
 const CAP_CHANCE = 0.24, CAP_V = 230, CAP_W = 92, CAP_H = 30;
@@ -66,17 +69,24 @@ export class Versus {
   get midY() { return (this.top + this.bottom) / 2; }
   side(who) { return who === 'me' ? this.me : this.ai; }
 
-  fillBand() {
+  // a new band; with `slow`, the bricks light up one at a time in a random order
+  fillBand(slow = false) {
     const y0 = this.midY - (ROWS * BH + (ROWS - 1) * GAP) / 2;
     this.bricks = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (Math.random() < 0.12) continue;   // a few holes, so each band is different
         const inner = r === 1 || r === 2;
-        this.bricks.push({ x: 32 + c * (BW + GAP), y: y0 + r * (BH + GAP), w: BW, h: BH, hp: inner ? 2 : 1, max: inner ? 2 : 1, flash: 0 });
+        this.bricks.push({ x: 32 + c * (BW + GAP), y: y0 + r * (BH + GAP), w: BW, h: BH, hp: inner ? 2 : 1, max: inner ? 2 : 1, flash: 0, wait: 0, pop: 1 });
       }
     }
+    if (slow) {
+      const order = this.bricks.slice().sort(() => Math.random() - 0.5);
+      order.forEach((q, i) => { q.wait = 0.15 + i * 0.07; q.pop = 0; });
+    }
   }
+  // a brick still waiting to light up is not there yet
+  live(q) { return q.hp > 0 && q.wait <= 0; }
 
   // a disc waits on the platform of whoever serves; one at a time each, the
   // next one waits in line
@@ -148,7 +158,20 @@ export class Versus {
     }
     this.balls = this.balls.filter((b) => !b.dead);
     this.updateCaps(dt);
-    if (this.refillT > 0) { this.refillT -= dt; if (this.refillT <= 0) { this.fillBand(); this.banner = { text: 'NOVA LEVA', t: 1.2, max: 1.2 }; } }
+    // the countdown to the new band, then the bricks light up one by one
+    if (this.refillT > 0) {
+      const n0 = Math.ceil(this.refillT);
+      this.refillT -= dt;
+      if (this.refillT <= 0) { this.fillBand(true); this.banner = { text: 'NOVA LEVA', t: 1.2, max: 1.2 }; sfx.pulse(); }
+      else if (Math.ceil(this.refillT) !== n0) sfx.click();
+    }
+    let born = 0;
+    for (const q of this.bricks) {
+      if (q.wait > 0) { q.wait -= dt; if (q.wait <= 0) { q.flash = 1; born++; } }
+      else q.pop = Math.min(1, q.pop + dt * 6);
+    }
+    if (born) sfx.brick(1);
+    this.borderGlow = Math.max(0, (this.borderGlow || 0) - dt * 2.5);
   }
 
   // a disc turned toward the AI: it will take a moment to react, read it a
@@ -229,15 +252,15 @@ export class Versus {
 
   step(b, dt) {
     b.x += b.vx * dt; b.y += b.vy * dt;
-    if (b.x < LEFT + R) { b.x = LEFT + R; b.vx = Math.abs(b.vx); sfx.wall(); }
-    if (b.x > RIGHT - R) { b.x = RIGHT - R; b.vx = -Math.abs(b.vx); sfx.wall(); }
+    if (b.x < LEFT + R) { b.x = LEFT + R; b.vx = Math.abs(b.vx); sfx.wall(); this.borderGlow = 1; }
+    if (b.x > RIGHT - R) { b.x = RIGHT - R; b.vx = -Math.abs(b.vx); sfx.wall(); this.borderGlow = 1; }
     // the platforms
     const me = this.me, ai = this.ai;
     if (b.vy > 0 && b.y + R >= me.y && b.y + R <= me.y + 22 && Math.abs(b.x - me.x) < me.hw + R) this.bounce(b, me, 'me');
     else if (b.vy < 0 && b.y - R <= ai.y && b.y - R >= ai.y - 22 && Math.abs(b.x - ai.x) < ai.hw + R) this.bounce(b, ai, 'ai');
     // the bricks
     for (const q of this.bricks) {
-      if (q.hp <= 0) continue;
+      if (!this.live(q)) continue;
       const cx = Math.max(q.x, Math.min(b.x, q.x + q.w)), cy = Math.max(q.y, Math.min(b.y, q.y + q.h));
       const dx = b.x - cx, dy = b.y - cy;
       if (dx * dx + dy * dy > R * R) continue;
@@ -245,6 +268,7 @@ export class Versus {
       const up = b.vy < 0;
       if (ox < oy) { b.vx = b.x < q.x + q.w / 2 ? -Math.abs(b.vx) : Math.abs(b.vx); b.x += b.vx > 0 ? ox : -ox; }
       else { b.vy = b.y < q.y + q.h / 2 ? -Math.abs(b.vy) : Math.abs(b.vy); b.y += b.vy > 0 ? oy : -oy; }
+      if (up !== b.vy < 0) this.slow(b);   // turned back: VELOZ only pushes it toward the other side
       if (!up && b.vy < 0) this.aiRead(b, b.own === 'ai');   // bounced back toward the AI
       this.hitBrick(q, b.own);
       break;
@@ -256,10 +280,17 @@ export class Versus {
     else if (b.y < this.top - 30) this.score('ai', b);
   }
 
+  // a disc sped up by VELOZ goes back to its normal speed
+  slow(b) {
+    if (!b.boost) return;
+    b.boost = false; b.vx /= 1.3; b.vy /= 1.3;
+  }
+
   // a shield sends the disc back once
   block(b, who) {
     this.side(who).shield = false;
     b.vy = -b.vy;
+    this.slow(b);
     b.y = who === 'me' ? this.bottom - 4 : this.top + 4;
     if (who === 'me') this.aiRead(b);
     this.ring(b.x, b.y, 90);
@@ -269,7 +300,8 @@ export class Versus {
   bounce(b, p, who) {
     const k = Math.max(-1, Math.min(1, (b.x - p.x) / p.hw)), si = who === 'me' ? this.plat.shape : this.aiPlat.shape;
     b.s = Math.min(V_MAX, b.s + V_STEP);
-    const s = b.s * (p.fx.fast > 0 ? 1.3 : 1);   // VELOZ: the discs this side hits go faster
+    b.boost = p.fx.fast > 0;   // VELOZ: the discs this side hits go faster toward the other side
+    const s = b.s * (b.boost ? 1.3 : 1);
     const th = outAngle(si, k, p.hw), d = who === 'me' ? -1 : 1;
     b.vx = Math.sin(th) * s; b.vy = d * Math.cos(th) * s;
     b.y = who === 'me' ? p.y - R : p.y + R;
@@ -289,7 +321,7 @@ export class Versus {
     sfx.brk(2);
     for (let k = 0; k < 10; k++) this.parts.push({ x: q.x + Math.random() * q.w, y: q.y + Math.random() * q.h, vx: (Math.random() - 0.5) * 260, vy: (Math.random() - 0.5) * 260, life: 0.6, max: 0.6, col: Math.random() < 0.4 ? '#ffffff' : c });
     if (Math.random() < CAP_CHANCE && this.caps.length < 2) this.drop(q.x + q.w / 2, q.y + q.h / 2, own);
-    if (this.bricks.every((z) => z.hp <= 0) && this.refillT <= 0) this.refillT = 1;
+    if (this.bricks.every((z) => z.hp <= 0) && this.refillT <= 0) this.refillT = COUNT;
   }
 
   // ---------- capsules ----------
@@ -363,20 +395,10 @@ export class Versus {
     c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
     c.save();
     if (this.shake > 0) c.translate((Math.random() - 0.5) * 14 * this.shake, (Math.random() - 0.5) * 14 * this.shake);
-    // the field: the walls, a line in the middle and each side's end in its color
-    c.save(); c.globalAlpha = 0.06; c.strokeStyle = '#ffffff'; c.lineWidth = 1;
-    c.beginPath();
-    for (let x = LEFT + 46; x < RIGHT; x += 46) { c.moveTo(x, top); c.lineTo(x, bottom); }
-    for (let y = top + 46; y < bottom; y += 46) { c.moveTo(LEFT, y); c.lineTo(RIGHT, y); }
-    c.stroke(); c.restore();
-    c.beginPath(); c.moveTo(LEFT, top - 10); c.lineTo(LEFT, bottom + 10); c.moveTo(RIGHT, top - 10); c.lineTo(RIGHT, bottom + 10);
-    neonStroke(c, '#ffffff', '#ffffff', 2.4, LEFT, top, RIGHT, bottom, 0.5);
-    c.save(); c.setLineDash([20, 12]);
-    c.lineDashOffset = -this.t * 40;
-    c.beginPath(); c.moveTo(LEFT, bottom + 10); c.lineTo(RIGHT, bottom + 10); neonStroke(c, col, col, 3, LEFT, 0, RIGHT, 0, 0.9);
-    c.lineDashOffset = this.t * 40;
-    c.beginPath(); c.moveTo(LEFT, top - 10); c.lineTo(RIGHT, top - 10); neonStroke(c, ai, ai, 3, LEFT, 0, RIGHT, 0, 0.9);
-    c.restore();
+    // the field, like the campaign's: the grid and the rounded neon frame,
+    // each half in its side's color, and the open ends dashed
+    c.drawImage(this.fieldLayer().img, 0, 0, W, H);
+    this.renderBorder(c);
     // the shields: a solid bar across the end, pulsing
     for (const [p, y, k] of [[this.me, bottom - 4, col], [this.ai, top + 4, ai]]) {
       if (!p.shield) continue;
@@ -385,13 +407,24 @@ export class Versus {
     }
     c.beginPath(); c.moveTo(LEFT, this.midY); c.lineTo(RIGHT, this.midY);
     c.save(); c.setLineDash([6, 14]); c.strokeStyle = rgba('#ffffff', 0.12); c.lineWidth = 2; c.stroke(); c.restore();
-    // the bricks
+    // the bricks: the campaign's, fading with each hit; new ones pop in
     for (const q of this.bricks) {
-      if (q.hp <= 0) continue;
-      const k = q.hp / q.max;
-      c.beginPath(); c.rect(q.x, q.y, q.w, q.h);
-      c.fillStyle = rgba(mix(col, '#ffffff', 0.35 * k), 0.12 + 0.18 * k + 0.4 * q.flash); c.fill();
-      neonStroke(c, col, mix(col, '#ffffff', 0.5 * k), 2, q.x, q.y, q.x + q.w, q.y + q.h, 0.5 + 0.5 * k + q.flash);
+      if (!this.live(q)) continue;
+      const e = q.pop < 1 ? 1 + 1.7 * Math.pow(q.pop - 1, 3) + 0.7 * Math.pow(q.pop - 1, 2) : 1;
+      c.globalAlpha = (0.45 + 0.55 * q.hp / q.max) * Math.min(1, q.pop * 2);
+      if (e !== 1) { c.save(); c.translate(q.x + q.w / 2, q.y + q.h / 2); c.scale(e, e); c.translate(-q.x - q.w / 2, -q.y - q.h / 2); }
+      drawSprite(c, brickSprite('n', q.hp, col), q.x, q.y);
+      if (q.flash > 0) { roundRectPath(c, q.x + 1.5, q.y + 1.5, q.w - 3, q.h - 3, 5); c.fillStyle = rgba('#ffffff', 0.5 * q.flash); c.fill(); }
+      if (e !== 1) c.restore();
+      c.globalAlpha = 1;
+    }
+    // the countdown to the new band
+    if (this.refillT > 0 && this.state === 'play') {
+      const n = Math.ceil(this.refillT), f = this.refillT - Math.floor(this.refillT);
+      c.globalAlpha = 0.35 + 0.65 * f;
+      neonTitle(c, String(n), W / 2, this.midY + 30, 90 + 40 * (1 - f), col, col, 6);
+      glowText(c, 'NOVA LEVA EM', W / 2, this.midY - 60, 16, rgba('#ffffff', 0.8), col, 'center', 700, 6);
+      c.globalAlpha = 1;
     }
     // the capsules, in the color of whoever they fall to
     for (const q of this.caps) {
@@ -437,6 +470,87 @@ export class Versus {
     c.globalAlpha = 1;
     c.restore();
     this.renderHud(c);
+  }
+
+  // the grid and the steady frame, baked once
+  fieldLayer() {
+    const key = this.col + this.H + view.res + view.glow;
+    if (this.grid && this.grid.key === key) return this.grid;
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(W * view.res); cv.height = Math.round(this.H * view.res);
+    const c = cv.getContext('2d');
+    c.setTransform(view.res, 0, 0, view.res, 0, 0);
+    const top = this.top, bottom = this.bottom, mid = this.midY;
+    c.save();
+    roundRectPath(c, LEFT, top, RIGHT - LEFT, bottom - top, CR); c.clip();
+    const step = 48;
+    c.lineWidth = 1;
+    for (let x = (W / 2) % step; x < W; x += step) {
+      for (const [y0, y1, k] of [[top, mid, this.aiCol], [mid, bottom, this.col]]) {
+        c.strokeStyle = rgba(k, Math.round((x - W / 2) / step) % 4 === 0 ? 0.11 : 0.05);
+        c.beginPath(); c.moveTo(x, y0); c.lineTo(x, y1); c.stroke();
+      }
+    }
+    for (let i = 1; mid + i * step < bottom || mid - i * step > top; i++) {
+      for (const [y, k] of [[mid + i * step, this.col], [mid - i * step, this.aiCol]]) {
+        if (y <= top || y >= bottom) continue;
+        c.strokeStyle = rgba(k, i % 4 === 0 ? 0.11 : 0.05);
+        c.beginPath(); c.moveTo(LEFT, y); c.lineTo(RIGHT, y); c.stroke();
+      }
+    }
+    // each end glows a little in its side's color
+    for (const [y0, y1, k] of [[bottom - 160, bottom, this.col], [top + 160, top, this.aiCol]]) {
+      const gr = c.createLinearGradient(0, y0, 0, y1);
+      gr.addColorStop(0, rgba(k, 0)); gr.addColorStop(1, rgba(k, 0.08));
+      c.fillStyle = gr; c.fillRect(LEFT, Math.min(y0, y1), RIGHT - LEFT, 160);
+    }
+    c.restore();
+    // the walls: a rounded neon frame, each half in its side's color
+    for (const [k, down] of [[this.col, true], [this.aiCol, false]]) {
+      this.wallPath(c, down);
+      neonStroke(c, k, k, 3, 0, top, 0, bottom, 0.8);
+    }
+    this.grid = { key, img: cv };
+    return this.grid;
+  }
+  // the two walls and corners of one half of the frame (the ends stay open)
+  wallPath(c, down) {
+    const top = this.top, bottom = this.bottom, mid = this.midY;
+    c.beginPath();
+    if (down) {
+      c.moveTo(LEFT, mid); c.lineTo(LEFT, bottom - CR); c.arcTo(LEFT, bottom, LEFT + CR, bottom, CR);
+      c.moveTo(RIGHT, mid); c.lineTo(RIGHT, bottom - CR); c.arcTo(RIGHT, bottom, RIGHT - CR, bottom, CR);
+    } else {
+      c.moveTo(LEFT, mid); c.lineTo(LEFT, top + CR); c.arcTo(LEFT, top, LEFT + CR, top, CR);
+      c.moveTo(RIGHT, mid); c.lineTo(RIGHT, top + CR); c.arcTo(RIGHT, top, RIGHT - CR, top, CR);
+    }
+  }
+  // per frame: light running along the walls, a flash when a disc hits them,
+  // and the dashed open ends where a disc gets through
+  renderBorder(c) {
+    const top = this.top, bottom = this.bottom, g = this.borderGlow || 0;
+    c.save();
+    c.lineCap = 'round';
+    for (const [k, down] of [[this.col, true], [this.aiCol, false]]) {
+      c.setLineDash([120, 380]); c.lineDashOffset = -((this.t * 300) % 500);
+      this.wallPath(c, down);
+      c.strokeStyle = '#ffffff'; c.lineWidth = 2.5; c.shadowColor = k; c.shadowBlur = 18 * view.blur; c.stroke();
+      if (g > 0.02) {
+        c.setLineDash([]); c.shadowBlur = 0;
+        c.globalCompositeOperation = 'lighter';
+        this.wallPath(c, down);
+        c.strokeStyle = rgba(k, Math.min(1, g * 0.8)); c.lineWidth = 2 + g * 3; c.stroke();
+        c.globalCompositeOperation = 'source-over';
+      }
+    }
+    c.shadowBlur = 0;
+    c.setLineDash([20, 12]);
+    for (const [y, k, d] of [[bottom, this.col, -1], [top, this.aiCol, 1]]) {
+      c.lineDashOffset = d * this.t * 40;
+      c.beginPath(); c.moveTo(LEFT + CR, y); c.lineTo(RIGHT - CR, y);
+      neonStroke(c, k, k, 3, LEFT, 0, RIGHT, 0, 0.9);
+    }
+    c.restore();
   }
 
   renderHud(c) {

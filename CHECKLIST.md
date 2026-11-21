@@ -2,6 +2,20 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.10.1 (21/11/2026)
+
+### Visual do 1x1
+- [ ] Os blocos são os mesmos da campanha, e os de 2 batidas apagam um pouco depois da primeira.
+- [ ] O campo tem o quadriculado e a moldura arredondada das fases, a metade de cima na cor da IA e a de baixo na sua.
+- [ ] Luzes correm pelas bordas, e a borda brilha quando um disco bate nela.
+
+### Nova leva
+- [ ] Limpando a faixa, aparece NOVA LEVA EM 3, 2, 1, com um som a cada número.
+- [ ] Depois os blocos acendem um de cada vez, e o disco passa pelos que ainda não apareceram.
+
+### Correção
+- [ ] Com VELOZ, o disco que você rebate vai rápido para a IA, mas volta de um bloco na velocidade normal.
+
 ## 1.10.0 (21/11/2026)
 
 ### Dois discos
