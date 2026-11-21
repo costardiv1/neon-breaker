@@ -45,7 +45,7 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 - **NEON FIGHTERS**: quem zera o jogo ganha a primeira fase do próximo, uma nave vista de cima (as asas do breaker ARCO) contra hordas e uma nave-mãe.
 - **A história em capítulos**: a cada chefão derrotado, um terminal digita um trecho do diário de quem está derrubando o sistema.
 - **Uma mecânica nova por capítulo**, misturada em cada fase com uma ou duas das antigas. No capítulo 10, O SISTEMA troca a mecânica no meio da fase (ATUALIZAÇÃO).
-- **Modo 1x1 contra a IA**: frente a frente, você embaixo, a IA em cima e os blocos no meio. Quem deixar o disco passar perde vida. Fica no mapa, ao lado do VOLTAR, junto com o INFINITO.
+- **Modo 1x1 contra a IA**: frente a frente, você embaixo, a IA em cima e os blocos no meio. Quem deixar o disco passar perde vida. Fica no mapa, ao lado do VOLTAR.
 - **Modo INFINITO**: uma fase só, com blocos descendo sem parar, mecânicas que entram e se revezam e um chefão aleatório a cada 3 min 30 s.
 - **Mapa em cidade 3D isométrica**: o caminho das fases é uma rua, com cercas de neon nos portões, carros de luz que passam atrás dos prédios e a torre AURUM no fim.
 - **Plataforma personalizável**: 10 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.
@@ -114,7 +114,7 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 
 ## NEON FIGHTERS
 
-Depois de derrubar O ACIONISTA, o terminal carrega a primeira fase do próximo jogo: uma nave vista de cima, com as asas na curva do breaker ARCO e as cores e o emblema do seu breaker. O tiro é automático e você toca ou arrasta para desviar de 2 min 30 de hordas até a nave-mãe, A COLMEIA. Depois disso, o botão FIGHTERS fica no menu inicial.
+Depois de derrubar O ACIONISTA, o terminal carrega a primeira fase do próximo jogo: uma nave vista de cima, com as asas na curva do breaker ARCO e as cores e o emblema do seu breaker. O tiro é automático e você toca ou arrasta para desviar de 2 min 30 de hordas até a nave-mãe, A COLMEIA. Depois disso, uma nave pousada aparece escondida no fim do mapa, depois da torre.
 
 <div align="center"><img src="docs/img/30_fighters.png" width="220"></div>
 

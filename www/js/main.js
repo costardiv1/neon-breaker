@@ -648,6 +648,23 @@ function isoData() {
     path.forEach((q, n) => { const dd = Math.hypot(q.x - S.x, q.y - S.y); if (dd < bd) { bd = dd; t = n; } });
     return { b, i: bi, t, x: end.x, y: end.y, spur: polyline([S, end], 6) };
   });
+  // INFINITO: a side street just past the SENTINELA, early in chapter 2
+  const endless = (() => {
+    for (const f of [0.15, 0.2, 0.25, 0.3, 0.1, 0.35]) {
+      const sp = spurFrom({ w: 1 }, -1, f);
+      if (sp && !bonus.some((B) => Math.hypot(B.x - sp.x, B.y - sp.y) < 160)) return sp;
+    }
+    return null;
+  })();
+  // NEON FIGHTERS: a landing pad hidden past the tower, at the end of the map
+  const last = tiles[tiles.length - 1];
+  let fighters = null;
+  for (const [di, dj] of [[5, 2], [2, 5], [6, 3], [3, 6], [4, 4], [6, 1], [1, 6]]) {
+    if (Math.abs(last.i + di - (last.j + dj)) > EDGE - 1) continue;
+    const q = isoXY(last.i + di, last.j + dj);
+    if (roadNear(RI, q.x, q.y).d > 80) { fighters = q; break; }
+  }
+  if (!fighters) fighters = isoXY(last.i + 4, last.j + 4);
   // the gate of each chapter: across a straight stretch of street between its
   // boss and the next chapter's first stage (never on a corner), as long as
   // it can be without reaching another street
@@ -691,7 +708,7 @@ function isoData() {
   const end = path[path.length - 1];
   // the street comes into the map from behind a building at the top
   const lead = polyline([isoXY(LEAD.i, LEAD.j), isoXY(3, 3)], 6);
-  isoCache = { path, dist, nodes, bonus, lead, total: path.length, height: end.y + 300 };
+  isoCache = { path, dist, nodes, bonus, endless, fighters, lead, total: path.length, height: Math.max(end.y, fighters.y) + 300 };
   return isoCache;
 }
 const mapViewTop = () => safeTop + 130;
@@ -731,6 +748,15 @@ function mapButtons() {
     const y = B.y + top - mapScroll;
     if (y < top + 24 || y > bot - 24) continue;
     list.push({ x: B.x - 40, y: y - 40, w: 80, h: 80, bonusNode: B.i, fn: bonusOpen(B.b) ? () => startBonus(B.b) : null });
+  }
+  const D = isoData(), lockedInf = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
+  if (D.endless) {
+    const y = D.endless.y + top - mapScroll;
+    if (y > top + 24 && y < bot - 24) list.push({ x: D.endless.x - 44, y: y - 44, w: 88, h: 88, modeNode: 'inf', fn: endlessOpen() ? startEndless : lockedInf });
+  }
+  if (store.get('nf', false)) {   // the easter egg: only there after the ending
+    const y = D.fighters.y + top - mapScroll;
+    if (y > top + 24 && y < bot - 24) list.push({ x: D.fighters.x - 44, y: y - 44, w: 88, h: 88, modeNode: 'nf', fn: startFighters });
   }
   return list;
 }
@@ -2011,12 +2037,10 @@ function layout() {
       // below, like the pause; OPÇÕES and PLACAR are small round icons in the
       // top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
       const { big, mid, top, y2 } = menuGrid(), B = bellRect();
-      // the small icons share the row under JOGAR (FIGHTERS after the ending);
-      // INFINITO and 1x1 are on the map, beside VOLTAR
+      // BREAKERS under JOGAR; the other modes are on the map
       const row = [
         { label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
       ];
-      if (store.get('nf', false)) row.push({ label: 'FIGHTERS', fn: startFighters, icon: 'ship' });
       const gap = Math.min(124 - mid + 20, (W - 40 - row.length * mid) / (row.length - 1)), x0 = cx - (row.length * mid + (row.length - 1) * gap) / 2;
       return [
         { x: cx - big / 2, y: top, w: big, h: big, label: 'JOGAR', fn: () => setScene('map'), icon: 'play', big: true },
@@ -2027,11 +2051,9 @@ function layout() {
       ];
     }
     case 'map': {
-      // VOLTAR between the other modes: INFINITO and 1x1
-      const list = mapButtons(), s = 84, y = H - 100 - s / 2, open = endlessOpen();
-      const locked = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
+      // VOLTAR, with 1x1 beside it (INFINITO and FIGHTERS are on the map itself)
+      const list = mapButtons(), s = 84, y = H - 100 - s / 2;
       list.push(btn(cx, H - 90, 300, bh, 'VOLTAR', () => setScene('menu')));
-      list.push({ x: cx - 166 - s, y, w: s, h: s, label: open ? 'INFINITO' : 'INFINITO 🔒', fn: open ? startEndless : locked, icon: 'inf', round: true, tag: true, off: !open });
       list.push({ x: cx + 166, y, w: s, h: s, label: '1x1', fn: startVersus, icon: 'vs', round: true, tag: true });
       return list;
     }
@@ -2892,6 +2914,8 @@ function isoLayer() {
   // the streets (and the stages on them) keep the buildings away
   const pts = D.path.slice();
   for (const B of D.bonus) pts.push(...B.spur, { x: B.x, y: B.y, r: 30 });
+  if (D.endless) pts.push(...D.endless.spur, { x: D.endless.x, y: D.endless.y, r: 30 });
+  pts.push({ x: D.fighters.x, y: D.fighters.y, r: 50 });
   for (const n of D.nodes) pts.push({ x: n.x, y: n.y, r: n.boss ? 30 : 22 });
   for (const d of D.dist) if (d.gate) for (let o = -d.gate.La; o <= d.gate.Lb; o += 10) pts.push({ x: d.gate.x + d.gate.nx * o, y: d.gate.y + d.gate.ny * o });
   const spots = citySpots(roadIndex(pts));   // (placed before the lead-in street existed: keep them there)
@@ -2968,6 +2992,7 @@ function isoLayer() {
     c.save(); c.setLineDash([10, 14]); c.strokeStyle = rgba(k, 0.22); c.lineWidth = 1.5; c.stroke(); c.restore();
   };
   for (const B of D.bonus) road(B.spur, 30);
+  if (D.endless) road(D.endless.spur, 30);
   road(D.lead.concat(D.path), 40);
   if (!towerDone) drawTower();
   c.globalAlpha = cb.globalAlpha = 1;
@@ -3249,6 +3274,17 @@ function renderMap(c, now) {
       c.restore();
     } else { c.save(); c.setLineDash([7, 9]); c.strokeStyle = rgba(k, 0.55); c.lineWidth = 2.2; c.stroke(); c.restore(); }
   }
+  if (D.endless && (vis(D.endless.y) || vis(D.endless.spur[0].y))) {
+    const E = D.endless;
+    c.globalAlpha = 1 - (mapDim[1] || 0) * 0.9;
+    pathPoly(c, D, 0, E.spur.length - 1, E.spur);
+    if (endlessOpen()) {
+      neonStroke(c, k, k, 3, 0, 0, W, 0, 0.8);
+      c.save(); c.setLineDash([14, 120]); c.lineDashOffset = -((now * 90) % 134);
+      pathPoly(c, D, 0, E.spur.length - 1, E.spur); c.strokeStyle = '#ffffff'; c.lineWidth = 3; c.shadowColor = k; c.shadowBlur = 12 * view.blur; c.stroke();
+      c.restore();
+    } else { c.save(); c.setLineDash([7, 9]); c.strokeStyle = rgba(k, 0.55); c.lineWidth = 2.2; c.stroke(); c.restore(); }
+  }
   c.globalAlpha = 1;
   // the rest of the road, still locked
   c.save(); c.setLineDash([4, 12]); pathPoly(c, D, N[N.length - 1].t, D.total - 1);
@@ -3319,6 +3355,30 @@ function drawNode(c, b, now) {
     c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(p.x - tw / 2, p.y + r + 6, tw, 18);
     glowText(c, t, p.x, p.y + r + 16, 12, rgba('#ffffff', 0.85), k, 'center', 700, 1);
   }
+  c.globalAlpha = 1;
+}
+
+// INFINITO and the hidden NEON FIGHTERS on the map: a round badge with the
+// mode's icon and its name under it
+function drawModeNode(c, b, now) {
+  const k = col(), inf = b.modeNode === 'inf', open = !inf || endlessOpen();
+  const x = b.x + b.w / 2, y = b.y + b.h / 2, r = 34;
+  c.globalAlpha = open ? 1 : 0.5;
+  if (!inf) {   // the pad: a ring that pulses, like something landed there
+    const o = (now * 0.6) % 1;
+    c.beginPath(); c.ellipse(x, y + 4, r + 14 + o * 26, (r + 14 + o * 26) * 0.5, 0, 0, TAU);
+    c.strokeStyle = rgba(k, 0.5 * (1 - o)); c.lineWidth = 2; c.stroke();
+  }
+  c.beginPath(); c.arc(x, y, r, 0, TAU); c.fillStyle = '#000'; c.fill();
+  c.beginPath(); c.arc(x, y, r, 0, TAU); c.fillStyle = rgba(k, pressed === b ? 0.35 : 0.1); c.fill();
+  if (open) { c.beginPath(); c.arc(x, y, r, 0, TAU); neonStroke(c, k, k, 2.8, x - r, y, x + r, y, 0.9 + 0.4 * Math.sin(now * 4)); }
+  else { c.save(); c.setLineDash([5, 6]); c.beginPath(); c.arc(x, y, r, 0, TAU); c.strokeStyle = rgba(k, 0.8); c.lineWidth = 2; c.stroke(); c.restore(); }
+  c.save(); c.translate(x, y + (inf ? 0 : Math.sin(now * 2) * 3)); c.scale(0.8, 0.8); drawMenuIcon(c, inf ? 'inf' : 'ship', 0, 0, k); c.restore();
+  if (!open) { c.strokeStyle = rgba(k, 0.9); c.lineWidth = 2; c.strokeRect(x - 7, y + r * 0.45, 14, 10); }
+  c.font = `700 11px "Orbitron", sans-serif`;
+  const t = inf ? 'MODO  ·  INFINITO' : 'NEON FIGHTERS', tw = c.measureText(t).width + 24;
+  c.fillStyle = 'rgba(0,0,0,0.75)'; c.fillRect(x - tw / 2, y + r + 6, tw, 18);
+  glowText(c, t, x, y + r + 16, 11, open ? '#ffffff' : rgba('#ffffff', 0.6), k, 'center', 700, 2);
   c.globalAlpha = 1;
 }
 
@@ -3544,6 +3604,7 @@ function render() {
   for (const b of buttons) {
     if (b.node !== undefined) drawNode(ctx, b, now);
     else if (b.bonusNode !== undefined) drawBonusNode(ctx, b, now);
+    else if (b.modeNode) drawModeNode(ctx, b, now);
     else if (b.theme !== undefined) drawColorTile(ctx, b);
     else if (b.bell) drawBell(ctx, b);
     else if (b.arch) drawArchive(ctx, b);

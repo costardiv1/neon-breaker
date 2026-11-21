@@ -25,6 +25,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 - [x] Blocos perdendo o brilho a cada batida, como no 1x1.
 - [x] INFINITO e 1x1 saindo do menu inicial e indo para o mapa.
+- [x] Modos no mapa onde são liberados: INFINITO numa rua depois do SENTINELA, FIGHTERS escondido depois da torre (easter egg).
 - [x] Correções: primeiro cartão do tutorial só com CONTINUAR; nave do FIGHTERS indo até o dedo e seguindo o mouse sem clique.
 
 ### 1.9.7 (19/11/2026)

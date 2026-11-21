@@ -5,8 +5,10 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 ## 1.9.8 (21/11/2026)
 
 ### Menu e mapa
-- [ ] O menu inicial tem só JOGAR e BREAKERS (e FIGHTERS, depois de zerar).
-- [ ] No mapa, INFINITO fica à esquerda do VOLTAR e 1x1 à direita, com o nome embaixo. Com o INFINITO bloqueado, tocar mostra DERROTE O SENTINELA PARA LIBERAR.
+- [ ] O menu inicial tem só JOGAR e BREAKERS.
+- [ ] No mapa, o INFINITO fica numa rua lateral logo depois do portão do SENTINELA. Com cadeado antes de derrotar o SENTINELA (tocar mostra DERROTE O SENTINELA PARA LIBERAR); depois a rua acende e ele abre a partida.
+- [ ] Depois de zerar, uma nave pousada (NEON FIGHTERS) aparece no fim do mapa, depois da torre, e abre o FIGHTERS. Antes de zerar, ela não aparece.
+- [ ] O 1x1 fica ao lado do VOLTAR.
 - [ ] No fim do 1x1 e na pausa dele, MAPA volta para o mapa.
 
 ### Blocos

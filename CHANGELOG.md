@@ -2,7 +2,7 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
-## [1.9.8] · 21/11/2026 · INFINITO e 1x1 no mapa, blocos que apagam a cada batida
+## [1.9.8] · 21/11/2026 · Os modos no mapa, blocos que apagam a cada batida
 
 ### Adicionado
 
@@ -10,7 +10,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 
 ### Alterado
 
-- O INFINITO e o 1x1 saíram do menu inicial e foram para o mapa, como dois ícones redondos ao lado do VOLTAR. O menu ficou com JOGAR, BREAKERS e, depois de zerar, FIGHTERS. No fim do 1x1 e na pausa, MAPA leva de volta ao mapa.
+- Os modos saíram do menu inicial e foram para o mapa, onde são liberados. O INFINITO fica numa rua lateral logo depois do portão do SENTINELA, com cadeado até ele ser derrotado. O NEON FIGHTERS virou um easter egg: depois de zerar, uma nave pousada aparece escondida depois da torre, no fim do mapa. O 1x1 fica num ícone ao lado do VOLTAR. O menu inicial ficou só com JOGAR e BREAKERS. No fim do 1x1 e na pausa, MAPA leva de volta ao mapa.
 - Tutorial: o primeiro cartão, que aparece sozinho, mostra só CONTINUAR. A partir do segundo aparecem as setas ‹ › e PULAR TUTORIAL.
 - NEON FIGHTERS: tocar na tela leva a nave até o dedo (um pouco acima dele), e depois ela segue o arrasto. No PC, a nave segue o mouse sem precisar segurar o clique.
 
