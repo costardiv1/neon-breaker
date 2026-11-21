@@ -2,6 +2,17 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.10.0] · 21/11/2026 · 1x1 com dois discos e cápsulas
+
+### Adicionado
+
+- 1x1 com dois discos: cada lado saca o seu, então sempre tem um vindo na sua direção. Deixar qualquer um passar tira uma vida, e o disco perdido volta para quem o deixou passar. São 7 vidas para cada um.
+- Cápsulas no 1x1: às vezes um bloco quebrado solta uma cápsula, que vai na direção de quem quebrou o bloco. Quem pega fica com o efeito: MAIOR (plataforma maior), MENOR (a do outro encolhe), VELOZ (os discos que você rebate saem mais rápidos), ESCUDO (uma barreira que devolve um disco uma vez), +1 DISCO (sai mais um disco da sua plataforma) e INVERTE (o controle do outro fica invertido por 4 s). A IA também vai atrás das cápsulas dela. Os efeitos ativos aparecem perto de cada plataforma, com o tempo que falta.
+
+### Alterado
+
+- No 1x1, os discos começam mais lentos (500) e chegam no máximo a 740, para dar tempo de cuidar dos dois. A IA acompanha o próprio disco depois de rebater e reage mais rápido quando ele volta dos blocos.
+
 ## [1.9.9] · 21/11/2026 · Uma IA mais humana no 1x1
 
 ### Alterado

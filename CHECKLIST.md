@@ -2,6 +2,27 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.10.0 (21/11/2026)
+
+### Dois discos
+- [ ] A partida começa com dois discos: um na sua plataforma (solte para lançar) e um na da IA, que ela lança sozinha.
+- [ ] Os dois ficam em jogo ao mesmo tempo, e sempre tem um vindo na sua direção.
+- [ ] Deixar um passar tira uma vida (são 7 losangos) e o disco volta para quem deixou passar. Se você já estiver segurando um, o outro vem logo depois de lançar.
+
+### Cápsulas
+- [ ] Às vezes um bloco quebrado solta uma cápsula com o nome, na cor de quem quebrou, indo para o lado dessa pessoa.
+- [ ] Pegando com a plataforma, aparece o efeito escrito, e os efeitos com tempo ficam perto da plataforma com a contagem.
+- [ ] MAIOR aumenta a sua plataforma; MENOR encolhe a da IA.
+- [ ] VELOZ: os discos que você rebate saem bem mais rápidos.
+- [ ] ESCUDO: aparece uma barra no fim do seu lado, que devolve um disco uma vez e some.
+- [ ] +1 DISCO: sai mais um disco da sua plataforma na hora.
+- [ ] INVERTE: a IA vai para o lado errado por 4 s. Quando a IA pega, é o seu controle que inverte.
+- [ ] A IA também vai atrás das cápsulas dela.
+
+### Ritmo
+- [ ] Os discos começam mais lentos que antes e dá para acompanhar os dois.
+- [ ] A partida não fica fácil nem impossível.
+
 ## 1.9.9 (21/11/2026)
 
 ### IA do 1x1

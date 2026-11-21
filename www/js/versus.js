@@ -1,29 +1,44 @@
 // ---------- 1x1: face to face against the AI ----------
 // The player's platform at the bottom, the AI's (flipped) at the top and a
-// band of bricks in the middle. Whoever lets the disc through their end loses
-// a life; the first to lose all of them loses the match. Breaking bricks gives
-// points to whoever touched the disc last, and the band comes back when it is
-// cleared.
+// band of bricks in the middle. There are two discs, one served by each side,
+// so nobody stands waiting. Whoever lets a disc through their end loses a
+// life and serves it again; the first to lose all of them loses the match.
+// Breaking bricks gives points to whoever touched the disc last, sometimes
+// drops a capsule toward them, and the band comes back when it is cleared.
 import { TAU, rgba, mix, neonStroke, glowText, neonTitle, view } from './render.js';
-import { SHAPES, drawPlatform, outAngle } from './platform.js';
+import { drawPlatform, outAngle } from './platform.js';
 import { sfx, music, vibrate } from './audio.js';
 
 const W = 720, LEFT = 14, RIGHT = W - 14;
-const LIVES = 3;
+const LIVES = 7;
 const HW = 86;               // half the width of both platforms
 const PAD_GAP = 120;         // from each end of the field to its platform
 const R = 12;                // the disc
-const V0 = 600, V_STEP = 12, V_MAX = 860;   // disc speed: start, gain per hit, cap
+const V0 = 500, V_STEP = 10, V_MAX = 740;   // disc speed: start, gain per hit, cap
 // the AI plays like a person: it reacts late, speeds up and brakes (and
 // sometimes overshoots), reads the disc better as it comes closer, sometimes
 // starts the wrong way off a wall, and misses more when the disc is fast
 const AI_VMAX = 700;         // top speed of the AI platform (px/s)
 const AI_ACC = 2600;         // how hard it can speed up or brake (px/s²)
-const AI_REACT = [0.12, 0.24];   // reaction time after the player hits (s)
+const AI_REACT = [0.12, 0.24];   // reaction time when a disc turns toward it (s)
 const COLS = 9, ROWS = 4, BW = (W - 64 - 8 * (COLS - 1)) / COLS, BH = 28, GAP = 8;
+
+// the capsules: they fall from a broken brick toward whoever broke it
+const CAP_CHANCE = 0.24, CAP_V = 230, CAP_W = 92, CAP_H = 30;
+export const VS_CAPS = {
+  // text: what the player reads when they catch it, and when the AI does
+  grow: { name: 'MAIOR', text: ['PLATAFORMA MAIOR', 'IA COM PLATAFORMA MAIOR'], t: 8 },
+  shrink: { name: 'MENOR', text: ['IA ENCOLHEU', 'SUA PLATAFORMA ENCOLHEU'], t: 8 },
+  fast: { name: 'VELOZ', text: ['SEUS DISCOS MAIS RÁPIDOS', 'DISCOS DA IA MAIS RÁPIDOS'], t: 7 },
+  shield: { name: 'ESCUDO', text: ['ESCUDO', 'IA COM ESCUDO'], t: 0 },
+  multi: { name: '+1 DISCO', text: ['MAIS UM DISCO', 'IA LANÇOU MAIS UM DISCO'], t: 0 },
+  invert: { name: 'INVERTE', text: ['IA COM CONTROLE INVERTIDO', 'SEU CONTROLE INVERTEU'], t: 4 },
+};
+const CAP_KEYS = Object.keys(VS_CAPS);
 
 // the AI gets a color that stands apart from the player's theme
 const warm = (c) => ['#ff7a1a', '#ff2d4a', '#ff45c0', '#ffd21f'].includes(c);
+const side = () => ({ fx: { grow: 0, shrink: 0, fast: 0, invert: 0 }, shield: false, hw: HW, queue: 0, serveT: 0 });
 
 export class Versus {
   constructor(H, top, plat, col) {
@@ -31,9 +46,10 @@ export class Versus {
     this.aiCol = warm(col) ? '#00e5ff' : '#ff2d4a';
     this.aiPlat = { shape: 0, pal: 7, emb: 3, disc: 0, trail: 0, dash: false, detail: true };
     this.bottom = H - 62;
-    this.me = { x: W / 2, tx: W / 2, y: this.bottom - PAD_GAP, lives: LIVES, pts: 0, hit: 0 };
-    this.ai = { x: W / 2, tx: W / 2, vx: 0, y: top + PAD_GAP, lives: LIVES, pts: 0, hit: 0, think: 0, err: 0, aim: 0, react: 0.3, wrong: false, lazy: 0 };
-    this.ball = null;
+    this.me = Object.assign(side(), { x: W / 2, tx: W / 2, y: this.bottom - PAD_GAP, lives: LIVES, pts: 0, hit: 0 });
+    this.ai = Object.assign(side(), { x: W / 2, tx: W / 2, vx: 0, y: top + PAD_GAP, lives: LIVES, pts: 0, hit: 0, think: 0, lazy: 0 });
+    this.balls = [];
+    this.caps = [];
     this.bricks = []; this.parts = []; this.rings = []; this.floats = [];
     this.t = 0;
     this.state = 'play';   // play | won | lost
@@ -43,10 +59,12 @@ export class Versus {
     this.refillT = 0;
     this.fillBand();
     this.serve('me');
+    this.serve('ai');
     music.play('boss1');
   }
 
   get midY() { return (this.top + this.bottom) / 2; }
+  side(who) { return who === 'me' ? this.me : this.ai; }
 
   fillBand() {
     const y0 = this.midY - (ROWS * BH + (ROWS - 1) * GAP) / 2;
@@ -60,34 +78,40 @@ export class Versus {
     }
   }
 
-  // the disc waits on the platform of whoever serves
+  // a disc waits on the platform of whoever serves; one at a time each, the
+  // next one waits in line
   serve(who) {
-    this.ball = { x: 0, y: 0, vx: 0, vy: 0, s: V0, own: who, held: who, wait: who === 'ai' ? 1.1 : 0, trail: [] };
-    this.place();
+    const p = this.side(who);
+    if (this.balls.some((b) => b.held === who)) { p.queue++; return; }
+    const b = { x: 0, y: 0, vx: 0, vy: 0, s: V0, own: who, held: who, wait: who === 'ai' ? 1.1 + Math.random() * 0.6 : 0, trail: [], react: 0, err: 0, aim: 0, wrong: false };
+    this.balls.push(b);
+    this.place(b);
   }
-  place() {
-    const b = this.ball, p = b.held === 'me' ? this.me : this.ai;
+  place(b) {
+    const p = this.side(b.held);
     b.x = p.x; b.y = b.held === 'me' ? p.y - R - 6 : p.y + R + 6;
   }
-  launch(who, k) {
-    const b = this.ball;
-    if (!b || b.held !== who) return;
-    const th = k * 0.55, d = who === 'me' ? -1 : 1;
+  launch(b, k) {
+    const who = b.held, th = k * 0.55, d = who === 'me' ? -1 : 1;
     b.vx = Math.sin(th) * b.s; b.vy = d * Math.cos(th) * b.s;
     b.held = null;
+    if (who === 'me') this.aiRead(b);
+    this.side(who).serveT = 0.7;   // the next disc in line comes a moment later
     sfx.launch();
   }
 
   // input: the platform follows the drag (or the mouse); letting go serves
-  press(x) { this.drag = { x }; if (this.state === 'play') this.me.tx = x; }
+  press(x) { this.drag = { x }; if (this.state === 'play' && !this.me.fx.invert) this.me.tx = x; }
   move(x, mouse, sens) {
-    if (mouse) this.me.tx = x;
-    else if (this.drag) { this.me.tx += (x - this.drag.x) * sens; this.drag.x = x; }
-    this.me.tx = Math.max(LEFT + HW * 0.75, Math.min(RIGHT - HW * 0.75, this.me.tx));
+    const inv = this.me.fx.invert > 0;
+    if (mouse) this.me.tx = inv ? W - x : x;
+    else if (this.drag) { this.me.tx += (x - this.drag.x) * sens * (inv ? -1 : 1); this.drag.x = x; }
+    this.me.tx = Math.max(LEFT + this.me.hw * 0.75, Math.min(RIGHT - this.me.hw * 0.75, this.me.tx));
   }
   release() {
     this.drag = null;
-    if (this.state === 'play' && this.ball && this.ball.held === 'me') this.launch('me', (Math.random() - 0.5) * 0.6);
+    const b = this.state === 'play' && this.balls.find((q) => q.held === 'me');
+    if (b) this.launch(b, (Math.random() - 0.5) * 0.6);
   }
 
   update(dt) {
@@ -97,49 +121,96 @@ export class Versus {
     for (const p of [this.me, this.ai]) p.hit = Math.max(0, p.hit - dt * 3);
     this.updateFx(dt);
     if (this.state !== 'play') { this.endT += dt; return; }
+    for (const p of [this.me, this.ai]) {
+      for (const k in p.fx) p.fx[k] = Math.max(0, p.fx[k] - dt);
+      const want = HW * (p.fx.grow ? 1.35 : 1) * (p.fx.shrink ? 0.68 : 1);
+      p.hw += (want - p.hw) * Math.min(1, dt * 8);
+      p.serveT = Math.max(0, p.serveT - dt);
+    }
     const me = this.me;
     me.x += (me.tx - me.x) * Math.min(1, dt * 22);
     this.updateAi(dt);
-    const b = this.ball;
-    if (b.held) {
-      this.place();
-      if (b.held === 'ai') { b.wait -= dt; if (b.wait <= 0) this.launch('ai', (Math.random() - 0.5) * 1.2); }
-    } else {
-      const n = Math.max(1, Math.ceil((b.s * dt) / 8));
-      for (let i = 0; i < n && this.ball === b && !b.held; i++) this.step(b, dt / n);   // a point serves a new disc
-      b.trail.push(b.x, b.y); if (b.trail.length > 24) b.trail.splice(0, 2);
+    for (const who of ['me', 'ai']) {   // the next disc in line
+      const p = this.side(who);
+      if (p.queue > 0 && p.serveT <= 0 && !this.balls.some((b) => b.held === who)) { p.queue--; this.serve(who); }
     }
+    for (const b of this.balls.slice()) {
+      if (b.dead) continue;
+      if (b.held) {
+        this.place(b);
+        if (b.held === 'ai') { b.wait -= dt; if (b.wait <= 0) this.launch(b, (Math.random() - 0.5) * 1.2); }
+      } else {
+        const n = Math.max(1, Math.ceil((b.s * dt) / 8));
+        for (let i = 0; i < n && !b.dead && this.state === 'play'; i++) this.step(b, dt / n);
+        b.trail.push(b.x, b.y); if (b.trail.length > 24) b.trail.splice(0, 2);
+      }
+      if (this.state !== 'play') break;
+    }
+    this.balls = this.balls.filter((b) => !b.dead);
+    this.updateCaps(dt);
     if (this.refillT > 0) { this.refillT -= dt; if (this.refillT <= 0) { this.fillBand(); this.banner = { text: 'NOVA LEVA', t: 1.2, max: 1.2 }; } }
   }
 
-  // The AI: after a reaction time it guesses where the disc will cross its
-  // line, off at first and better as the disc comes closer, and aims for one
-  // of the tips to angle it back. It looks again at uneven intervals, like eyes.
+  // a disc turned toward the AI: it will take a moment to react, read it a
+  // little off, and aim for a tip
+  // (off the bricks it was already watching the disc: quicker and closer)
+  aiRead(b, rebound = false) {
+    const hard = (b.s - V0) / (V_MAX - V0), steep = Math.abs(b.vx) / Math.max(1, Math.hypot(b.vx, b.vy));
+    b.react = this.t + (rebound ? 0.04 + Math.random() * 0.08 : AI_REACT[0] + Math.random() * (AI_REACT[1] - AI_REACT[0]) + (Math.random() < 0.08 + 0.12 * hard ? 0.22 : 0));
+    b.err = (Math.random() - 0.5) * (55 + 100 * hard + 45 * steep) * (rebound ? 0.6 : 1);
+    b.aim = (Math.random() - 0.5) * 1.6;
+    b.wrong = this.walls(b, this.ai.y + R) > 0 && Math.random() < 0.25;
+  }
+
+  // The AI: it watches the disc that will reach it first. After a reaction
+  // time it guesses where that disc will cross its line, off at first and
+  // better as it comes closer, and aims for one of the tips to angle it back.
+  // With time to spare it goes for the capsules falling toward it. It looks
+  // again at uneven intervals, like eyes.
   updateAi(dt) {
-    const ai = this.ai, b = this.ball;
-    ai.react -= dt; ai.think -= dt;
+    const ai = this.ai;
+    ai.think -= dt;
+    let inc = null, eta = Infinity;
+    for (const b of this.balls) {
+      if (b.held || b.dead || b.vy >= 0) continue;
+      const e = (b.y - ai.y) / -b.vy;
+      if (e < eta) { eta = e; inc = b; }
+    }
+    let cap = null, capEta = Infinity;
+    for (const q of this.caps) {
+      if (q.to !== 'ai') continue;
+      const e = (q.y - ai.y) / CAP_V;
+      if (e < capEta) { capEta = e; cap = q; }
+    }
+    const goCap = cap && (!inc || eta > capEta + 0.9);
     let vmax = AI_VMAX;
     if (ai.think <= 0) {
       ai.think = 0.08 + Math.random() * 0.14;
-      if (b.held === 'ai') ai.tx = W / 2 + Math.sin(this.t * 1.3) * 120 + Math.sin(this.t * 3.1) * 30;
-      else if (!b.held && b.vy < 0 && ai.react <= 0) {
-        const left = (b.y - ai.y) / (this.me.y - ai.y);   // 1 just off the player, 0 at the AI
-        if (ai.wrong && left > 0.45) {   // fooled by the wall: it goes where the disc points
-          ai.tx = Math.max(LEFT + HW, Math.min(RIGHT - HW, b.x + (b.vx * (ai.y + R - b.y)) / b.vy));
+      const held = this.balls.find((b) => b.held === 'ai');
+      if (goCap) ai.tx = cap.x;
+      else if (inc && this.t >= inc.react) {
+        const left = (inc.y - ai.y) / (this.me.y - ai.y);   // 1 just off the player, 0 at the AI
+        if (inc.wrong && left > 0.45) {   // fooled by the wall: it goes where the disc points
+          ai.tx = Math.max(LEFT + ai.hw, Math.min(RIGHT - ai.hw, inc.x + (inc.vx * (ai.y + R - inc.y)) / inc.vy));
         } else {
-          ai.wrong = false;
-          ai.tx = this.predict(b, ai.y + R) + ai.err * (0.4 + 0.6 * Math.max(0, left)) - ai.aim * HW * 0.7;
+          inc.wrong = false;
+          ai.tx = this.predict(inc, ai.y + R) + inc.err * (0.4 + 0.6 * Math.max(0, left)) - inc.aim * ai.hw * 0.7;
         }
-      } else if (b.vy >= 0 && !b.held) ai.tx = W / 2 + (b.x - W / 2) * 0.35 + ai.lazy;   // the disc goes away: back toward the middle
+      } else if (!inc && held) ai.tx = W / 2 + Math.sin(this.t * 1.3) * 120 + Math.sin(this.t * 3.1) * 30;
+      else if (!inc) {   // nothing coming: it follows its own disc a little, or goes back toward the middle
+        const own = this.balls.find((b) => !b.held && !b.dead && b.own === 'ai' && b.vy > 0);
+        ai.tx = own ? W / 2 + (own.x - W / 2) * 0.6 : W / 2 + ai.lazy;
+      }
+      if (ai.fx.invert > 0) ai.tx = W - ai.tx;   // the controls are inverted: it goes the wrong way
     }
-    if (b.vy >= 0 && !b.held) vmax *= 0.55;   // no hurry while the disc is away
+    if (!inc && !goCap) vmax *= 0.75;   // no hurry while nothing comes
     // speed up and brake toward the target (a spring with a little overshoot)
     const tx = ai.tx + Math.sin(this.t * 7.3) * 4;
     const want = Math.max(-vmax, Math.min(vmax, (tx - ai.x) * 7.5));
     const dv = want - ai.vx, a = AI_ACC * dt;
     ai.vx += Math.max(-a, Math.min(a, dv));
     ai.x += ai.vx * dt;
-    const lo = LEFT + HW * 0.75, hi = RIGHT - HW * 0.75;
+    const lo = LEFT + ai.hw * 0.75, hi = RIGHT - ai.hw * 0.75;
     if (ai.x < lo || ai.x > hi) { ai.x = Math.max(lo, Math.min(hi, ai.x)); ai.vx = 0; }
   }
   // how many walls the disc will hit before it reaches the line at y
@@ -150,7 +221,7 @@ export class Versus {
   }
   predict(b, y) {
     if (b.vy >= 0) return b.x;
-    let x = b.x + (b.vx * (y - b.y)) / b.vy;
+    const x = b.x + (b.vx * (y - b.y)) / b.vy;
     const lo = LEFT + R, hi = RIGHT - R, span = hi - lo;
     let u = (x - lo) % (2 * span); if (u < 0) u += 2 * span;
     return lo + (u > span ? 2 * span - u : u);
@@ -162,8 +233,8 @@ export class Versus {
     if (b.x > RIGHT - R) { b.x = RIGHT - R; b.vx = -Math.abs(b.vx); sfx.wall(); }
     // the platforms
     const me = this.me, ai = this.ai;
-    if (b.vy > 0 && b.y + R >= me.y && b.y + R <= me.y + 22 && Math.abs(b.x - me.x) < HW + R) this.bounce(b, me, 'me');
-    else if (b.vy < 0 && b.y - R <= ai.y && b.y - R >= ai.y - 22 && Math.abs(b.x - ai.x) < HW + R) this.bounce(b, ai, 'ai');
+    if (b.vy > 0 && b.y + R >= me.y && b.y + R <= me.y + 22 && Math.abs(b.x - me.x) < me.hw + R) this.bounce(b, me, 'me');
+    else if (b.vy < 0 && b.y - R <= ai.y && b.y - R >= ai.y - 22 && Math.abs(b.x - ai.x) < ai.hw + R) this.bounce(b, ai, 'ai');
     // the bricks
     for (const q of this.bricks) {
       if (q.hp <= 0) continue;
@@ -171,62 +242,109 @@ export class Versus {
       const dx = b.x - cx, dy = b.y - cy;
       if (dx * dx + dy * dy > R * R) continue;
       const ox = Math.min(b.x + R - q.x, q.x + q.w - (b.x - R)), oy = Math.min(b.y + R - q.y, q.y + q.h - (b.y - R));
+      const up = b.vy < 0;
       if (ox < oy) { b.vx = b.x < q.x + q.w / 2 ? -Math.abs(b.vx) : Math.abs(b.vx); b.x += b.vx > 0 ? ox : -ox; }
       else { b.vy = b.y < q.y + q.h / 2 ? -Math.abs(b.vy) : Math.abs(b.vy); b.y += b.vy > 0 ? oy : -oy; }
+      if (!up && b.vy < 0) this.aiRead(b, b.own === 'ai');   // bounced back toward the AI
       this.hitBrick(q, b.own);
       break;
     }
-    // past an end: a life lost
-    if (b.y > this.bottom + 30) this.score('me');
-    else if (b.y < this.top - 30) this.score('ai');
+    // the shields, then past an end: a life lost
+    if (b.vy > 0 && b.y > this.bottom - 4 && me.shield) this.block(b, 'me');
+    else if (b.vy < 0 && b.y < this.top + 4 && ai.shield) this.block(b, 'ai');
+    else if (b.y > this.bottom + 30) this.score('me', b);
+    else if (b.y < this.top - 30) this.score('ai', b);
+  }
+
+  // a shield sends the disc back once
+  block(b, who) {
+    this.side(who).shield = false;
+    b.vy = -b.vy;
+    b.y = who === 'me' ? this.bottom - 4 : this.top + 4;
+    if (who === 'me') this.aiRead(b);
+    this.ring(b.x, b.y, 90);
+    sfx.wall();
   }
 
   bounce(b, p, who) {
-    const k = Math.max(-1, Math.min(1, (b.x - p.x) / HW)), si = who === 'me' ? this.plat.shape : this.aiPlat.shape;
+    const k = Math.max(-1, Math.min(1, (b.x - p.x) / p.hw)), si = who === 'me' ? this.plat.shape : this.aiPlat.shape;
     b.s = Math.min(V_MAX, b.s + V_STEP);
-    const th = outAngle(si, k, HW), d = who === 'me' ? -1 : 1;
-    b.vx = Math.sin(th) * b.s; b.vy = d * Math.cos(th) * b.s;
+    const s = b.s * (p.fx.fast > 0 ? 1.3 : 1);   // VELOZ: the discs this side hits go faster
+    const th = outAngle(si, k, p.hw), d = who === 'me' ? -1 : 1;
+    b.vx = Math.sin(th) * s; b.vy = d * Math.cos(th) * s;
     b.y = who === 'me' ? p.y - R : p.y + R;
     b.own = who;
     p.hit = 1;
     this.ring(b.x, b.y, 40);
     sfx.paddle();
-    if (who === 'me') {   // the AI gets ready for the next one: a reaction time, an error and a tip to aim with
-      const ai = this.ai, hard = (b.s - V0) / (V_MAX - V0), steep = Math.abs(b.vx) / b.s;
-      ai.react = AI_REACT[0] + Math.random() * (AI_REACT[1] - AI_REACT[0]) + (Math.random() < 0.08 + 0.12 * hard ? 0.22 : 0);
-      ai.err = (Math.random() - 0.5) * (60 + 110 * hard + 50 * steep);
-      ai.aim = (Math.random() - 0.5) * 1.6;
-      ai.wrong = this.walls(b, ai.y + R) > 0 && Math.random() < 0.25;
-      vibrate(10);
-    } else this.ai.lazy = (Math.random() - 0.5) * 80;
+    if (who === 'me') { this.aiRead(b); vibrate(10); }
+    else this.ai.lazy = (Math.random() - 0.5) * 80;
   }
 
   hitBrick(q, own) {
     q.hp--; q.flash = 1;
-    const who = own === 'me' ? this.me : this.ai, c = own === 'me' ? this.col : this.aiCol;
+    const who = this.side(own), c = own === 'me' ? this.col : this.aiCol;
     if (q.hp > 0) { sfx.brick(1); return; }
     who.pts += 10;
     sfx.brk(2);
     for (let k = 0; k < 10; k++) this.parts.push({ x: q.x + Math.random() * q.w, y: q.y + Math.random() * q.h, vx: (Math.random() - 0.5) * 260, vy: (Math.random() - 0.5) * 260, life: 0.6, max: 0.6, col: Math.random() < 0.4 ? '#ffffff' : c });
+    if (Math.random() < CAP_CHANCE && this.caps.length < 2) this.drop(q.x + q.w / 2, q.y + q.h / 2, own);
     if (this.bricks.every((z) => z.hp <= 0) && this.refillT <= 0) this.refillT = 1;
   }
 
-  // the disc went past `who`'s end
-  score(who) {
-    const p = who === 'me' ? this.me : this.ai;
+  // ---------- capsules ----------
+  drop(x, y, to) {
+    const list = CAP_KEYS.filter((k) => k !== 'multi' || this.balls.length < 3);
+    this.caps.push({ x, y, to, kind: list[Math.floor(Math.random() * list.length)], t: 0 });
+  }
+  updateCaps(dt) {
+    for (const q of this.caps) {
+      q.t += dt;
+      q.y += (q.to === 'me' ? 1 : -1) * CAP_V * dt;
+      const p = this.side(q.to);
+      if (Math.abs(q.y - p.y) < CAP_H / 2 + 8 && Math.abs(q.x - p.x) < p.hw + CAP_W / 2 - 10) { q.done = true; this.collect(q.to, q.kind); }
+      else if (q.y > this.bottom + 40 || q.y < this.top - 40) q.done = true;
+    }
+    this.caps = this.caps.filter((q) => !q.done);
+  }
+  collect(who, kind) {
+    const p = this.side(who), o = this.side(who === 'me' ? 'ai' : 'me'), def = VS_CAPS[kind];
+    if (kind === 'grow') { p.fx.grow = def.t; p.fx.shrink = 0; }
+    else if (kind === 'shrink') { o.fx.shrink = def.t; o.fx.grow = 0; }
+    else if (kind === 'fast') p.fx.fast = def.t;
+    else if (kind === 'shield') p.shield = true;
+    else if (kind === 'invert') o.fx.invert = def.t;
+    else if (kind === 'multi') {   // a new disc leaves the platform right away
+      const b = { x: p.x, y: who === 'me' ? p.y - R - 6 : p.y + R + 6, vx: 0, vy: 0, s: V0, own: who, held: who, wait: 0, trail: [], react: 0, err: 0, aim: 0, wrong: false };
+      this.balls.push(b);
+      this.launch(b, (Math.random() - 0.5) * 1.2);
+    }
+    const c = who === 'me' ? this.col : this.aiCol;
+    const stack = this.floats.filter((f) => f.side === who).length;   // one under the other
+    this.floats.push({ text: def.text[who === 'me' ? 0 : 1], x: W / 2, y: who === 'me' ? p.y - 80 - stack * 34 : p.y + 90 + stack * 34, t: 1.3, max: 1.3, col: c, side: who, fs: 20 });
+    this.ring(p.x, p.y, 70);
+    sfx.power(who === 'me');
+    if (who === 'me') vibrate(20);
+  }
+
+  // a disc went past `who`'s end
+  score(who, b) {
+    const p = this.side(who);
+    b.dead = true;
     p.lives--;
     this.shake = 0.6;
-    this.ring(this.ball.x, who === 'me' ? this.bottom : this.top, 120);
+    this.ring(b.x, who === 'me' ? this.bottom : this.top, 120);
     sfx.lose(); if (who === 'me') vibrate(60);
     if (p.lives <= 0) {
       this.state = who === 'me' ? 'lost' : 'won';
-      this.ball = { ...this.ball, held: who, gone: true };
+      for (const q of this.balls) q.dead = true;
+      this.caps = [];
       if (this.state === 'won') sfx.clear(); else sfx.over();
       if (this.onEnd) this.onEnd(this.state === 'won');
       return;
     }
     this.floats.push({ text: who === 'me' ? '-1 VIDA' : 'PONTO!', x: W / 2, y: who === 'me' ? this.me.y - 80 : this.ai.y + 90, t: 1.1, max: 1.1, col: who === 'me' ? this.col : this.aiCol });
-    this.serve(who);   // who lost the point serves the next one
+    this.serve(who);   // who lost the point serves that disc again
   }
 
   ring(x, y, r) { this.rings.push({ x, y, r, t: 0 }); }
@@ -259,6 +377,12 @@ export class Versus {
     c.lineDashOffset = this.t * 40;
     c.beginPath(); c.moveTo(LEFT, top - 10); c.lineTo(RIGHT, top - 10); neonStroke(c, ai, ai, 3, LEFT, 0, RIGHT, 0, 0.9);
     c.restore();
+    // the shields: a solid bar across the end, pulsing
+    for (const [p, y, k] of [[this.me, bottom - 4, col], [this.ai, top + 4, ai]]) {
+      if (!p.shield) continue;
+      c.beginPath(); c.moveTo(LEFT + 4, y); c.lineTo(RIGHT - 4, y);
+      neonStroke(c, k, '#ffffff', 5, LEFT, y, RIGHT, y, 0.9 + 0.3 * Math.sin(this.t * 6));
+    }
     c.beginPath(); c.moveTo(LEFT, this.midY); c.lineTo(RIGHT, this.midY);
     c.save(); c.setLineDash([6, 14]); c.strokeStyle = rgba('#ffffff', 0.12); c.lineWidth = 2; c.stroke(); c.restore();
     // the bricks
@@ -269,14 +393,22 @@ export class Versus {
       c.fillStyle = rgba(mix(col, '#ffffff', 0.35 * k), 0.12 + 0.18 * k + 0.4 * q.flash); c.fill();
       neonStroke(c, col, mix(col, '#ffffff', 0.5 * k), 2, q.x, q.y, q.x + q.w, q.y + q.h, 0.5 + 0.5 * k + q.flash);
     }
+    // the capsules, in the color of whoever they fall to
+    for (const q of this.caps) {
+      const k = q.to === 'me' ? col : ai, x = q.x - CAP_W / 2, y = q.y - CAP_H / 2, r = CAP_H / 2;
+      c.beginPath(); c.moveTo(x + r, y); c.lineTo(x + CAP_W - r, y); c.arc(x + CAP_W - r, q.y, r, -Math.PI / 2, Math.PI / 2); c.lineTo(x + r, y + CAP_H); c.arc(x + r, q.y, r, Math.PI / 2, Math.PI * 1.5); c.closePath();
+      c.fillStyle = rgba(k, 0.25); c.fill();
+      neonStroke(c, k, '#ffffff', 2.4, x, y, x + CAP_W, y + CAP_H, 0.9 + 0.3 * Math.sin(q.t * 8));
+      glowText(c, VS_CAPS[q.kind].name, q.x, q.y + 1, 12, '#ffffff', k, 'center', 800, 2);
+    }
     // the platforms: the AI's is flipped, facing down
-    drawPlatform(c, this.plat, this.me.x, this.me.y, HW, this.t, col, this.me.hit);
+    drawPlatform(c, this.plat, this.me.x, this.me.y, this.me.hw, this.t, col, this.me.hit);
     c.save(); c.translate(this.ai.x, this.ai.y); c.scale(1, -1);
-    drawPlatform(c, this.aiPlat, 0, 0, HW, this.t, ai, this.ai.hit);
+    drawPlatform(c, this.aiPlat, 0, 0, this.ai.hw, this.t, ai, this.ai.hit);
     c.restore();
-    // the disc, in the color of whoever touched it last
-    const b = this.ball;
-    if (b && !b.gone) {
+    // the discs, each in the color of whoever touched it last
+    for (const b of this.balls) {
+      if (b.dead) continue;
       const bc = b.own === 'me' ? col : ai;
       if (b.trail.length > 3) {
         c.beginPath(); c.moveTo(b.trail[0], b.trail[1]);
@@ -287,7 +419,13 @@ export class Versus {
       c.beginPath(); c.arc(b.x, b.y, R, 0, TAU);
       c.fillStyle = '#ffffff'; c.shadowColor = bc; c.shadowBlur = 22 * view.blur; c.fill(); c.shadowBlur = 0;
       c.beginPath(); c.arc(b.x, b.y, R + 4, 0, TAU); c.strokeStyle = bc; c.lineWidth = 2; c.stroke();
-      if (b.held === 'me' && this.state === 'play') glowText(c, 'SOLTE PARA LANÇAR', W / 2, this.me.y + 70, 14, rgba('#ffffff', 0.6 + 0.3 * Math.sin(this.t * 4)), col, 'center', 600, 4);
+    }
+    if (this.state === 'play' && this.balls.some((b) => b.held === 'me')) glowText(c, 'SOLTE PARA LANÇAR', W / 2, this.me.y + 70, 14, rgba('#ffffff', 0.6 + 0.3 * Math.sin(this.t * 4)), col, 'center', 600, 4);
+    // the effects on each side, by its platform
+    for (const [p, y, k] of [[this.me, this.me.y + 98, col], [this.ai, this.ai.y - 90, ai]]) {
+      const on = ['grow', 'shrink', 'fast', 'invert'].filter((f) => p.fx[f] > 0);
+      if (!on.length) continue;
+      glowText(c, on.map((f) => `${VS_CAPS[f].name} ${Math.ceil(p.fx[f])}`).join('   '), p.x, y, 11, rgba('#ffffff', p.fx.invert > 0 ? 0.6 + 0.4 * Math.sin(this.t * 10) : 0.75), k, 'center', 700, 3);
     }
     for (const p of this.parts) { c.globalAlpha = p.life / p.max; c.fillStyle = p.col; c.fillRect(p.x - 2, p.y - 2, 4, 4); }
     c.globalAlpha = 1;
@@ -295,7 +433,7 @@ export class Versus {
       c.beginPath(); c.arc(q.x, q.y, 10 + q.r * q.t, 0, TAU);
       c.strokeStyle = rgba('#ffffff', 0.6 * (1 - q.t)); c.lineWidth = 2; c.stroke();
     }
-    for (const f of this.floats) { c.globalAlpha = Math.min(1, f.t / 0.4); glowText(c, f.text, f.x, f.y, 24, '#ffffff', f.col, 'center', 800, 4); }
+    for (const f of this.floats) { c.globalAlpha = Math.min(1, f.t / 0.4); glowText(c, f.text, f.x, f.y, f.fs || 24, '#ffffff', f.col, 'center', 800, 4); }
     c.globalAlpha = 1;
     c.restore();
     this.renderHud(c);
@@ -305,18 +443,18 @@ export class Versus {
     const col = this.col, ai = this.aiCol, H = this.H, hy = this.top - 62;
     const lives = (x, n, k, dir) => {
       for (let i = 0; i < LIVES; i++) {
-        const cx = x + dir * i * 30, on = i < n;
-        c.beginPath(); c.moveTo(cx, hy - 12); c.lineTo(cx + 11, hy); c.lineTo(cx, hy + 12); c.lineTo(cx - 11, hy); c.closePath();
+        const cx = x + dir * i * 24, on = i < n;
+        c.beginPath(); c.moveTo(cx, hy - 10); c.lineTo(cx + 9, hy); c.lineTo(cx, hy + 10); c.lineTo(cx - 9, hy); c.closePath();
         if (on) { c.fillStyle = rgba(k, 0.55); c.fill(); }
         c.strokeStyle = on ? k : rgba(k, 0.3); c.lineWidth = 2; c.stroke();
       }
     };
     glowText(c, 'VOCÊ', 24, hy - 26, 12, rgba(col, 0.9), col, 'left', 700, 3);
-    lives(38, this.me.lives, col, 1);
+    lives(34, this.me.lives, col, 1);
     glowText(c, '1 × 1', W / 2, hy + 4, 30, '#ffffff', col, 'center', 700, 4);
     glowText(c, `${this.me.pts}  ·  ${this.ai.pts}`, W / 2, hy + 32, 12, rgba('#ffffff', 0.6), col, 'center', 500, 3);
     glowText(c, 'IA', W - 102, hy - 26, 12, rgba(ai, 0.9), ai, 'right', 700, 3);
-    lives(W - 110, this.ai.lives, ai, -1);
+    lives(W - 106, this.ai.lives, ai, -1);
     c.beginPath();
     c.moveTo(W - 56, hy - 14); c.lineTo(W - 56, hy + 14);
     c.moveTo(W - 40, hy - 14); c.lineTo(W - 40, hy + 14);
