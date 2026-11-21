@@ -14,8 +14,12 @@ const HW = 86;               // half the width of both platforms
 const PAD_GAP = 120;         // from each end of the field to its platform
 const R = 12;                // the disc
 const V0 = 600, V_STEP = 12, V_MAX = 860;   // disc speed: start, gain per hit, cap
-const AI_V = 560;            // how fast the AI platform moves (px/s)
-const AI_THINK = 0.14;       // the AI looks at the disc again every ... s
+// the AI plays like a person: it reacts late, speeds up and brakes (and
+// sometimes overshoots), reads the disc better as it comes closer, sometimes
+// starts the wrong way off a wall, and misses more when the disc is fast
+const AI_VMAX = 700;         // top speed of the AI platform (px/s)
+const AI_ACC = 2600;         // how hard it can speed up or brake (px/s²)
+const AI_REACT = [0.12, 0.24];   // reaction time after the player hits (s)
 const COLS = 9, ROWS = 4, BW = (W - 64 - 8 * (COLS - 1)) / COLS, BH = 28, GAP = 8;
 
 // the AI gets a color that stands apart from the player's theme
@@ -28,7 +32,7 @@ export class Versus {
     this.aiPlat = { shape: 0, pal: 7, emb: 3, disc: 0, trail: 0, dash: false, detail: true };
     this.bottom = H - 62;
     this.me = { x: W / 2, tx: W / 2, y: this.bottom - PAD_GAP, lives: LIVES, pts: 0, hit: 0 };
-    this.ai = { x: W / 2, tx: W / 2, y: top + PAD_GAP, lives: LIVES, pts: 0, hit: 0, think: 0, err: 0, aim: 0 };
+    this.ai = { x: W / 2, tx: W / 2, vx: 0, y: top + PAD_GAP, lives: LIVES, pts: 0, hit: 0, think: 0, err: 0, aim: 0, react: 0.3, wrong: false, lazy: 0 };
     this.ball = null;
     this.bricks = []; this.parts = []; this.rings = []; this.floats = [];
     this.t = 0;
@@ -108,20 +112,41 @@ export class Versus {
     if (this.refillT > 0) { this.refillT -= dt; if (this.refillT <= 0) { this.fillBand(); this.banner = { text: 'NOVA LEVA', t: 1.2, max: 1.2 }; } }
   }
 
-  // The AI: it guesses where the disc will cross its line (walls included),
-  // a little off on purpose, and aims for one of the tips to angle it back.
+  // The AI: after a reaction time it guesses where the disc will cross its
+  // line, off at first and better as the disc comes closer, and aims for one
+  // of the tips to angle it back. It looks again at uneven intervals, like eyes.
   updateAi(dt) {
     const ai = this.ai, b = this.ball;
-    ai.think -= dt;
+    ai.react -= dt; ai.think -= dt;
+    let vmax = AI_VMAX;
     if (ai.think <= 0) {
-      ai.think = AI_THINK;
-      if (b.held === 'ai') ai.tx = W / 2 + Math.sin(this.t * 1.3) * 120;
-      else if (!b.held && b.vy < 0) ai.tx = this.predict(b, ai.y + R) + ai.err - ai.aim * HW * 0.7;
-      else ai.tx = W / 2 + (b.x - W / 2) * 0.35;   // the disc goes away: back toward the middle
+      ai.think = 0.08 + Math.random() * 0.14;
+      if (b.held === 'ai') ai.tx = W / 2 + Math.sin(this.t * 1.3) * 120 + Math.sin(this.t * 3.1) * 30;
+      else if (!b.held && b.vy < 0 && ai.react <= 0) {
+        const left = (b.y - ai.y) / (this.me.y - ai.y);   // 1 just off the player, 0 at the AI
+        if (ai.wrong && left > 0.45) {   // fooled by the wall: it goes where the disc points
+          ai.tx = Math.max(LEFT + HW, Math.min(RIGHT - HW, b.x + (b.vx * (ai.y + R - b.y)) / b.vy));
+        } else {
+          ai.wrong = false;
+          ai.tx = this.predict(b, ai.y + R) + ai.err * (0.4 + 0.6 * Math.max(0, left)) - ai.aim * HW * 0.7;
+        }
+      } else if (b.vy >= 0 && !b.held) ai.tx = W / 2 + (b.x - W / 2) * 0.35 + ai.lazy;   // the disc goes away: back toward the middle
     }
-    const d = ai.tx - ai.x, v = AI_V * dt;
-    ai.x += Math.max(-v, Math.min(v, d));
-    ai.x = Math.max(LEFT + HW * 0.75, Math.min(RIGHT - HW * 0.75, ai.x));
+    if (b.vy >= 0 && !b.held) vmax *= 0.55;   // no hurry while the disc is away
+    // speed up and brake toward the target (a spring with a little overshoot)
+    const tx = ai.tx + Math.sin(this.t * 7.3) * 4;
+    const want = Math.max(-vmax, Math.min(vmax, (tx - ai.x) * 7.5));
+    const dv = want - ai.vx, a = AI_ACC * dt;
+    ai.vx += Math.max(-a, Math.min(a, dv));
+    ai.x += ai.vx * dt;
+    const lo = LEFT + HW * 0.75, hi = RIGHT - HW * 0.75;
+    if (ai.x < lo || ai.x > hi) { ai.x = Math.max(lo, Math.min(hi, ai.x)); ai.vx = 0; }
+  }
+  // how many walls the disc will hit before it reaches the line at y
+  walls(b, y) {
+    if (b.vy >= 0) return 0;
+    const x = b.x + (b.vx * (y - b.y)) / b.vy, lo = LEFT + R, hi = RIGHT - R;
+    return x < lo ? Math.ceil((lo - x) / (hi - lo)) : x > hi ? Math.ceil((x - hi) / (hi - lo)) : 0;
   }
   predict(b, y) {
     if (b.vy >= 0) return b.x;
@@ -166,12 +191,14 @@ export class Versus {
     p.hit = 1;
     this.ring(b.x, b.y, 40);
     sfx.paddle();
-    if (who === 'me') {   // the AI gets ready for the next one: an error and a tip to aim with
-      const ai = this.ai, hard = (b.s - V0) / (V_MAX - V0);
-      ai.err = (Math.random() - 0.5) * (100 + 150 * hard);
+    if (who === 'me') {   // the AI gets ready for the next one: a reaction time, an error and a tip to aim with
+      const ai = this.ai, hard = (b.s - V0) / (V_MAX - V0), steep = Math.abs(b.vx) / b.s;
+      ai.react = AI_REACT[0] + Math.random() * (AI_REACT[1] - AI_REACT[0]) + (Math.random() < 0.08 + 0.12 * hard ? 0.22 : 0);
+      ai.err = (Math.random() - 0.5) * (60 + 110 * hard + 50 * steep);
       ai.aim = (Math.random() - 0.5) * 1.6;
+      ai.wrong = this.walls(b, ai.y + R) > 0 && Math.random() < 0.25;
       vibrate(10);
-    }
+    } else this.ai.lazy = (Math.random() - 0.5) * 80;
   }
 
   hitBrick(q, own) {

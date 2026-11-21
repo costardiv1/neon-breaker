@@ -2,6 +2,15 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.9.9 (21/11/2026)
+
+### IA do 1x1
+- [ ] A plataforma da IA acelera e freia, em vez de deslizar reto. Às vezes passa um pouco do ponto e volta.
+- [ ] Logo depois da sua rebatida, ela demora um instante para sair do lugar.
+- [ ] Quando o disco vai bater na parede, às vezes ela começa indo para o lado errado e corrige.
+- [ ] Com o disco indo para o seu lado, ela volta devagar para o meio.
+- [ ] Dá para ganhar dela jogando bem, mas ela ainda pega a maioria das bolas.
+
 ## 1.9.8 (21/11/2026)
 
 ### Menu e mapa

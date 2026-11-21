@@ -2,6 +2,12 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.9.9] · 21/11/2026 · Uma IA mais humana no 1x1
+
+### Alterado
+
+- A IA do 1x1 joga como uma pessoa: demora um pouco para reagir depois da sua rebatida (às vezes demora mais), acelera e freia em vez de deslizar reto, passa um pouco do ponto e corrige, e só acerta a leitura conforme o disco chega perto. De vez em quando ela vai para o lado errado quando o disco vai bater na parede, e erra mais com o disco rápido e em ângulo fechado. Com o disco longe, ela volta para o meio sem pressa. Ficou mais fácil de ganhar: nos testes, um jogador médio passou a vencer cerca de 6 em cada 10 partidas (antes eram 3 ou 4).
+
 ## [1.9.8] · 21/11/2026 · Os modos no mapa, blocos que apagam a cada batida
 
 ### Adicionado
