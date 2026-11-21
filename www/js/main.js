@@ -22,7 +22,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.10.1';
+export const VERSION = '1.11.0';
 
 let H = 1280;
 let safeTop = 0;
@@ -1860,6 +1860,13 @@ function drawMenuIcon(c, kind, x, y, k) {
     c.lineCap = 'round';
     neonStroke(c, k, k, 3.4, x - 22, y, x + 22, y, 0.8);
     c.beginPath(); c.arc(x + 4, y, 5, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+  } else if (kind === 'two') {   // 2 players: two people side by side
+    for (const dx of [-13, 13]) {
+      c.moveTo(dx + x + 7, y - 9); c.arc(dx + x, y - 9, 7, 0, TAU);
+      c.moveTo(dx + x - 12, y + 18); c.quadraticCurveTo(dx + x - 12, y + 2, dx + x, y + 2); c.quadraticCurveTo(dx + x + 12, y + 2, dx + x + 12, y + 18);
+    }
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 26, y, x + 26, y, 0.8);
   } else if (kind === 'prev' || kind === 'next') {   // the arrows that turn the tutorial pages
     const d = kind === 'next' ? 1 : -1;
     c.moveTo(x - d * 8, y - 18); c.lineTo(x + d * 10, y); c.lineTo(x - d * 8, y + 18);
@@ -2054,7 +2061,7 @@ function layout() {
       // VOLTAR, with 1x1 beside it (INFINITO and FIGHTERS are on the map itself)
       const list = mapButtons(), s = 84, y = H - 100 - s / 2;
       list.push(btn(cx, H - 90, 300, bh, 'VOLTAR', () => setScene('menu')));
-      list.push({ x: cx + 166, y, w: s, h: s, label: '1x1', fn: startVersus, icon: 'vs', round: true, tag: true });
+      list.push({ x: cx + 166, y, w: s, h: s, label: '1x1', fn: () => setScene('vsmenu'), icon: 'vs', round: true, tag: true });
       return list;
     }
     case 'fighters': {
@@ -2062,6 +2069,14 @@ function layout() {
       if (!F || F.state === 'play' || F.endT < 1.6) return [];
       return iconMenu(H * 0.6, { label: F.state === 'won' ? 'JOGAR DE NOVO' : 'TENTAR DE NOVO', fn: startFighters, icon: 'restart' },
         [{ label: 'MENU', fn: () => setScene('menu'), icon: 'home' }]);
+    }
+    case 'vsmenu': {   // 1x1: against the AI, or 2 players on the same phone
+      const list = iconMenu(H * 0.42, null, [
+        { label: 'CONTRA A IA', fn: () => startVersus(false), icon: 'vs' },
+        { label: '2 JOGADORES', fn: () => startVersus(true), icon: 'two' },
+      ]);
+      list.push(btn(cx, H - 90, 300, bh, 'VOLTAR', () => setScene('map')));
+      return list;
     }
     case 'versus': {
       const V = versus;
@@ -2260,12 +2275,16 @@ function startFighters() {
 }
 
 // 1x1: face to face against the AI
-let versus = null;
-function startVersus() {
-  versus = new Versus(H, game.top, plat, col());
-  const rec = store.get('vsRec', { w: 0, l: 0 });
-  versus.record = rec;
-  versus.onEnd = (won) => { if (won) rec.w++; else rec.l++; store.set('vsRec', rec); };
+let versus = null, vsTwo = false;
+// (with no argument, the same mode again: JOGAR DE NOVO and RECOMEÇAR)
+function startVersus(two = vsTwo) {
+  vsTwo = two === true;
+  versus = new Versus(H, game.top, plat, col(), vsTwo);
+  if (!vsTwo) {   // the record is only against the AI
+    const rec = store.get('vsRec', { w: 0, l: 0 });
+    versus.record = rec;
+    versus.onEnd = (won) => { if (won) rec.w++; else rec.l++; store.set('vsRec', rec); };
+  }
   setScene('versus');
 }
 
@@ -2283,7 +2302,7 @@ canvas.addEventListener('pointerdown', (e) => {
   try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
   if (scene === 'versus' && versus && (versus.state === 'play' || versus.endT < 1.4)) {
     if (versus.state === 'play' && p.x > W - 110 && p.y < game.top - 46) { setScene('vpause'); sfx.click(); return; }
-    versus.press(p.x);
+    versus.press(p.x, p.y, e.pointerId);
     return;
   }
   if (scene === 'fighters' && fighters && (fighters.state === 'play' || fighters.endT < 1.6)) {
@@ -2328,7 +2347,7 @@ canvas.addEventListener('pointermove', (e) => {
     return;
   }
   if (scene === 'fighters' && fighters) { const q = toLogical(e); fighters.move(q.x, q.y, e.pointerType === 'mouse'); return; }
-  if (scene === 'versus' && versus) { const q = toLogical(e); versus.move(q.x, e.pointerType === 'mouse', opts.sens); return; }
+  if (scene === 'versus' && versus) { const q = toLogical(e); versus.move(q.x, q.y, e.pointerId, e.pointerType === 'mouse', opts.sens); return; }
   if (scene !== 'play') return;
   const p = toLogical(e);
   if (e.pointerType === 'mouse') { game.paddle.tx = game.mirror ? W - p.x : p.x; return; }
@@ -2346,7 +2365,7 @@ canvas.addEventListener('pointerup', (e) => {
     return;
   }
   if (scene === 'fighters' && fighters) fighters.release();
-  if (scene === 'versus' && versus && (versus.state === 'play' || versus.endT < 1.4)) { versus.release(); return; }
+  if (scene === 'versus' && versus && (versus.state === 'play' || versus.endT < 1.4)) { versus.release(e.pointerId); return; }
   if (mapDrag) { const moved = mapDrag.moved; mapDrag = null; if (moved) { pressed = null; return; } }
   if (swipe && scene === 'plat') {
     const dx = p.x - swipe.x, dy = p.y - swipe.y;
@@ -2361,7 +2380,7 @@ canvas.addEventListener('pointerup', (e) => {
   pressed = null;
 });
 
-canvas.addEventListener('pointercancel', () => { drag = null; pressed = null; mapDrag = null; slide = null; });
+canvas.addEventListener('pointercancel', (e) => { drag = null; pressed = null; mapDrag = null; slide = null; if (versus) versus.cancel(e.pointerId); });
 canvas.addEventListener('wheel', (e) => { if (scene === 'map') { mapScroll = clampScroll(mapScroll + e.deltaY * (W / canvas.getBoundingClientRect().width)); e.preventDefault(); } }, { passive: false });
 let lastTap = { t: 0, x: 0, y: 0 };
 const verTaps = { n: 0, t: 0 };
@@ -3531,6 +3550,10 @@ function render() {
     }
   } else if (scene === 'crash') {
     renderCrash(ctx, now);
+  } else if (scene === 'vsmenu') {
+    neonTitle(ctx, '1 × 1', W / 2, H * 0.24, 96, k, k, 14);
+    glowText(ctx, 'ESCOLHA O MODO', W / 2, H * 0.24 + 70, 18, rgba(k, 0.85), k, 'center', 600, 6);
+    glowText(ctx, 'NO MESMO CELULAR', W / 2 + 114, H * 0.42 + 104 + 46, 11, rgba('#ffffff', 0.6), k, 'center', 600, 2);
   } else if (scene === 'versus' || scene === 'vpause') {
     if (versus) versus.render(ctx, now);
     if (scene === 'vpause') { dim(ctx, 0.7); neonTitle(ctx, 'PAUSA', W / 2, H * 0.32, 72, k, k, 12); }

@@ -5,6 +5,8 @@
 // life and serves it again; the first to lose all of them loses the match.
 // Breaking bricks gives points to whoever touched the disc last, sometimes
 // drops a capsule toward them, and the band comes back when it is cleared.
+// With `two`, a second person plays the top side on the same phone: each one
+// drags on their own half of the screen.
 import { TAU, rgba, neonStroke, glowText, neonTitle, view, roundRectPath, drawSprite } from './render.js';
 import { drawPlatform, outAngle } from './platform.js';
 import { brickSprite } from './game.js';
@@ -29,13 +31,14 @@ const COUNT = 3;             // the countdown before a new band (s)
 // the capsules: they fall from a broken brick toward whoever broke it
 const CAP_CHANCE = 0.24, CAP_V = 230, CAP_W = 92, CAP_H = 30;
 export const VS_CAPS = {
-  // text: what the player reads when they catch it, and when the AI does
-  grow: { name: 'MAIOR', text: ['PLATAFORMA MAIOR', 'IA COM PLATAFORMA MAIOR'], t: 8 },
-  shrink: { name: 'MENOR', text: ['IA ENCOLHEU', 'SUA PLATAFORMA ENCOLHEU'], t: 8 },
-  fast: { name: 'VELOZ', text: ['SEUS DISCOS MAIS RÁPIDOS', 'DISCOS DA IA MAIS RÁPIDOS'], t: 7 },
-  shield: { name: 'ESCUDO', text: ['ESCUDO', 'IA COM ESCUDO'], t: 0 },
-  multi: { name: '+1 DISCO', text: ['MAIS UM DISCO', 'IA LANÇOU MAIS UM DISCO'], t: 0 },
-  invert: { name: 'INVERTE', text: ['IA COM CONTROLE INVERTIDO', 'SEU CONTROLE INVERTEU'], t: 4 },
+  // text: what the player reads when they catch it, and when the AI does;
+  // two: what the one who caught it reads, with 2 players
+  grow: { name: 'MAIOR', text: ['PLATAFORMA MAIOR', 'IA COM PLATAFORMA MAIOR'], two: 'PLATAFORMA MAIOR', t: 8 },
+  shrink: { name: 'MENOR', text: ['IA ENCOLHEU', 'SUA PLATAFORMA ENCOLHEU'], two: 'O OUTRO ENCOLHEU', t: 8 },
+  fast: { name: 'VELOZ', text: ['SEUS DISCOS MAIS RÁPIDOS', 'DISCOS DA IA MAIS RÁPIDOS'], two: 'SEUS DISCOS MAIS RÁPIDOS', t: 7 },
+  shield: { name: 'ESCUDO', text: ['ESCUDO', 'IA COM ESCUDO'], two: 'ESCUDO', t: 0 },
+  multi: { name: '+1 DISCO', text: ['MAIS UM DISCO', 'IA LANÇOU MAIS UM DISCO'], two: 'MAIS UM DISCO', t: 0 },
+  invert: { name: 'INVERTE', text: ['IA COM CONTROLE INVERTIDO', 'SEU CONTROLE INVERTEU'], two: 'O OUTRO FICOU INVERTIDO', t: 4 },
 };
 const CAP_KEYS = Object.keys(VS_CAPS);
 
@@ -44,8 +47,9 @@ const warm = (c) => ['#ff7a1a', '#ff2d4a', '#ff45c0', '#ffd21f'].includes(c);
 const side = () => ({ fx: { grow: 0, shrink: 0, fast: 0, invert: 0 }, shield: false, hw: HW, queue: 0, serveT: 0 });
 
 export class Versus {
-  constructor(H, top, plat, col) {
-    this.H = H; this.top = top; this.plat = plat; this.col = col;
+  constructor(H, top, plat, col, two = false) {
+    this.H = H; this.top = top; this.plat = plat; this.col = col; this.two = two;
+    this.drags = new Map();   // pointer id -> { who, x }
     this.aiCol = warm(col) ? '#00e5ff' : '#ff2d4a';
     this.aiPlat = { shape: 0, pal: 7, emb: 3, disc: 0, trail: 0, dash: false, detail: true };
     this.bottom = H - 62;
@@ -58,7 +62,7 @@ export class Versus {
     this.state = 'play';   // play | won | lost
     this.endT = 0;
     this.shake = 0;
-    this.banner = { text: '1 × 1', sub: 'CONTRA A IA', t: 1.8, max: 1.8 };
+    this.banner = { text: '1 × 1', sub: two ? '2 JOGADORES' : 'CONTRA A IA', t: 1.8, max: 1.8 };
     this.refillT = 0;
     this.fillBand();
     this.serve('me');
@@ -93,7 +97,7 @@ export class Versus {
   serve(who) {
     const p = this.side(who);
     if (this.balls.some((b) => b.held === who)) { p.queue++; return; }
-    const b = { x: 0, y: 0, vx: 0, vy: 0, s: V0, own: who, held: who, wait: who === 'ai' ? 1.1 + Math.random() * 0.6 : 0, trail: [], react: 0, err: 0, aim: 0, wrong: false };
+    const b = { x: 0, y: 0, vx: 0, vy: 0, s: V0, own: who, held: who, wait: who !== 'ai' ? 0 : this.two ? 6 : 1.1 + Math.random() * 0.6, trail: [], react: 0, err: 0, aim: 0, wrong: false };
     this.balls.push(b);
     this.place(b);
   }
@@ -110,19 +114,30 @@ export class Versus {
     sfx.launch();
   }
 
-  // input: the platform follows the drag (or the mouse); letting go serves
-  press(x) { this.drag = { x }; if (this.state === 'play' && !this.me.fx.invert) this.me.tx = x; }
-  move(x, mouse, sens) {
-    const inv = this.me.fx.invert > 0;
-    if (mouse) this.me.tx = inv ? W - x : x;
-    else if (this.drag) { this.me.tx += (x - this.drag.x) * sens * (inv ? -1 : 1); this.drag.x = x; }
-    this.me.tx = Math.max(LEFT + this.me.hw * 0.75, Math.min(RIGHT - this.me.hw * 0.75, this.me.tx));
+  // input: each finger moves the platform of the half it touched (the bottom
+  // one only, against the AI); the mouse moves the bottom one; letting go serves
+  press(x, y = this.H, id = 0) {
+    if (this.state !== 'play') return;
+    const who = this.two && y < this.midY ? 'ai' : 'me', p = this.side(who);
+    this.drags.set(id, { who, x });
+    if (!p.fx.invert) p.tx = this.clampX(p, x);
   }
-  release() {
-    this.drag = null;
-    const b = this.state === 'play' && this.balls.find((q) => q.held === 'me');
+  move(x, y, id, mouse, sens) {
+    const d = this.drags.get(id);
+    if (mouse && !d) { const me = this.me; me.tx = this.clampX(me, me.fx.invert > 0 ? W - x : x); return; }
+    if (!d) return;
+    const p = this.side(d.who);
+    p.tx = this.clampX(p, p.tx + (x - d.x) * sens * (p.fx.invert > 0 ? -1 : 1));
+    d.x = x;
+  }
+  release(id = 0) {
+    const d = this.drags.get(id);
+    this.drags.delete(id);
+    const b = this.state === 'play' && this.balls.find((q) => q.held === (d ? d.who : 'me'));
     if (b) this.launch(b, (Math.random() - 0.5) * 0.6);
   }
+  cancel(id) { this.drags.delete(id); }
+  clampX(p, x) { return Math.max(LEFT + p.hw * 0.75, Math.min(RIGHT - p.hw * 0.75, x)); }
 
   update(dt) {
     this.t += dt;
@@ -139,7 +154,8 @@ export class Versus {
     }
     const me = this.me;
     me.x += (me.tx - me.x) * Math.min(1, dt * 22);
-    this.updateAi(dt);
+    if (this.two) this.ai.x += (this.ai.tx - this.ai.x) * Math.min(1, dt * 22);   // the second player
+    else this.updateAi(dt);
     for (const who of ['me', 'ai']) {   // the next disc in line
       const p = this.side(who);
       if (p.queue > 0 && p.serveT <= 0 && !this.balls.some((b) => b.held === who)) { p.queue--; this.serve(who); }
@@ -351,9 +367,7 @@ export class Versus {
       this.balls.push(b);
       this.launch(b, (Math.random() - 0.5) * 1.2);
     }
-    const c = who === 'me' ? this.col : this.aiCol;
-    const stack = this.floats.filter((f) => f.side === who).length;   // one under the other
-    this.floats.push({ text: def.text[who === 'me' ? 0 : 1], x: W / 2, y: who === 'me' ? p.y - 80 - stack * 34 : p.y + 90 + stack * 34, t: 1.3, max: 1.3, col: c, side: who, fs: 20 });
+    this.say(this.two ? def.two : def.text[who === 'me' ? 0 : 1], who, 1.3, 20);
     this.ring(p.x, p.y, 70);
     sfx.power(who === 'me');
     if (who === 'me') vibrate(20);
@@ -375,17 +389,23 @@ export class Versus {
       if (this.onEnd) this.onEnd(this.state === 'won');
       return;
     }
-    this.floats.push({ text: who === 'me' ? '-1 VIDA' : 'PONTO!', x: W / 2, y: who === 'me' ? this.me.y - 80 : this.ai.y + 90, t: 1.1, max: 1.1, col: who === 'me' ? this.col : this.aiCol });
+    this.say(who === 'me' || this.two ? '-1 VIDA' : 'PONTO!', who, 1.1, 24);
     this.serve(who);   // who lost the point serves that disc again
   }
 
+  // a text by a side's platform; the top player's is upside down with 2 players
+  say(text, who, t, fs) {
+    const p = this.side(who), stack = this.floats.filter((f) => f.side === who).length;   // one under the other
+    const y = who === 'me' ? p.y - 80 - stack * 34 : p.y + 90 + stack * 34;
+    this.floats.push({ text, x: W / 2, y, t, max: t, col: who === 'me' ? this.col : this.aiCol, side: who, fs, flip: this.two && who === 'ai' });
+  }
   ring(x, y, r) { this.rings.push({ x, y, r, t: 0 }); }
   updateFx(dt) {
     for (const p of this.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
     this.parts = this.parts.filter((p) => p.life > 0);
     for (const q of this.rings) q.t += dt / 0.45;
     this.rings = this.rings.filter((q) => q.t < 1);
-    for (const f of this.floats) { f.t -= dt; f.y -= 40 * dt; }
+    for (const f of this.floats) { f.t -= dt; f.y += (f.flip ? 40 : -40) * dt; }
     this.floats = this.floats.filter((f) => f.t > 0);
     for (const q of this.bricks) q.flash = Math.max(0, q.flash - dt * 4);
   }
@@ -453,12 +473,15 @@ export class Versus {
       c.fillStyle = '#ffffff'; c.shadowColor = bc; c.shadowBlur = 22 * view.blur; c.fill(); c.shadowBlur = 0;
       c.beginPath(); c.arc(b.x, b.y, R + 4, 0, TAU); c.strokeStyle = bc; c.lineWidth = 2; c.stroke();
     }
-    if (this.state === 'play' && this.balls.some((b) => b.held === 'me')) glowText(c, 'SOLTE PARA LANÇAR', W / 2, this.me.y + 70, 14, rgba('#ffffff', 0.6 + 0.3 * Math.sin(this.t * 4)), col, 'center', 600, 4);
+    const blink = rgba('#ffffff', 0.6 + 0.3 * Math.sin(this.t * 4));
+    if (this.state === 'play' && this.balls.some((b) => b.held === 'me')) glowText(c, 'SOLTE PARA LANÇAR', W / 2, this.me.y + 70, 14, blink, col, 'center', 600, 4);
+    if (this.two && this.state === 'play' && this.balls.some((b) => b.held === 'ai')) this.upright(c, W / 2, this.ai.y - 66, true, () => glowText(c, 'SOLTE PARA LANÇAR', 0, 0, 14, blink, ai, 'center', 600, 4));
     // the effects on each side, by its platform
     for (const [p, y, k] of [[this.me, this.me.y + 98, col], [this.ai, this.ai.y - 90, ai]]) {
       const on = ['grow', 'shrink', 'fast', 'invert'].filter((f) => p.fx[f] > 0);
       if (!on.length) continue;
-      glowText(c, on.map((f) => `${VS_CAPS[f].name} ${Math.ceil(p.fx[f])}`).join('   '), p.x, y, 11, rgba('#ffffff', p.fx.invert > 0 ? 0.6 + 0.4 * Math.sin(this.t * 10) : 0.75), k, 'center', 700, 3);
+      const txt = on.map((f) => `${VS_CAPS[f].name} ${Math.ceil(p.fx[f])}`).join('   ');
+      this.upright(c, p.x, y, this.two && p === this.ai, () => glowText(c, txt, 0, 0, 11, rgba('#ffffff', p.fx.invert > 0 ? 0.6 + 0.4 * Math.sin(this.t * 10) : 0.75), k, 'center', 700, 3));
     }
     for (const p of this.parts) { c.globalAlpha = p.life / p.max; c.fillStyle = p.col; c.fillRect(p.x - 2, p.y - 2, 4, 4); }
     c.globalAlpha = 1;
@@ -466,10 +489,19 @@ export class Versus {
       c.beginPath(); c.arc(q.x, q.y, 10 + q.r * q.t, 0, TAU);
       c.strokeStyle = rgba('#ffffff', 0.6 * (1 - q.t)); c.lineWidth = 2; c.stroke();
     }
-    for (const f of this.floats) { c.globalAlpha = Math.min(1, f.t / 0.4); glowText(c, f.text, f.x, f.y, f.fs || 24, '#ffffff', f.col, 'center', 800, 4); }
+    for (const f of this.floats) {
+      c.globalAlpha = Math.min(1, f.t / 0.4);
+      this.upright(c, f.x, f.y, f.flip, () => glowText(c, f.text, 0, 0, f.fs || 24, '#ffffff', f.col, 'center', 800, 4));
+    }
     c.globalAlpha = 1;
     c.restore();
     this.renderHud(c);
+  }
+
+  // draw at (x, y), upside down when `flip` (for the player on top)
+  upright(c, x, y, flip, draw) {
+    c.save(); c.translate(x, y); if (flip) c.rotate(Math.PI);
+    draw(); c.restore();
   }
 
   // the grid and the steady frame, baked once
@@ -563,11 +595,11 @@ export class Versus {
         c.strokeStyle = on ? k : rgba(k, 0.3); c.lineWidth = 2; c.stroke();
       }
     };
-    glowText(c, 'VOCÊ', 24, hy - 26, 12, rgba(col, 0.9), col, 'left', 700, 3);
+    glowText(c, this.two ? 'J1' : 'VOCÊ', 24, hy - 26, 12, rgba(col, 0.9), col, 'left', 700, 3);
     lives(34, this.me.lives, col, 1);
     glowText(c, '1 × 1', W / 2, hy + 4, 30, '#ffffff', col, 'center', 700, 4);
     glowText(c, `${this.me.pts}  ·  ${this.ai.pts}`, W / 2, hy + 32, 12, rgba('#ffffff', 0.6), col, 'center', 500, 3);
-    glowText(c, 'IA', W - 102, hy - 26, 12, rgba(ai, 0.9), ai, 'right', 700, 3);
+    glowText(c, this.two ? 'J2' : 'IA', W - 102, hy - 26, 12, rgba(ai, 0.9), ai, 'right', 700, 3);
     lives(W - 106, this.ai.lives, ai, -1);
     c.beginPath();
     c.moveTo(W - 56, hy - 14); c.lineTo(W - 56, hy + 14);
@@ -583,9 +615,15 @@ export class Versus {
     if (this.state !== 'play' && this.endT > 0.6) {
       c.globalAlpha = Math.min(1, (this.endT - 0.6) / 0.5);
       c.fillStyle = 'rgba(0,0,0,0.72)'; c.fillRect(0, 0, W, H);
-      const won = this.state === 'won';
-      neonTitle(c, won ? 'VITÓRIA' : 'DERROTA', W / 2, H * 0.34, 72, won ? col : ai, won ? col : ai, 12);
-      glowText(c, won ? 'A IA FICOU SEM VIDAS' : 'A IA VENCEU ESTA', W / 2, H * 0.34 + 56, 18, '#ffffff', col, 'center', 600, 4);
+      const won = this.state === 'won', wk = won ? col : ai;
+      if (this.two) {   // who won, and the same for the one on top, upside down
+        neonTitle(c, won ? 'J1 VENCEU' : 'J2 VENCEU', W / 2, H * 0.34, 64, wk, wk, 10);
+        glowText(c, 'O OUTRO FICOU SEM VIDAS', W / 2, H * 0.34 + 56, 18, '#ffffff', wk, 'center', 600, 4);
+        this.upright(c, W / 2, this.top + 150, true, () => neonTitle(c, won ? 'J1 VENCEU' : 'J2 VENCEU', 0, 0, 44, wk, wk, 8));
+      } else {
+        neonTitle(c, won ? 'VITÓRIA' : 'DERROTA', W / 2, H * 0.34, 72, wk, wk, 12);
+        glowText(c, won ? 'A IA FICOU SEM VIDAS' : 'A IA VENCEU ESTA', W / 2, H * 0.34 + 56, 18, '#ffffff', col, 'center', 600, 4);
+      }
       glowText(c, `${this.me.lives} × ${this.ai.lives}`, W / 2, H * 0.47, 40, '#ffffff', col, 'center', 700, 6);
       if (this.record) glowText(c, `VITÓRIAS  ${this.record.w}  ·  DERROTAS  ${this.record.l}`, W / 2, H * 0.47 + 46, 15, rgba(col, 0.9), col, 'center', 500, 4);
       c.globalAlpha = 1;

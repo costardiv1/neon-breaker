@@ -2,6 +2,12 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.11.0] · 21/11/2026 · 1x1 com 2 jogadores no mesmo celular
+
+### Adicionado
+
+- 1x1 com 2 jogadores: ao tocar no 1x1 no mapa, o jogador escolhe CONTRA A IA ou 2 JOGADORES. Com 2 jogadores, o celular fica deitado entre os dois e cada um arrasta na sua metade da tela; os dois podem mexer ao mesmo tempo, e cada um solta o dedo para lançar o seu disco. Os textos de quem está em cima (cápsulas, -1 VIDA, SOLTE PARA LANÇAR e quem venceu) aparecem virados para ele. No HUD os lados viram J1 (embaixo) e J2 (em cima). As partidas de 2 jogadores não contam nas vitórias e derrotas contra a IA.
+
 ## [1.10.1] · 21/11/2026 · 1x1 com o visual da campanha
 
 ### Adicionado

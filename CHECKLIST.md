@@ -2,6 +2,18 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.11.0 (21/11/2026)
+
+### 1x1 com 2 jogadores
+- [ ] No mapa, o 1x1 abre a escolha: CONTRA A IA ou 2 JOGADORES (NO MESMO CELULAR). VOLTAR volta ao mapa.
+- [ ] Com 2 jogadores, cada um arrasta na sua metade da tela, os dois ao mesmo tempo, sem um mexer na plataforma do outro.
+- [ ] Cada um solta o dedo para lançar o seu disco. O de cima sai sozinho se ninguém lançar em 6 s.
+- [ ] Os textos do jogador de cima (cápsulas, -1 VIDA, SOLTE PARA LANÇAR) aparecem virados para ele.
+- [ ] O HUD mostra J1 embaixo (à esquerda) e J2 em cima (à direita).
+- [ ] No fim aparece J1 VENCEU ou J2 VENCEU, também virado para quem está em cima. JOGAR DE NOVO repete com 2 jogadores.
+- [ ] As vitórias e derrotas contra a IA não mudam depois de uma partida de 2 jogadores.
+- [ ] CONTRA A IA continua igual.
+
 ## 1.10.1 (21/11/2026)
 
 ### Visual do 1x1
