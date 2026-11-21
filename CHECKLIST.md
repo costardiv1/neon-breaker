@@ -5,45 +5,45 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 ## 1.11.0 (21/11/2026)
 
 ### 1x1 com 2 jogadores
-- [ ] No mapa, o 1x1 abre a escolha: CONTRA A IA ou 2 JOGADORES (NO MESMO CELULAR). VOLTAR volta ao mapa.
-- [ ] Com 2 jogadores, cada um arrasta na sua metade da tela, os dois ao mesmo tempo, sem um mexer na plataforma do outro.
-- [ ] Cada um solta o dedo para lançar o seu disco. O de cima sai sozinho se ninguém lançar em 6 s.
-- [ ] Os textos do jogador de cima (cápsulas, -1 VIDA, SOLTE PARA LANÇAR) aparecem virados para ele.
-- [ ] O HUD mostra J1 embaixo (à esquerda) e J2 em cima (à direita).
-- [ ] No fim aparece J1 VENCEU ou J2 VENCEU, também virado para quem está em cima. JOGAR DE NOVO repete com 2 jogadores.
-- [ ] As vitórias e derrotas contra a IA não mudam depois de uma partida de 2 jogadores.
-- [ ] CONTRA A IA continua igual.
+- [x] No mapa, o 1x1 abre a escolha: CONTRA A IA ou 2 JOGADORES (NO MESMO CELULAR). VOLTAR volta ao mapa. *(testado pelo Claude)*
+- [ ] Com 2 jogadores, cada um arrasta na sua metade da tela, os dois ao mesmo tempo, sem um mexer na plataforma do outro. *(no navegador funcionou com dois toques simulados ao mesmo tempo; falta no celular com duas pessoas)*
+- [x] Cada um solta o dedo para lançar o seu disco. O de cima sai sozinho se ninguém lançar em 6 s. *(testado pelo Claude; o lançamento automático em 6 s foi conferido no código)*
+- [x] Os textos do jogador de cima (cápsulas, -1 VIDA, SOLTE PARA LANÇAR) aparecem virados para ele. *(testado pelo Claude)*
+- [x] O HUD mostra J1 embaixo (à esquerda) e J2 em cima (à direita). *(testado pelo Claude)*
+- [x] No fim aparece J1 VENCEU ou J2 VENCEU, também virado para quem está em cima. JOGAR DE NOVO repete com 2 jogadores. *(testado pelo Claude; JOGAR DE NOVO conferido no código)*
+- [x] As vitórias e derrotas contra a IA não mudam depois de uma partida de 2 jogadores. *(testado pelo Claude)*
+- [x] CONTRA A IA continua igual. *(testado pelo Claude)*
 
 ## 1.10.1 (21/11/2026)
 
 ### Visual do 1x1
-- [ ] Os blocos são os mesmos da campanha, e os de 2 batidas apagam um pouco depois da primeira.
-- [ ] O campo tem o quadriculado e a moldura arredondada das fases, a metade de cima na cor da IA e a de baixo na sua.
-- [ ] Luzes correm pelas bordas, e a borda brilha quando um disco bate nela.
+- [x] Os blocos são os mesmos da campanha, e os de 2 batidas apagam um pouco depois da primeira. *(testado pelo Claude)*
+- [x] O campo tem o quadriculado e a moldura arredondada das fases, a metade de cima na cor da IA e a de baixo na sua. *(testado pelo Claude)*
+- [x] Luzes correm pelas bordas, e a borda brilha quando um disco bate nela. *(testado pelo Claude; o brilho na batida foi conferido no código)*
 
 ### Nova leva
-- [ ] Limpando a faixa, aparece NOVA LEVA EM 3, 2, 1, com um som a cada número.
-- [ ] Depois os blocos acendem um de cada vez, e o disco passa pelos que ainda não apareceram.
+- [ ] Limpando a faixa, aparece NOVA LEVA EM 3, 2, 1, com um som a cada número. *(a contagem apareceu no navegador; falta ouvir o som de cada número)*
+- [x] Depois os blocos acendem um de cada vez, e o disco passa pelos que ainda não apareceram. *(testado pelo Claude)*
 
 ### Correção
-- [ ] Com VELOZ, o disco que você rebate vai rápido para a IA, mas volta de um bloco na velocidade normal.
+- [x] Com VELOZ, o disco que você rebate vai rápido para a IA, mas volta de um bloco na velocidade normal. *(testado pelo Claude)*
 
 ## 1.10.0 (21/11/2026)
 
 ### Dois discos
-- [ ] A partida começa com dois discos: um na sua plataforma (solte para lançar) e um na da IA, que ela lança sozinha.
-- [ ] Os dois ficam em jogo ao mesmo tempo, e sempre tem um vindo na sua direção.
-- [ ] Deixar um passar tira uma vida (são 7 losangos) e o disco volta para quem deixou passar. Se você já estiver segurando um, o outro vem logo depois de lançar.
+- [x] A partida começa com dois discos: um na sua plataforma (solte para lançar) e um na da IA, que ela lança sozinha. *(testado pelo Claude)*
+- [x] Os dois ficam em jogo ao mesmo tempo, e sempre tem um vindo na sua direção. *(testado pelo Claude)*
+- [x] Deixar um passar tira uma vida (são 7 losangos) e o disco volta para quem deixou passar. Se você já estiver segurando um, o outro vem logo depois de lançar. *(testado pelo Claude)*
 
 ### Cápsulas
-- [ ] Às vezes um bloco quebrado solta uma cápsula com o nome, na cor de quem quebrou, indo para o lado dessa pessoa.
-- [ ] Pegando com a plataforma, aparece o efeito escrito, e os efeitos com tempo ficam perto da plataforma com a contagem.
-- [ ] MAIOR aumenta a sua plataforma; MENOR encolhe a da IA.
-- [ ] VELOZ: os discos que você rebate saem bem mais rápidos.
-- [ ] ESCUDO: aparece uma barra no fim do seu lado, que devolve um disco uma vez e some.
-- [ ] +1 DISCO: sai mais um disco da sua plataforma na hora.
-- [ ] INVERTE: a IA vai para o lado errado por 4 s. Quando a IA pega, é o seu controle que inverte.
-- [ ] A IA também vai atrás das cápsulas dela.
+- [x] Às vezes um bloco quebrado solta uma cápsula com o nome, na cor de quem quebrou, indo para o lado dessa pessoa. *(testado pelo Claude)*
+- [x] Pegando com a plataforma, aparece o efeito escrito, e os efeitos com tempo ficam perto da plataforma com a contagem. *(testado pelo Claude)*
+- [x] MAIOR aumenta a sua plataforma; MENOR encolhe a da IA. *(testado pelo Claude)*
+- [x] VELOZ: os discos que você rebate saem bem mais rápidos. *(testado pelo Claude)*
+- [x] ESCUDO: aparece uma barra no fim do seu lado, que devolve um disco uma vez e some. *(testado pelo Claude)*
+- [x] +1 DISCO: sai mais um disco da sua plataforma na hora. *(testado pelo Claude)*
+- [x] INVERTE: a IA vai para o lado errado por 4 s. Quando a IA pega, é o seu controle que inverte. *(testado pelo Claude; o seu controle invertido foi conferido no código)*
+- [x] A IA também vai atrás das cápsulas dela. *(testado pelo Claude: ela vai quando nenhum disco está para chegar)*
 
 ### Ritmo
 - [ ] Os discos começam mais lentos que antes e dá para acompanhar os dois.
@@ -52,56 +52,56 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 ## 1.9.9 (21/11/2026)
 
 ### IA do 1x1
-- [ ] A plataforma da IA acelera e freia, em vez de deslizar reto. Às vezes passa um pouco do ponto e volta.
-- [ ] Logo depois da sua rebatida, ela demora um instante para sair do lugar.
-- [ ] Quando o disco vai bater na parede, às vezes ela começa indo para o lado errado e corrige.
-- [ ] Com o disco indo para o seu lado, ela volta devagar para o meio.
+- [x] A plataforma da IA acelera e freia, em vez de deslizar reto. Às vezes passa um pouco do ponto e volta. *(testado pelo Claude em partidas simuladas)*
+- [x] Logo depois da sua rebatida, ela demora um instante para sair do lugar. *(conferido no código pelo Claude)*
+- [x] Quando o disco vai bater na parede, às vezes ela começa indo para o lado errado e corrige. *(conferido no código pelo Claude)*
+- [x] ~~Com o disco indo para o seu lado, ela volta devagar para o meio.~~ *(desatualizado: desde a 1.10.0 ela acompanha o próprio disco ou volta para o meio)*
 - [ ] Dá para ganhar dela jogando bem, mas ela ainda pega a maioria das bolas.
 
 ## 1.9.8 (21/11/2026)
 
 ### Menu e mapa
-- [ ] O menu inicial tem só JOGAR e BREAKERS.
-- [ ] No mapa, o INFINITO fica numa rua lateral logo depois do portão do SENTINELA. Com cadeado antes de derrotar o SENTINELA (tocar mostra DERROTE O SENTINELA PARA LIBERAR); depois a rua acende e ele abre a partida.
-- [ ] Depois de zerar, uma nave pousada (NEON FIGHTERS) aparece no fim do mapa, depois da torre, e abre o FIGHTERS. Antes de zerar, ela não aparece.
-- [ ] O 1x1 fica ao lado do VOLTAR.
-- [ ] No fim do 1x1 e na pausa dele, MAPA volta para o mapa.
+- [x] O menu inicial tem só JOGAR e BREAKERS. *(testado pelo Claude)*
+- [x] No mapa, o INFINITO fica numa rua lateral logo depois do portão do SENTINELA. Com cadeado antes de derrotar o SENTINELA (tocar mostra DERROTE O SENTINELA PARA LIBERAR); depois a rua acende e ele abre a partida. *(testado pelo Claude; a rua acesa depois do SENTINELA foi conferida no código)*
+- [x] Depois de zerar, uma nave pousada (NEON FIGHTERS) aparece no fim do mapa, depois da torre, e abre o FIGHTERS. Antes de zerar, ela não aparece. *(testado pelo Claude)*
+- [x] O 1x1 fica ao lado do VOLTAR. *(testado pelo Claude)*
+- [x] No fim do 1x1 e na pausa dele, MAPA volta para o mapa. *(conferido no código pelo Claude)*
 
 ### Blocos
-- [ ] Os blocos de várias batidas perdem o brilho a cada batida, e os detalhes por dentro continuam mostrando quantas faltam. Os de 1 batida não mudam.
+- [x] Os blocos de várias batidas perdem o brilho a cada batida, e os detalhes por dentro continuam mostrando quantas faltam. Os de 1 batida não mudam. *(testado pelo Claude)*
 
 ### Tutorial
-- [ ] O primeiro cartão (BEM-VINDO) mostra só CONTINUAR. A partir do segundo aparecem ‹ PULAR TUTORIAL ›.
+- [x] O primeiro cartão (BEM-VINDO) mostra só CONTINUAR. A partir do segundo aparecem ‹ PULAR TUTORIAL ›. *(testado pelo Claude)*
 
 ### NEON FIGHTERS
-- [ ] Tocar na tela leva a nave até o dedo, e depois ela segue o arrasto.
-- [ ] No PC, a nave segue o mouse sem segurar o clique.
+- [x] Tocar na tela leva a nave até o dedo, e depois ela segue o arrasto. *(testado pelo Claude)*
+- [x] No PC, a nave segue o mouse sem segurar o clique. *(testado pelo Claude)*
 
 ## 1.9.7 (19/11/2026)
 
 ### Modo 1x1
-- [ ] No menu, o ícone 1x1 (duas plataformas frente a frente) abre a partida. Você fica embaixo, a IA em cima, numa cor diferente, e os blocos no meio.
-- [ ] Arraste para mover e solte para lançar. Quando a IA saca, ela lança sozinha depois de um segundo.
-- [ ] O disco fica na cor de quem tocou por último, e os pontos de cada um aparecem embaixo do 1 × 1.
-- [ ] Deixar o disco passar tira uma vida sua (os losangos à esquerda); fazer passar pela IA tira uma dela (à direita). Quem perdeu o ponto saca.
-- [ ] A IA erra de vez em quando, mais quando o disco está rápido. A partida não fica fácil nem impossível.
-- [ ] Limpando todos os blocos, aparece NOVA LEVA e a faixa volta.
-- [ ] No fim, VITÓRIA ou DERROTA, com o placar de vidas e o total de vitórias e derrotas. JOGAR DE NOVO e MENU funcionam.
-- [ ] A pausa (canto de cima à direita) tem CONTINUAR, RECOMEÇAR e MENU.
+- [x] ~~No menu, o ícone 1x1 (duas plataformas frente a frente) abre a partida. Você fica embaixo, a IA em cima, numa cor diferente, e os blocos no meio.~~ *(desatualizado: desde a 1.9.8 o 1x1 fica no mapa)*
+- [x] ~~Arraste para mover e solte para lançar. Quando a IA saca, ela lança sozinha depois de um segundo.~~ *(desatualizado: desde a 1.10.0 são dois discos, um de cada lado)*
+- [x] O disco fica na cor de quem tocou por último, e os pontos de cada um aparecem embaixo do 1 × 1. *(testado pelo Claude)*
+- [x] ~~Deixar o disco passar tira uma vida sua (os losangos à esquerda); fazer passar pela IA tira uma dela (à direita). Quem perdeu o ponto saca.~~ *(desatualizado: desde a 1.10.0 são 7 vidas e dois discos)*
+- [x] ~~A IA erra de vez em quando, mais quando o disco está rápido. A partida não fica fácil nem impossível.~~ *(desatualizado: a IA foi refeita na 1.9.9 e na 1.10.0)*
+- [x] ~~Limpando todos os blocos, aparece NOVA LEVA e a faixa volta.~~ *(desatualizado: desde a 1.10.1 tem a contagem 3, 2, 1)*
+- [x] ~~No fim, VITÓRIA ou DERROTA, com o placar de vidas e o total de vitórias e derrotas. JOGAR DE NOVO e MENU funcionam.~~ *(desatualizado: desde a 1.9.8 o botão MENU virou MAPA)*
+- [x] A pausa (canto de cima à direita) tem CONTINUAR, RECOMEÇAR e MENU. *(conferido no código pelo Claude; desde a 1.9.8 o MENU virou MAPA)*
 
 ### O ACIONISTA
-- [ ] Os olhos brilham, e uma linha tracejada piscando mostra onde os dois mega lasers vão cair. Dá tempo de sair da frente.
-- [ ] Ficando no lugar, o laser acerta e a plataforma encolhe (ATINGIDO). Saindo da frente, não acontece nada.
-- [ ] Na fúria vêm duas rajadas seguidas, a segunda mirando onde você está.
-- [ ] Indo para o canto, a mesa para na moldura.
+- [x] Os olhos brilham, e uma linha tracejada piscando mostra onde os dois mega lasers vão cair. Dá tempo de sair da frente. *(testado pelo Claude)*
+- [x] Ficando no lugar, o laser acerta e a plataforma encolhe (ATINGIDO). Saindo da frente, não acontece nada. *(testado pelo Claude)*
+- [x] Na fúria vêm duas rajadas seguidas, a segunda mirando onde você está. *(conferido no código pelo Claude)*
+- [x] Indo para o canto, a mesa para na moldura. *(conferido no código pelo Claude)*
 
 ### Tutoriais
-- [ ] No tutorial do começo, ‹ e › passam as dicas para frente e para trás, e PULAR TUTORIAL fica no meio. A seta ‹ fica apagada na primeira dica.
-- [ ] No tutorial dos perks, ‹ PULAR ›; na última dica, ENTENDI.
-- [ ] O INFINITO não mostra mais o tutorial BEM-VINDO.
+- [x] No tutorial do começo, ‹ e › passam as dicas para frente e para trás, e PULAR TUTORIAL fica no meio. A seta ‹ fica apagada na primeira dica. *(testado pelo Claude; desde a 1.9.8 a primeira dica mostra só CONTINUAR)*
+- [x] No tutorial dos perks, ‹ PULAR ›; na última dica, ENTENDI. *(testado pelo Claude)*
+- [x] O INFINITO não mostra mais o tutorial BEM-VINDO. *(conferido no código pelo Claude)*
 
 ### Outros
-- [ ] O sino de novidades está na cor do tema.
+- [x] O sino de novidades está na cor do tema. *(testado pelo Claude)*
 - [ ] O disco acelera mais devagar: no capítulo 4 ainda está bem controlável.
 - [ ] No mapa, o capítulo novo pisca como neon antes de acender, com um clarão.
 
@@ -224,7 +224,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ### NEON FIGHTERS
 - [x] Título NEON FIGHTERS, depois HORDA 1. A nave tem as cores e o emblema do seu breaker. *(testado pelo Claude)*
-- [ ] Arraste: a nave segue o dedo sem ficar embaixo dele, e o tiro é automático.
+- [x] ~~Arraste: a nave segue o dedo sem ficar embaixo dele, e o tiro é automático.~~ *(desatualizado: desde a 1.9.8 o toque leva a nave até o dedo)*
 - [x] Os dardos miram e mergulham, e os tanques atiram em leque. A cápsula P dá TIRO TRIPLO e depois TIRO RÁPIDO. *(conferido no código pelo Claude)*
 - [x] Ao levar dano, a nave pisca e perde um escudo (são 3 no topo, à esquerda). *(conferido no código pelo Claude)*
 - [x] Aos 2 min 30: ALERTA, e a nave-mãe A COLMEIA (barra de vida no topo, FÚRIA na metade). *(testado pelo Claude)*

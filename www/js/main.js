@@ -293,7 +293,7 @@ game.mechIcon = drawMechIcon;   // ATUALIZAÇÃO shows the next mechanic's icon
 game.wallet = () => coins;
 game.chipWallet = () => chips;
 game.setColor(col());
-window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), nf: () => startFighters(), get fighters() { return fighters; }, vs: () => startVersus(), get versus() { return versus; }, scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
+window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), nf: () => startFighters(), get fighters() { return fighters; }, vs: (two = false) => startVersus(two), get versus() { return versus; }, scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
 
 function applyOpts() {
   store.set('opts', opts);
