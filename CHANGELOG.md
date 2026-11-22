@@ -2,6 +2,13 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.11.1] · 21/11/2026 · O disco da campanha no 1x1 e o INFINITO depois da 2-1
+
+### Alterado
+
+- 1x1 com o disco e o rastro do resto do jogo: os discos usam o desenho e o rastro escolhidos no BREAKERS, com os mesmos efeitos de batida da campanha (a luz na plataforma, as faíscas, os blocos se desfazendo em quadradinhos e os anéis). Cada disco continua na cor de quem tocou nele por último.
+- Mapa: a rua do INFINITO agora sai depois da fase 2-1, e não logo depois do SENTINELA, para combinar com o caminho. O INFINITO é liberado ao vencer a 2-1.
+
 ## [1.11.0] · 21/11/2026 · 1x1 com 2 jogadores no mesmo celular
 
 ### Adicionado

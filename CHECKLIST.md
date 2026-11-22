@@ -2,6 +2,18 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.11.1 (21/11/2026)
+
+### 1x1 com o disco da campanha
+- [ ] No 1x1, os discos têm o desenho e o rastro escolhidos no BREAKERS, cada um na cor de quem tocou por último.
+- [ ] Rebatendo, a plataforma acende no ponto da batida e saem faíscas, como na campanha.
+- [ ] Os blocos soltam faíscas quando levam batida e se desfazem em quadradinhos quando quebram.
+- [ ] Com o rastro PALETA, o rastro do seu disco usa as cores da sua plataforma.
+
+### INFINITO depois da 2-1
+- [ ] No mapa, a rua do INFINITO sai entre a 2-1 e a 2-2.
+- [ ] Antes de vencer a 2-1 ela fica com cadeado e mostra VENÇA A FASE 2-1 PARA LIBERAR. Depois de vencer, acende e abre o INFINITO.
+
 ## 1.11.0 (21/11/2026)
 
 ### 1x1 com 2 jogadores

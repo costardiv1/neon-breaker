@@ -22,7 +22,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.11.0';
+export const VERSION = '1.11.1';
 
 let H = 1280;
 let safeTop = 0;
@@ -207,7 +207,7 @@ function finishEndless(t) {
     board.data = [null, null, null];
   }
 }
-const endlessOpen = () => bossesBeaten() >= 1 || devAll();
+const endlessOpen = () => prog > worldStart(1) || devAll();   // stage 2-1 cleared
 // capsules the campaign already showed (they arrive district by district)
 function capKnown(type) {
   let reach = 0;
@@ -648,11 +648,12 @@ function isoData() {
     path.forEach((q, n) => { const dd = Math.hypot(q.x - S.x, q.y - S.y); if (dd < bd) { bd = dd; t = n; } });
     return { b, i: bi, t, x: end.x, y: end.y, spur: polyline([S, end], 6) };
   });
-  // INFINITO: a side street just past the SENTINELA, early in chapter 2
+  // INFINITO: a side street just past stage 2-1, its end clearly below that stage
   const endless = (() => {
-    for (const f of [0.15, 0.2, 0.25, 0.3, 0.1, 0.35]) {
+    const s21 = nodes.find((nd) => nd.w === 1);
+    for (const f of [0.2, 0.25, 0.3, 0.35, 0.15, 0.45]) {
       const sp = spurFrom({ w: 1 }, -1, f);
-      if (sp && !bonus.some((B) => Math.hypot(B.x - sp.x, B.y - sp.y) < 160)) return sp;
+      if (sp && sp.t > s21.t + 8 && sp.y > s21.y + 50 && !bonus.some((B) => Math.hypot(B.x - sp.x, B.y - sp.y) < 160)) return sp;
     }
     return null;
   })();
@@ -749,7 +750,7 @@ function mapButtons() {
     if (y < top + 24 || y > bot - 24) continue;
     list.push({ x: B.x - 40, y: y - 40, w: 80, h: 80, bonusNode: B.i, fn: bonusOpen(B.b) ? () => startBonus(B.b) : null });
   }
-  const D = isoData(), lockedInf = () => { menuMsg = { text: 'DERROTE O SENTINELA PARA LIBERAR', t: performance.now() / 1000 }; };
+  const D = isoData(), lockedInf = () => { menuMsg = { text: 'VENÇA A FASE 2-1 PARA LIBERAR', t: performance.now() / 1000 }; };
   if (D.endless) {
     const y = D.endless.y + top - mapScroll;
     if (y > top + 24 && y < bot - 24) list.push({ x: D.endless.x - 44, y: y - 44, w: 88, h: 88, modeNode: 'inf', fn: endlessOpen() ? startEndless : lockedInf });

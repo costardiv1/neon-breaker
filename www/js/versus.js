@@ -8,8 +8,8 @@
 // With `two`, a second person plays the top side on the same phone: each one
 // drags on their own half of the screen.
 import { TAU, rgba, neonStroke, glowText, neonTitle, view, roundRectPath, drawSprite } from './render.js';
-import { drawPlatform, outAngle } from './platform.js';
-import { brickSprite } from './game.js';
+import { drawPlatform, outAngle, SHAPES, paletteColors, samplePal, hitTransform } from './platform.js';
+import { brickSprite, discSprite, drawTrail, trimTrail, tierTone, BALL_R, gfx } from './game.js';
 import { sfx, music, vibrate } from './audio.js';
 
 const W = 720, LEFT = 14, RIGHT = W - 14;
@@ -44,7 +44,8 @@ const CAP_KEYS = Object.keys(VS_CAPS);
 
 // the AI gets a color that stands apart from the player's theme
 const warm = (c) => ['#ff7a1a', '#ff2d4a', '#ff45c0', '#ffd21f'].includes(c);
-const side = () => ({ fx: { grow: 0, shrink: 0, fast: 0, invert: 0 }, shield: false, hw: HW, queue: 0, serveT: 0 });
+const side = () => ({ fx: { grow: 0, shrink: 0, fast: 0, invert: 0 }, shield: false, hw: HW, queue: 0, serveT: 0, pulses: [] });
+const TRAIL = 420;   // the campaign's trail, scaled to this smaller disc
 
 export class Versus {
   constructor(H, top, plat, col, two = false) {
@@ -97,14 +98,16 @@ export class Versus {
   serve(who) {
     const p = this.side(who);
     if (this.balls.some((b) => b.held === who)) { p.queue++; return; }
-    const b = { x: 0, y: 0, vx: 0, vy: 0, s: V0, own: who, held: who, wait: who !== 'ai' ? 0 : this.two ? 6 : 1.1 + Math.random() * 0.6, trail: [], react: 0, err: 0, aim: 0, wrong: false };
+    const b = { x: 0, y: 0, vx: 0, vy: 0, s: V0, own: who, held: who, wait: who !== 'ai' ? 0 : this.two ? 6 : 1.1 + Math.random() * 0.6, path: [], spin: 0, react: 0, err: 0, aim: 0, wrong: false };
     this.balls.push(b);
     this.place(b);
   }
   place(b) {
     const p = this.side(b.held);
     b.x = p.x; b.y = b.held === 'me' ? p.y - R - 6 : p.y + R + 6;
+    b.path = [{ x: b.x, y: b.y }];
   }
+  mark(b) { b.path.push({ x: b.x, y: b.y }); }   // a corner of the trail
   launch(b, k) {
     const who = b.held, th = k * 0.55, d = who === 'me' ? -1 : 1;
     b.vx = Math.sin(th) * b.s; b.vy = d * Math.cos(th) * b.s;
@@ -162,13 +165,14 @@ export class Versus {
     }
     for (const b of this.balls.slice()) {
       if (b.dead) continue;
+      b.spin += dt * 9;
       if (b.held) {
         this.place(b);
         if (b.held === 'ai') { b.wait -= dt; if (b.wait <= 0) this.launch(b, (Math.random() - 0.5) * 1.2); }
       } else {
         const n = Math.max(1, Math.ceil((b.s * dt) / 8));
         for (let i = 0; i < n && !b.dead && this.state === 'play'; i++) this.step(b, dt / n);
-        b.trail.push(b.x, b.y); if (b.trail.length > 24) b.trail.splice(0, 2);
+        trimTrail(b.path, b.x, b.y, TRAIL);
       }
       if (this.state !== 'play') break;
     }
@@ -268,8 +272,8 @@ export class Versus {
 
   step(b, dt) {
     b.x += b.vx * dt; b.y += b.vy * dt;
-    if (b.x < LEFT + R) { b.x = LEFT + R; b.vx = Math.abs(b.vx); sfx.wall(); this.borderGlow = 1; }
-    if (b.x > RIGHT - R) { b.x = RIGHT - R; b.vx = -Math.abs(b.vx); sfx.wall(); this.borderGlow = 1; }
+    if (b.x < LEFT + R) { b.x = LEFT + R; b.vx = Math.abs(b.vx); this.mark(b); sfx.wall(); this.borderGlow = 1; }
+    if (b.x > RIGHT - R) { b.x = RIGHT - R; b.vx = -Math.abs(b.vx); this.mark(b); sfx.wall(); this.borderGlow = 1; }
     // the platforms
     const me = this.me, ai = this.ai;
     if (b.vy > 0 && b.y + R >= me.y && b.y + R <= me.y + 22 && Math.abs(b.x - me.x) < me.hw + R) this.bounce(b, me, 'me');
@@ -284,6 +288,7 @@ export class Versus {
       const up = b.vy < 0;
       if (ox < oy) { b.vx = b.x < q.x + q.w / 2 ? -Math.abs(b.vx) : Math.abs(b.vx); b.x += b.vx > 0 ? ox : -ox; }
       else { b.vy = b.y < q.y + q.h / 2 ? -Math.abs(b.vy) : Math.abs(b.vy); b.y += b.vy > 0 ? oy : -oy; }
+      this.mark(b);
       if (up !== b.vy < 0) this.slow(b);   // turned back: VELOZ only pushes it toward the other side
       if (!up && b.vy < 0) this.aiRead(b, b.own === 'ai');   // bounced back toward the AI
       this.hitBrick(q, b.own);
@@ -308,8 +313,9 @@ export class Versus {
     b.vy = -b.vy;
     this.slow(b);
     b.y = who === 'me' ? this.bottom - 4 : this.top + 4;
+    this.mark(b);
     if (who === 'me') this.aiRead(b);
-    this.ring(b.x, b.y, 90);
+    this.ring(b.x, b.y, 90, this.tint(who));
     sfx.wall();
   }
 
@@ -322,20 +328,32 @@ export class Versus {
     b.vx = Math.sin(th) * s; b.vy = d * Math.cos(th) * s;
     b.y = who === 'me' ? p.y - R : p.y + R;
     b.own = who;
+    this.mark(b);
     p.hit = 1;
-    this.ring(b.x, b.y, 40);
+    // the campaign's hit: the platform's line lights up around the contact, and sparks
+    p.pulses.push({ u: b.x - p.x, t: 0 });
+    const pal = this.pal(who);
+    this.burst(b.x, p.y, 8, 0.6, [samplePal(pal, this.t * 0.22), samplePal(pal, this.t * 0.22 + 0.5)]);
     sfx.paddle();
     if (who === 'me') { this.aiRead(b); vibrate(10); }
     else this.ai.lazy = (Math.random() - 0.5) * 80;
   }
 
   hitBrick(q, own) {
+    const tone = tierTone(this.col, q.hp), cx = q.x + q.w / 2, cy = q.y + q.h / 2;
     q.hp--; q.flash = 1;
-    const who = this.side(own), c = own === 'me' ? this.col : this.aiCol;
-    if (q.hp > 0) { sfx.brick(1); return; }
+    const who = this.side(own);
+    if (q.hp > 0) { this.burst(cx, cy, 6, 0.6, [tone]); sfx.brick(1); return; }
     who.pts += 10;
     sfx.brk(2);
-    for (let k = 0; k < 10; k++) this.parts.push({ x: q.x + Math.random() * q.w, y: q.y + Math.random() * q.h, vx: (Math.random() - 0.5) * 260, vy: (Math.random() - 0.5) * 260, life: 0.6, max: 0.6, col: Math.random() < 0.4 ? '#ffffff' : c });
+    // the campaign's break: the brick comes apart in squares, and sparks
+    const n = Math.round(22 * gfx.fx);
+    for (let i = 0; i < n; i++) {
+      const x = q.x + Math.random() * q.w, y = q.y + Math.random() * q.h;
+      const ang = Math.atan2(y - cy, x - cx) + (Math.random() - 0.5), sp = 60 + Math.random() * 260, life = 0.35 + Math.random() * 0.45;
+      this.parts.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life, max: life, col: i % 3 ? tone : '#ffffff', sq: true });
+    }
+    this.burst(cx, cy, 8, 1, [tone]);
     if (Math.random() < CAP_CHANCE && this.caps.length < 2) this.drop(q.x + q.w / 2, q.y + q.h / 2, own);
     if (this.bricks.every((z) => z.hp <= 0) && this.refillT <= 0) this.refillT = COUNT;
   }
@@ -363,12 +381,13 @@ export class Versus {
     else if (kind === 'shield') p.shield = true;
     else if (kind === 'invert') o.fx.invert = def.t;
     else if (kind === 'multi') {   // a new disc leaves the platform right away
-      const b = { x: p.x, y: who === 'me' ? p.y - R - 6 : p.y + R + 6, vx: 0, vy: 0, s: V0, own: who, held: who, wait: 0, trail: [], react: 0, err: 0, aim: 0, wrong: false };
+      const b = { x: p.x, y: who === 'me' ? p.y - R - 6 : p.y + R + 6, vx: 0, vy: 0, s: V0, own: who, held: who, wait: 0, path: [], spin: 0, react: 0, err: 0, aim: 0, wrong: false };
       this.balls.push(b);
+      this.mark(b);
       this.launch(b, (Math.random() - 0.5) * 1.2);
     }
     this.say(this.two ? def.two : def.text[who === 'me' ? 0 : 1], who, 1.3, 20);
-    this.ring(p.x, p.y, 70);
+    this.ring(p.x, p.y, 70, this.tint(who));
     sfx.power(who === 'me');
     if (who === 'me') vibrate(20);
   }
@@ -379,7 +398,8 @@ export class Versus {
     b.dead = true;
     p.lives--;
     this.shake = 0.6;
-    this.ring(b.x, who === 'me' ? this.bottom : this.top, 120);
+    this.ring(b.x, who === 'me' ? this.bottom : this.top, 120, this.tint(who));
+    this.burst(b.x, who === 'me' ? this.bottom : this.top, 16, 1, [this.tint(b.own), '#ffffff']);
     sfx.lose(); if (who === 'me') vibrate(60);
     if (p.lives <= 0) {
       this.state = who === 'me' ? 'lost' : 'won';
@@ -399,15 +419,54 @@ export class Versus {
     const y = who === 'me' ? p.y - 80 - stack * 34 : p.y + 90 + stack * 34;
     this.floats.push({ text, x: W / 2, y, t, max: t, col: who === 'me' ? this.col : this.aiCol, side: who, fs, flip: this.two && who === 'ai' });
   }
-  ring(x, y, r) { this.rings.push({ x, y, r, t: 0 }); }
+  ring(x, y, r, col = '#ffffff') { this.rings.push({ x, y, r, col, t: 0 }); }
+  tint(who) { return who === 'me' ? this.col : this.aiCol; }
+  pal(who) { return who === 'me' ? paletteColors(this.plat.pal, this.col) : [this.aiCol, '#ffffff', this.aiCol]; }
+  // sparks, as in the campaign
+  burst(x, y, n, power = 1, cols) {
+    n = Math.round(n * gfx.fx);
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * TAU, sp = (120 + Math.random() * 360) * power, life = 0.3 + Math.random() * 0.4;
+      this.parts.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life, max: life, col: cols[i % cols.length] });
+    }
+    if (this.parts.length > 500) this.parts.splice(0, this.parts.length - 500);
+  }
   updateFx(dt) {
-    for (const p of this.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+    const fr = Math.pow(0.04, dt);
+    for (const p of this.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= fr; p.vy *= fr; p.life -= dt; }
     this.parts = this.parts.filter((p) => p.life > 0);
     for (const q of this.rings) q.t += dt / 0.45;
     this.rings = this.rings.filter((q) => q.t < 1);
+    for (const p of [this.me, this.ai]) { for (const q of p.pulses) q.t += dt; p.pulses = p.pulses.filter((q) => q.t < 0.5); }
     for (const f of this.floats) { f.t -= dt; f.y += (f.flip ? 40 : -40) * dt; }
     this.floats = this.floats.filter((f) => f.t > 0);
     for (const q of this.bricks) q.flash = Math.max(0, q.flash - dt * 4);
+  }
+
+  // the campaign's bounce light: a stretch of the platform's own line around
+  // the contact point, growing as it fades (dir -1: the top platform, facing down)
+  renderPulses(c, p, si, dir) {
+    if (!p.pulses.length) return;
+    const pal = this.pal(p === this.me ? 'me' : 'ai'), sh = SHAPES[si];
+    c.save();
+    c.translate(p.x, p.y); c.scale(1, dir);
+    hitTransform(c, si, p.hit || 0);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const q of p.pulses) {
+      const k = q.t / 0.5, u = Math.max(-p.hw, Math.min(p.hw, q.u));
+      const colA = samplePal(pal, this.t * 0.22 + ((u / p.hw + 1) / 2) * 0.8), half = 34 + 44 * k;
+      c.beginPath();
+      for (let i = -8; i <= 8; i++) {
+        const uu = Math.max(-p.hw, Math.min(p.hw, u + (i / 8) * half)), y = sh.y(uu, p.hw);
+        if (i === -8) c.moveTo(uu, y); else c.lineTo(uu, y);
+      }
+      for (const [w, al] of [[32, 0.1], [20, 0.18], [11, 0.3]]) { c.strokeStyle = rgba(colA, al * (1 - k)); c.lineWidth = w; c.stroke(); }
+      c.globalAlpha = 1 - k;
+      c.strokeStyle = '#ffffff'; c.lineWidth = 6;
+      c.shadowColor = colA; c.shadowBlur = 24 * view.blur;
+      c.stroke(); c.shadowBlur = 0; c.globalAlpha = 1;
+    }
+    c.restore();
   }
 
   render(c, now) {
@@ -459,19 +518,22 @@ export class Versus {
     c.save(); c.translate(this.ai.x, this.ai.y); c.scale(1, -1);
     drawPlatform(c, this.aiPlat, 0, 0, this.ai.hw, this.t, ai, this.ai.hit);
     c.restore();
-    // the discs, each in the color of whoever touched it last
+    // the discs: the disc and trail picked in BREAKERS, each in the color of
+    // whoever touched it last
+    const ts = this.plat.trail || 0;
+    c.globalCompositeOperation = 'lighter';
+    for (const b of this.balls) {
+      if (b.dead || b.held) continue;
+      drawTrail(c, b.path, b.x, b.y, this.tint(b.own), TRAIL, R, ts, ts === 3 ? this.pal(b.own) : null, this.t);
+    }
+    c.globalCompositeOperation = 'source-over';
+    this.renderPulses(c, this.me, this.plat.shape, 1);
+    this.renderPulses(c, this.ai, this.aiPlat.shape, -1);
     for (const b of this.balls) {
       if (b.dead) continue;
-      const bc = b.own === 'me' ? col : ai;
-      if (b.trail.length > 3) {
-        c.beginPath(); c.moveTo(b.trail[0], b.trail[1]);
-        for (let i = 2; i < b.trail.length; i += 2) c.lineTo(b.trail[i], b.trail[i + 1]);
-        c.lineCap = 'round'; c.lineJoin = 'round';
-        c.strokeStyle = rgba(bc, 0.35); c.lineWidth = R; c.stroke();
-      }
-      c.beginPath(); c.arc(b.x, b.y, R, 0, TAU);
-      c.fillStyle = '#ffffff'; c.shadowColor = bc; c.shadowBlur = 22 * view.blur; c.fill(); c.shadowBlur = 0;
-      c.beginPath(); c.arc(b.x, b.y, R + 4, 0, TAU); c.strokeStyle = bc; c.lineWidth = 2; c.stroke();
+      c.save(); c.translate(b.x, b.y); c.rotate(b.spin);
+      drawSprite(c, discSprite(this.tint(b.own), BALL_R, this.plat.disc || 0), -R, -R, R / BALL_R);
+      c.restore();
     }
     const blink = rgba('#ffffff', 0.6 + 0.3 * Math.sin(this.t * 4));
     if (this.state === 'play' && this.balls.some((b) => b.held === 'me')) glowText(c, 'SOLTE PARA LANÇAR', W / 2, this.me.y + 70, 14, blink, col, 'center', 600, 4);
@@ -483,12 +545,19 @@ export class Versus {
       const txt = on.map((f) => `${VS_CAPS[f].name} ${Math.ceil(p.fx[f])}`).join('   ');
       this.upright(c, p.x, y, this.two && p === this.ai, () => glowText(c, txt, 0, 0, 11, rgba('#ffffff', p.fx.invert > 0 ? 0.6 + 0.4 * Math.sin(this.t * 10) : 0.75), k, 'center', 700, 3));
     }
-    for (const p of this.parts) { c.globalAlpha = p.life / p.max; c.fillStyle = p.col; c.fillRect(p.x - 2, p.y - 2, 4, 4); }
-    c.globalAlpha = 1;
-    for (const q of this.rings) {
-      c.beginPath(); c.arc(q.x, q.y, 10 + q.r * q.t, 0, TAU);
-      c.strokeStyle = rgba('#ffffff', 0.6 * (1 - q.t)); c.lineWidth = 2; c.stroke();
+    // sparks and rings, as in the campaign
+    c.globalCompositeOperation = 'lighter';
+    c.lineCap = 'round';
+    for (const p of this.parts) {
+      const a = p.life / p.max;
+      if (p.sq) { const s = 3 + 3 * a; c.fillStyle = rgba(p.col, a); c.fillRect(p.x - s / 2, p.y - s / 2, s, s); }
+      else { c.strokeStyle = rgba(p.col, a); c.lineWidth = 2.5; c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); c.stroke(); }
     }
+    for (const q of this.rings) {
+      c.beginPath(); c.arc(q.x, q.y, q.r * q.t + 4, 0, TAU);
+      c.strokeStyle = rgba(q.col, 0.9 * (1 - q.t)); c.lineWidth = 3 * (1 - q.t) + 1; c.stroke();
+    }
+    c.globalCompositeOperation = 'source-over';
     for (const f of this.floats) {
       c.globalAlpha = Math.min(1, f.t / 0.4);
       this.upright(c, f.x, f.y, f.flip, () => glowText(c, f.text, 0, 0, f.fs || 24, '#ffffff', f.col, 'center', 800, 4));
