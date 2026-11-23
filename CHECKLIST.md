@@ -18,7 +18,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ### 1x1 com 2 jogadores
 - [x] No mapa, o 1x1 abre a escolha: CONTRA A IA ou 2 JOGADORES (NO MESMO CELULAR). VOLTAR volta ao mapa. *(testado pelo Claude)*
-- [ ] Com 2 jogadores, cada um arrasta na sua metade da tela, os dois ao mesmo tempo, sem um mexer na plataforma do outro. *(no navegador funcionou com dois toques simulados ao mesmo tempo; falta no celular com duas pessoas)*
+- [x] Com 2 jogadores, cada um arrasta na sua metade da tela, os dois ao mesmo tempo, sem um mexer na plataforma do outro. *(testado pelo usuário)*
 - [x] Cada um solta o dedo para lançar o seu disco. O de cima sai sozinho se ninguém lançar em 6 s. *(testado pelo Claude; o lançamento automático em 6 s foi conferido no código)*
 - [x] Os textos do jogador de cima (cápsulas, -1 VIDA, SOLTE PARA LANÇAR) aparecem virados para ele. *(testado pelo Claude)*
 - [x] O HUD mostra J1 embaixo (à esquerda) e J2 em cima (à direita). *(testado pelo Claude)*
@@ -58,8 +58,8 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] A IA também vai atrás das cápsulas dela. *(testado pelo Claude: ela vai quando nenhum disco está para chegar)*
 
 ### Ritmo
-- [ ] Os discos começam mais lentos que antes e dá para acompanhar os dois.
-- [ ] A partida não fica fácil nem impossível.
+- [x] Os discos começam mais lentos que antes e dá para acompanhar os dois. *(testado pelo usuário)*
+- [x] A partida não fica fácil nem impossível. *(testado pelo usuário)*
 
 ## 1.9.9 (21/11/2026)
 
@@ -68,7 +68,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] Logo depois da sua rebatida, ela demora um instante para sair do lugar. *(conferido no código pelo Claude)*
 - [x] Quando o disco vai bater na parede, às vezes ela começa indo para o lado errado e corrige. *(conferido no código pelo Claude)*
 - [x] ~~Com o disco indo para o seu lado, ela volta devagar para o meio.~~ *(desatualizado: desde a 1.10.0 ela acompanha o próprio disco ou volta para o meio)*
-- [ ] Dá para ganhar dela jogando bem, mas ela ainda pega a maioria das bolas.
+- [x] Dá para ganhar dela jogando bem, mas ela ainda pega a maioria das bolas. *(testado pelo usuário)*
 
 ## 1.9.8 (21/11/2026)
 
@@ -114,8 +114,8 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ### Outros
 - [x] O sino de novidades está na cor do tema. *(testado pelo Claude)*
-- [ ] O disco acelera mais devagar: no capítulo 4 ainda está bem controlável.
-- [ ] No mapa, o capítulo novo pisca como neon antes de acender, com um clarão.
+- [x] O disco acelera mais devagar: no capítulo 4 ainda está bem controlável. *(testado pelo usuário)*
+- [x] No mapa, o capítulo novo pisca como neon antes de acender, com um clarão. *(testado pelo usuário)*
 
 ## 1.9.6 (16/11/2026)
 
@@ -140,10 +140,10 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] Cores, emblemas, discos, rastros e perks estão em ordem de preço, do mais barato ao mais caro. *(conferido no código pelo Claude)*
 
 ### Diário
-- [ ] No celular, o texto do diário está maior e nenhuma linha passa da borda.
+- [x] No celular, o texto do diário está maior e nenhuma linha passa da borda. *(testado pelo usuário)*
 
 ### INFINITO
-- [ ] Sem perks, o primeiro chefão cai bem mais rápido, e dá para passar dos 7 minutos.
+- [x] Sem perks, o primeiro chefão cai bem mais rápido, e dá para passar dos 7 minutos. *(testado pelo usuário)*
 - [x] Segure o disco na plataforma sem lançar: os blocos não descem. Ao lançar, voltam a descer. *(testado pelo Claude)*
 
 ### Mapa
@@ -174,7 +174,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 ## 1.9.3 (16/11/2026)
 
 ### Fonte
-- [ ] Com o celular em modo avião, abra o jogo já instalado: os textos continuam na fonte Orbitron.
+- [x] Com o celular em modo avião, abra o jogo já instalado: os textos continuam na fonte Orbitron. *(testado pelo usuário)*
 
 ### Final
 - [x] Derrote O SISTEMA: depois do crash da bolsa aparece DERROTADO com as moedas e o botão de dobrar com anúncio. CONTINUAR leva ao falso travamento. *(testado pelo Claude)*
@@ -275,8 +275,8 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ### Correções
 - [x] ONDA DE CHOQUE: dispare e mova a plataforma; o arco fica parado onde começou. *(conferido no código pelo Claude)*
-- [ ] MEGA LASER: o brilho de carga começa apagado e acende.
-- [ ] Celular com o neon desligado: textos, botões e blocos com a mesma cara de antes.
+- [x] MEGA LASER: o brilho de carga começa apagado e acende. *(testado pelo usuário)*
+- [x] Celular com o neon desligado: textos, botões e blocos com a mesma cara de antes. *(testado pelo usuário)*
 
 ## 1.8.2 (13/11/2026)
 
@@ -290,7 +290,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ### INFINITO
 - [x] Deixe os blocos chegarem na linha tracejada: um feixe sobe da linha e destrói as três fileiras de baixo, você perde uma vida e o disco volta para a plataforma. *(testado pelo Claude)*
-- [ ] Aos 2:00, na chegada do chefão: um estrondo grave e um chiado curto, sem a sequência de sons de bloco quebrando.
+- [x] Aos 2:00, na chegada do chefão: um estrondo grave e um chiado curto, sem a sequência de sons de bloco quebrando. *(testado pelo usuário)*
 
 ### Menu, mapa e créditos
 - [x] ~~Menu inicial: JOGAR (grande), BREAKERS e INFINITO são ícones com o nome embaixo. O BREAKERS tem o ícone novo (plataforma, disco e brilho).~~ *(desatualizado: o ícone do BREAKERS virou a curva do ARCO na 1.8.3)*
@@ -348,7 +348,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] PERFURAR dura uns 3 s e atravessa quantos blocos der. *(você testou na 1.7.2)*
 
 ### Jogo
-- [ ] Lute com o SENTINELA: caem bem menos cápsulas que antes.
+- [x] Lute com o SENTINELA: caem bem menos cápsulas que antes. *(testado pelo usuário)*
 - [x] MEGA LASER: a plataforma fica travada um pouco menos. *(conferido no código pelo Claude)*
 - [x] Com PRESSÃO (fase 3-3 ou INFINITO), a MURALHA se desfaz um pouco antes de chegar na linha tracejada. *(testado pelo Claude)*
 - [x] MÍSSIL: ele passa pela MURALHA e acerta os blocos atrás dela. *(conferido no código pelo Claude)*

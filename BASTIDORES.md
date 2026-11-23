@@ -15,6 +15,8 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
+- [ ] Cápsulas MEGA DISCO e MINI DISCO com ícones da mesma família: os dois um anel com um ponto no meio, grande no MEGA e pequeno no MINI. Hoje o MEGA é um anel e o MINI é um ponto com dois tracinhos (23/11/2026)
+
 ### Ideias para o NEON FIGHTERS (jogo completo)
 
 - Cada breaker vira uma nave diferente, inspirada no formato, mantendo emblema e cores, com um tiro próprio: ARCO duplo e reto; LÂMINA um laser forte e rápido; PONTA leque de 3; FERRADURA das duas pontas curvando para dentro; ASA das pontas das asas, abrindo; ONDA em zigue-zague; FUNIL convergindo à frente.
