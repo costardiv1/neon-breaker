@@ -326,7 +326,7 @@ export function dropSprite(type, col) {
         line([cx - 9, m - 5, cx - 14, m - 9]); line([cx - 9, m + 5, cx - 14, m + 9]);
         break;
       case 'mega': c.beginPath(); c.arc(cx, m, 8, 0, TAU); c.stroke(); c.beginPath(); c.arc(cx, m, 2.5, 0, TAU); c.fill(); break;
-      case 'mini': c.beginPath(); c.arc(cx, m, 3.5, 0, TAU); c.fill(); line([cx - 14, m, cx - 8, m]); line([cx + 8, m, cx + 14, m]); break;
+      case 'mini': c.beginPath(); c.arc(cx, m, 4.5, 0, TAU); c.lineWidth = 2; c.stroke(); c.beginPath(); c.arc(cx, m, 1.3, 0, TAU); c.fill(); break;   // the MEGA's disc, small
       case 'life': line([cx, m - 7, cx, m + 7]); line([cx - 7, m, cx + 7, m]); break;
       case 'dark':   // a crossed-out sun
         c.beginPath(); c.arc(cx, m, 5, 0, TAU); c.stroke();

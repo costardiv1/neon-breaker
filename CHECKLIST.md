@@ -2,6 +2,11 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.11.2 (23/11/2026)
+
+- [ ] No 1x1, limpando a faixa, a contagem NOVA LEVA EM 3, 2, 1 toca um bipe bem audível em cada número, mais agudo no 1, e um pulso quando os blocos voltam.
+- [x] A cápsula MINI DISCO tem um anel pequeno com um ponto no meio, da mesma família do MEGA DISCO. *(testado pelo Claude)*
+
 ## 1.11.1 (21/11/2026)
 
 ### 1x1 com o disco da campanha
@@ -34,7 +39,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] Luzes correm pelas bordas, e a borda brilha quando um disco bate nela. *(testado pelo Claude; o brilho na batida foi conferido no código)*
 
 ### Nova leva
-- [ ] Limpando a faixa, aparece NOVA LEVA EM 3, 2, 1, com um som a cada número. *(o usuário ouviu: o clique está sutil demais; virou sugestão nos BASTIDORES)*
+- [x] ~~Limpando a faixa, aparece NOVA LEVA EM 3, 2, 1, com um som a cada número.~~ *(desatualizado: o clique era sutil demais; na 1.11.2 virou um bipe)*
 - [x] Depois os blocos acendem um de cada vez, e o disco passa pelos que ainda não apareceram. *(testado pelo Claude)*
 
 ### Correção

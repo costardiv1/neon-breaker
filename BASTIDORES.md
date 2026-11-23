@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.11.1** (21/11/2026)
+Versão atual publicada: **1.11.2** (23/11/2026)
 
 ## Objetivos
 
@@ -15,14 +15,16 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
-- [ ] Cápsulas MEGA DISCO e MINI DISCO com ícones da mesma família: os dois um anel com um ponto no meio, grande no MEGA e pequeno no MINI. Hoje o MEGA é um anel e o MINI é um ponto com dois tracinhos (23/11/2026)
-- [ ] 1x1: a contagem da NOVA LEVA com um bipe próprio, bem audível, no lugar do clique sutil dos botões. Um bipe em cada número, mais agudo no 1, e o pulso quando os blocos voltam (23/11/2026)
-
 ### Ideias para o NEON FIGHTERS (jogo completo)
 
 - Cada breaker vira uma nave diferente, inspirada no formato, mantendo emblema e cores, com um tiro próprio: ARCO duplo e reto; LÂMINA um laser forte e rápido; PONTA leque de 3; FERRADURA das duas pontas curvando para dentro; ASA das pontas das asas, abrindo; ONDA em zigue-zague; FUNIL convergindo à frente.
 
 ## Histórico
+
+### 1.11.2 (23/11/2026)
+
+- [x] 1x1: bipe próprio na contagem da NOVA LEVA.
+- [x] Ícone do MINI DISCO da mesma família do MEGA DISCO.
 
 ### 1.11.1 (21/11/2026)
 

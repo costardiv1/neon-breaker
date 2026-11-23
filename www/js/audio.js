@@ -284,6 +284,10 @@ class Sfx {
   pulse() {
     this.voice({ f: 660, dur: 0.18, detune: [-6, 6], vol: 0.08, ff: 3000, fto: 500, q: 6, send: 0.6 });
   }
+  // a countdown beep, clear over the game; higher on the last number
+  count(last = false) {
+    this.voice({ f: last ? 1320 : 880, dur: last ? 0.22 : 0.14, type: 'triangle', detune: [-4, 4], vol: 0.2, ff: 5000, fto: 1800, q: 2, send: 0.35 });
+  }
   click() {
     this.voice({ f: 1480, to: 740, dur: 0.06, type: 'square', vol: 0.05, filter: 'bandpass', ff: 2000, q: 4, send: 0.4 });
   }

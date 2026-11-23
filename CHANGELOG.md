@@ -2,6 +2,13 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.11.2] · 23/11/2026 · Bipe da contagem no 1x1 e ícone do MINI DISCO
+
+### Alterado
+
+- 1x1: a contagem NOVA LEVA EM 3, 2, 1 ganhou um bipe próprio, bem mais audível que o clique dos botões: um bipe em cada número (inclusive no 3), mais agudo no 1, e o pulso quando os blocos voltam.
+- Cápsula MINI DISCO com o ícone da mesma família do MEGA DISCO: um anel com um ponto no meio, só que pequeno.
+
 ## [1.11.1] · 21/11/2026 · O disco da campanha no 1x1 e o INFINITO depois da 2-1
 
 ### Alterado

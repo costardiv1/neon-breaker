@@ -183,7 +183,7 @@ export class Versus {
       const n0 = Math.ceil(this.refillT);
       this.refillT -= dt;
       if (this.refillT <= 0) { this.fillBand(true); this.banner = { text: 'NOVA LEVA', t: 1.2, max: 1.2 }; sfx.pulse(); }
-      else if (Math.ceil(this.refillT) !== n0) sfx.click();
+      else if (Math.ceil(this.refillT) !== n0) sfx.count(Math.ceil(this.refillT) === 1);
     }
     let born = 0;
     for (const q of this.bricks) {
@@ -355,7 +355,7 @@ export class Versus {
     }
     this.burst(cx, cy, 8, 1, [tone]);
     if (Math.random() < CAP_CHANCE && this.caps.length < 2) this.drop(q.x + q.w / 2, q.y + q.h / 2, own);
-    if (this.bricks.every((z) => z.hp <= 0) && this.refillT <= 0) this.refillT = COUNT;
+    if (this.bricks.every((z) => z.hp <= 0) && this.refillT <= 0) { this.refillT = COUNT; sfx.count(); }   // the 3
   }
 
   // ---------- capsules ----------
