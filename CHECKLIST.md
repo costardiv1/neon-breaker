@@ -5,14 +5,14 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 ## 1.11.1 (21/11/2026)
 
 ### 1x1 com o disco da campanha
-- [ ] No 1x1, os discos têm o desenho e o rastro escolhidos no BREAKERS, cada um na cor de quem tocou por último.
-- [ ] Rebatendo, a plataforma acende no ponto da batida e saem faíscas, como na campanha.
-- [ ] Os blocos soltam faíscas quando levam batida e se desfazem em quadradinhos quando quebram.
-- [ ] Com o rastro PALETA, o rastro do seu disco usa as cores da sua plataforma.
+- [x] No 1x1, os discos têm o desenho e o rastro escolhidos no BREAKERS, cada um na cor de quem tocou por último. *(testado pelo Claude)*
+- [x] Rebatendo, a plataforma acende no ponto da batida e saem faíscas, como na campanha. *(testado pelo Claude)*
+- [x] Os blocos soltam faíscas quando levam batida e se desfazem em quadradinhos quando quebram. *(testado pelo Claude)*
+- [x] Com o rastro PALETA, o rastro do seu disco usa as cores da sua plataforma. *(testado pelo Claude)*
 
 ### INFINITO depois da 2-1
-- [ ] No mapa, a rua do INFINITO sai entre a 2-1 e a 2-2.
-- [ ] Antes de vencer a 2-1 ela fica com cadeado e mostra VENÇA A FASE 2-1 PARA LIBERAR. Depois de vencer, acende e abre o INFINITO.
+- [x] No mapa, a rua do INFINITO sai entre a 2-1 e a 2-2. *(testado pelo Claude)*
+- [x] Antes de vencer a 2-1 ela fica com cadeado e mostra VENÇA A FASE 2-1 PARA LIBERAR. Depois de vencer, acende e abre o INFINITO. *(testado pelo Claude)*
 
 ## 1.11.0 (21/11/2026)
 
