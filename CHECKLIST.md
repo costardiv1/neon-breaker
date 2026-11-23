@@ -6,7 +6,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 - [x] No 1x1, limpando a faixa, a contagem NOVA LEVA EM 3, 2, 1 toca um bipe bem audível em cada número, mais agudo no 1, e um pulso quando os blocos voltam. *(testado pelo usuário)*
 - [x] ~~O menu inicial tem JOGAR e, embaixo, BREAKERS e 1x1. O 1x1 abre a escolha CONTRA A IA ou 2 JOGADORES, e o VOLTAR de lá volta ao menu.~~ *(desatualizado: o menu virou uma lista logo depois)*
-- [x] O menu inicial é uma lista: JOGAR (um pouco maior), BREAKERS, 1x1 e OPÇÕES em branco acinzentado. Cada um abre a sua tela, e o 1x1 abre a escolha CONTRA A IA ou 2 JOGADORES. *(testado pelo Claude)*
+- [x] O menu inicial é uma lista, cada botão com o ícone em cima e o nome embaixo: JOGAR (um pouco maior), BREAKERS, 1x1 e OPÇÕES em branco acinzentado. Cada um abre a sua tela, e o 1x1 abre a escolha CONTRA A IA ou 2 JOGADORES. *(testado pelo Claude)*
 - [x] A engrenagem saiu do canto; o troféu e o sino continuam em cima. *(testado pelo Claude)*
 - [x] Com outra cor de tema, o OPÇÕES continua branco acinzentado e os outros botões mudam de cor. *(conferido no código pelo Claude)*
 - [x] No mapa ficou só o VOLTAR, sem o botão 1x1. *(testado pelo Claude)*

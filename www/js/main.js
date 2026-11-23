@@ -2027,9 +2027,11 @@ function menuGrid() {
 }
 // the main menu's list: the centres of JOGAR, BREAKERS, 1x1 and OPÇÕES
 const MENU_GREY = '#c4ccd6';   // OPÇÕES keeps this color whatever the theme
+const MENU_ICON_TOP = true;    // the icon over the name (false: on its left)
 function menuList() {
-  const y0 = H * 0.41 + 48;
-  return { y: [y0, y0 + 48 + 22 + 38, y0 + 48 + 22 + 76 + 22 + 38, y0 + 48 + 22 + 2 * (76 + 22) + 38] };
+  const hb = MENU_ICON_TOP ? 132 : 96, h = MENU_ICON_TOP ? 108 : 76, g = MENU_ICON_TOP ? 18 : 22;
+  const y0 = H * (MENU_ICON_TOP ? 0.37 : 0.41) + hb / 2, y1 = y0 + hb / 2 + g + h / 2;
+  return { hb, h, wb: 300, w: 260, y: [y0, y1, y1 + h + g, y1 + 2 * (h + g)] };
 }
 // a big icon with a row of smaller ones under it (the end screens, like the pause)
 // the scores on the end screens count up as the screen opens
@@ -2055,10 +2057,10 @@ function layout() {
       // (INFINITO and FIGHTERS are on the map)
       const B = bellRect(), M = menuList();
       return [
-        btn(cx, M.y[0], 420, 96, 'JOGAR', () => setScene('map'), { big: true }),
-        btn(cx, M.y[1], 380, 76, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert() }),
-        btn(cx, M.y[2], 380, 76, '1x1', () => setScene('vsmenu')),
-        btn(cx, M.y[3], 380, 76, 'OPÇÕES', () => setScene('options'), { tint: MENU_GREY }),
+        btn(cx, M.y[0], M.wb, M.hb, 'JOGAR', () => setScene('map'), { big: true, licon: 'play' }),
+        btn(cx, M.y[1], M.w, M.h, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert(), licon: 'breakers' }),
+        btn(cx, M.y[2], M.w, M.h, '1x1', () => setScene('vsmenu'), { licon: 'vs' }),
+        btn(cx, M.y[3], M.w, M.h, 'OPÇÕES', () => setScene('options'), { tint: MENU_GREY, licon: 'gear' }),
         Object.assign(B, { label: '', fn: () => setScene('notif'), bell: true }),
         { x: B.x - B.w - 14, y: B.y, w: B.w, h: B.h, label: '', fn: openScores, icon: 'trophy', round: true },
       ];
@@ -2512,6 +2514,17 @@ function drawButton(c, b) {
   c.fillStyle = rgba(k, down ? 0.18 : 0.04);
   c.fill();
   neonStroke(c, k, k, b.big ? 3.2 : 2.2, b.x, b.y, b.x + b.w, b.y + b.h, b.big ? 1 : 0.6);
+  if (b.licon && MENU_ICON_TOP) {   // the main menu, icon over the name
+    const s = b.h / 150;
+    c.save(); c.translate(b.x + b.w / 2, b.y + b.h * 0.36); c.scale(s, s); drawMenuIcon(c, b.licon, 0, 0, k); c.restore();
+    glowText(c, b.label, b.x + b.w / 2, b.y + b.h * 0.76, b.big ? 22 : 17, '#ffffff', k, 'center', 700, 4);
+    c.globalAlpha = 1;
+    return;
+  }
+  if (b.licon) {   // the main menu: its icon on the left of the name
+    const s = b.h / 104;
+    c.save(); c.translate(b.x + b.h * 0.62, b.y + b.h / 2); c.scale(s, s); drawMenuIcon(c, b.licon, 0, 0, k); c.restore();
+  }
   glowText(c, b.label, b.x + b.w / 2, b.y + b.h / 2 + 1, b.fs || (b.big ? 26 : 21), '#ffffff', k, 'center', 700, b.fs ? 2 : 5);
   c.globalAlpha = 1;
 }
@@ -3539,7 +3552,7 @@ function render() {
     if (bestT > 0) glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
     if (menuMsg && now - menuMsg.t < 2) {
       ctx.globalAlpha = Math.min(1, (2 - (now - menuMsg.t)) * 2);
-      glowText(ctx, menuMsg.text, W / 2, menuList().y[3] + 76, 14, '#ffffff', k, 'center', 700, 3);
+      glowText(ctx, menuMsg.text, W / 2, menuList().y[3] + menuList().h / 2 + 38, 14, '#ffffff', k, 'center', 700, 3);
       ctx.globalAlpha = 1;
     }
     drawPlatform(ctx, plat, W / 2, H - 150, BASE_HW, now, k);
