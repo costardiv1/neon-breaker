@@ -34,7 +34,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] Luzes correm pelas bordas, e a borda brilha quando um disco bate nela. *(testado pelo Claude; o brilho na batida foi conferido no código)*
 
 ### Nova leva
-- [ ] Limpando a faixa, aparece NOVA LEVA EM 3, 2, 1, com um som a cada número. *(a contagem apareceu no navegador; falta ouvir o som de cada número)*
+- [ ] Limpando a faixa, aparece NOVA LEVA EM 3, 2, 1, com um som a cada número. *(o usuário ouviu: o clique está sutil demais; virou sugestão nos BASTIDORES)*
 - [x] Depois os blocos acendem um de cada vez, e o disco passa pelos que ainda não apareceram. *(testado pelo Claude)*
 
 ### Correção
@@ -224,7 +224,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] Na 10-1, o cartão da ATUALIZAÇÃO mostra a animação da barra. *(conferido no código pelo Claude)*
 - [x] Depois do lançamento, aparece PRÓXIMA ATUALIZAÇÃO EM N s. Nos últimos 3 s, a barra BAIXANDO ATUALIZAÇÃO enche com o ícone e o nome. Então aparece ATUALIZADO e a mecânica troca (portais somem, entra a gravidade...). *(testado pelo Claude)*
 - [x] KERNEL: com o VAZAMENTO, um bloco vira gota. Quando a mecânica troca, a gota volta a ser um bloco comum e a fase ainda pode ser limpa. *(testado pelo Claude)*
-- [ ] A música do capítulo 10 é alegre e "engasga" no fim.
+- [x] A música do capítulo 10 é alegre e "engasga" no fim. *(testado pelo usuário)*
 
 ### Chefão final: O SISTEMA
 - [x] ~~Um rosto de pixels sorrindo, que olha para o disco e pisca.~~ *(desatualizado: O SISTEMA virou O ACIONISTA na 1.9.4)*

@@ -16,6 +16,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
 - [ ] Cápsulas MEGA DISCO e MINI DISCO com ícones da mesma família: os dois um anel com um ponto no meio, grande no MEGA e pequeno no MINI. Hoje o MEGA é um anel e o MINI é um ponto com dois tracinhos (23/11/2026)
+- [ ] 1x1: a contagem da NOVA LEVA com um bipe próprio, bem audível, no lugar do clique sutil dos botões. Um bipe em cada número, mais agudo no 1, e o pulso quando os blocos voltam (23/11/2026)
 
 ### Ideias para o NEON FIGHTERS (jogo completo)
 
