@@ -2025,6 +2025,12 @@ function menuGrid() {
   const big = 150, mid = 104, top = H * 0.42;
   return { big, mid, top, y2: top + big + 56 };
 }
+// the main menu's list: the centres of JOGAR, BREAKERS, 1x1 and OPÇÕES
+const MENU_GREY = '#c4ccd6';   // OPÇÕES keeps this color whatever the theme
+function menuList() {
+  const y0 = H * 0.41 + 48;
+  return { y: [y0, y0 + 48 + 22 + 38, y0 + 48 + 22 + 76 + 22 + 38, y0 + 48 + 22 + 2 * (76 + 22) + 38] };
+}
 // a big icon with a row of smaller ones under it (the end screens, like the pause)
 // the scores on the end screens count up as the screen opens
 const countUp = (v, now) => Math.round(v * (1 - Math.pow(1 - Math.min(1, Math.max(0, now - sceneT0 - 0.1) / 0.9), 3)));
@@ -2044,18 +2050,16 @@ function layout() {
       // JOGAR (big icon) with BREAKERS under it, each with its name
       // below, like the pause; OPÇÕES and PLACAR are small round icons in the
       // top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
-      const { big, mid, top, y2 } = menuGrid(), B = bellRect();
-      // BREAKERS and 1x1 under JOGAR; INFINITO and FIGHTERS are on the map
-      const row = [
-        { label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
-        { label: '1x1', fn: () => setScene('vsmenu'), icon: 'vs' },
-      ];
-      const gap = Math.min(124 - mid + 20, (W - 40 - row.length * mid) / (row.length - 1)), x0 = cx - (row.length * mid + (row.length - 1) * gap) / 2;
+      // a list of buttons: JOGAR (a little bigger), BREAKERS, 1x1 and OPÇÕES
+      // in a fixed color; the trophy and the bell stay in the top corner
+      // (INFINITO and FIGHTERS are on the map)
+      const B = bellRect(), M = menuList();
       return [
-        { x: cx - big / 2, y: top, w: big, h: big, label: 'JOGAR', fn: () => setScene('map'), icon: 'play', big: true },
-        ...row.map((b, i) => Object.assign({ x: x0 + i * (mid + gap), y: y2, w: mid, h: mid }, b)),
+        btn(cx, M.y[0], 420, 96, 'JOGAR', () => setScene('map'), { big: true }),
+        btn(cx, M.y[1], 380, 76, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert() }),
+        btn(cx, M.y[2], 380, 76, '1x1', () => setScene('vsmenu')),
+        btn(cx, M.y[3], 380, 76, 'OPÇÕES', () => setScene('options'), { tint: MENU_GREY }),
         Object.assign(B, { label: '', fn: () => setScene('notif'), bell: true }),
-        { x: W - B.x - B.w, y: B.y, w: B.w, h: B.h, label: '', fn: () => setScene('options'), icon: 'gear', round: true },
         { x: B.x - B.w - 14, y: B.y, w: B.w, h: B.h, label: '', fn: openScores, icon: 'trophy', round: true },
       ];
     }
@@ -2469,7 +2473,7 @@ function wrap(c, text, maxW) {
 function drawButton(c, b) {
   if (b.hidden) return;
   if (b.slider) { drawSlider(c, b); return; }
-  const k = col();
+  const k = b.tint || col();
   const down = pressed === b;
   if (b.arrow) {
     const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
@@ -3535,8 +3539,7 @@ function render() {
     if (bestT > 0) glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
     if (menuMsg && now - menuMsg.t < 2) {
       ctx.globalAlpha = Math.min(1, (2 - (now - menuMsg.t)) * 2);
-      const G = menuGrid();
-      glowText(ctx, menuMsg.text, W / 2, G.y2 + G.mid + 62, 14, '#ffffff', k, 'center', 700, 3);
+      glowText(ctx, menuMsg.text, W / 2, menuList().y[3] + 76, 14, '#ffffff', k, 'center', 700, 3);
       ctx.globalAlpha = 1;
     }
     drawPlatform(ctx, plat, W / 2, H - 150, BASE_HW, now, k);
