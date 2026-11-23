@@ -10,6 +10,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - Cápsula MINI DISCO com o ícone da mesma família do MEGA DISCO: um anel com um ponto no meio, só que pequeno.
 - O 1x1 voltou para o menu inicial, ao lado do BREAKERS, e saiu do mapa (lá fica só o VOLTAR). No fim e na pausa do 1x1, o botão MAPA virou MENU.
 - Menu inicial em lista: botões retangulares um embaixo do outro, cada um com o ícone em cima e o nome embaixo: JOGAR (um pouco maior), BREAKERS, 1x1 e OPÇÕES, este numa cor fixa (branco acinzentado) que não muda com o tema. A engrenagem saiu do canto; o troféu e o sino continuam em cima.
+- 1x1: o mesmo tempo para lançar dos dois lados. Quem está embaixo também tem 6 s para soltar o dedo; depois disso o disco sai sozinho, como já era com o jogador de cima no modo 2 jogadores. Vale também contra a IA.
 
 ## [1.11.1] · 21/11/2026 · O disco da campanha no 1x1 e o INFINITO depois da 2-1
 

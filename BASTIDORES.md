@@ -27,6 +27,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] Ícone do MINI DISCO da mesma família do MEGA DISCO.
 - [x] 1x1 de volta no menu inicial, ao lado do BREAKERS (subiu sem mudar a versão).
 - [x] Menu inicial em lista, com o ícone em cima do nome e OPÇÕES numa cor fixa (subiu sem mudar a versão).
+- [x] 1x1: 6 s para lançar o disco dos dois lados (subiu sem mudar a versão).
 
 ### 1.11.1 (21/11/2026)
 

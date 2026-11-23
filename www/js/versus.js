@@ -45,6 +45,7 @@ const CAP_KEYS = Object.keys(VS_CAPS);
 // the AI gets a color that stands apart from the player's theme
 const warm = (c) => ['#ff7a1a', '#ff2d4a', '#ff45c0', '#ffd21f'].includes(c);
 const side = () => ({ fx: { grow: 0, shrink: 0, fast: 0, invert: 0 }, shield: false, hw: HW, queue: 0, serveT: 0, pulses: [] });
+const HOLD = 6;      // seconds a player can hold a disc before it goes by itself (both sides)
 const TRAIL = 420;   // the campaign's trail, scaled to this smaller disc
 
 export class Versus {
@@ -98,7 +99,7 @@ export class Versus {
   serve(who) {
     const p = this.side(who);
     if (this.balls.some((b) => b.held === who)) { p.queue++; return; }
-    const b = { x: 0, y: 0, vx: 0, vy: 0, s: V0, own: who, held: who, wait: who !== 'ai' ? 0 : this.two ? 6 : 1.1 + Math.random() * 0.6, path: [], spin: 0, react: 0, err: 0, aim: 0, wrong: false };
+    const b = { x: 0, y: 0, vx: 0, vy: 0, s: V0, own: who, held: who, wait: who === 'ai' && !this.two ? 1.1 + Math.random() * 0.6 : HOLD, path: [], spin: 0, react: 0, err: 0, aim: 0, wrong: false };
     this.balls.push(b);
     this.place(b);
   }
@@ -168,7 +169,8 @@ export class Versus {
       b.spin += dt * 9;
       if (b.held) {
         this.place(b);
-        if (b.held === 'ai') { b.wait -= dt; if (b.wait <= 0) this.launch(b, (Math.random() - 0.5) * 1.2); }
+        b.wait -= dt;   // the AI serves after a moment; a player's disc goes by itself after HOLD
+        if (b.wait <= 0) this.launch(b, (Math.random() - 0.5) * (b.held === 'ai' && !this.two ? 1.2 : 0.6));
       } else {
         const n = Math.max(1, Math.ceil((b.s * dt) / 8));
         for (let i = 0; i < n && !b.dead && this.state === 'play'; i++) this.step(b, dt / n);
