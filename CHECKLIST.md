@@ -4,7 +4,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ## 1.11.2 (23/11/2026)
 
-- [ ] No 1x1, limpando a faixa, a contagem NOVA LEVA EM 3, 2, 1 toca um bipe bem audível em cada número, mais agudo no 1, e um pulso quando os blocos voltam.
+- [x] No 1x1, limpando a faixa, a contagem NOVA LEVA EM 3, 2, 1 toca um bipe bem audível em cada número, mais agudo no 1, e um pulso quando os blocos voltam. *(testado pelo usuário)*
 - [x] A cápsula MINI DISCO tem um anel pequeno com um ponto no meio, da mesma família do MEGA DISCO. *(testado pelo Claude)*
 
 ## 1.11.1 (21/11/2026)
