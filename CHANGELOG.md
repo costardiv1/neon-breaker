@@ -2,6 +2,15 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.11.3] · 23/11/2026 · Todos os menus no estilo do menu inicial
+
+### Alterado
+
+- Todos os menus seguem o estilo do menu inicial: retângulos com o ícone em cima e o nome embaixo. As pausas (fases, 1x1 e FIGHTERS), o fim de jogo, o capítulo concluído, a recompensa e as telas finais do 1x1 e do FIGHTERS viraram uma lista, um botão embaixo do outro, com o primeiro um pouco maior.
+- Os botões do rodapé (VOLTAR, CANCELAR, CONTINUAR e PULAR) ganharam ícone e o mesmo formato, em todas as telas.
+- O sino (NOVIDADES) e o troféu (PLACAR) saíram do menu inicial. O placar do INFINITO continua no fim de jogo do INFINITO.
+- A cor do tema saiu das OPÇÕES e virou um ícone redondo de paleta no canto superior direito do menu inicial. As OPÇÕES ficaram com EFEITOS, MÚSICA, VIBRAÇÃO, TUTORIAL e CRÉDITOS, também em retângulos.
+
 ## [1.11.2] · 23/11/2026 · Bipe da contagem no 1x1 e ícone do MINI DISCO
 
 ### Alterado
@@ -9,7 +18,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - 1x1: a contagem NOVA LEVA EM 3, 2, 1 ganhou um bipe próprio, bem mais audível que o clique dos botões: um bipe em cada número (inclusive no 3), mais agudo no 1, e o pulso quando os blocos voltam.
 - Cápsula MINI DISCO com o ícone da mesma família do MEGA DISCO: um anel com um ponto no meio, só que pequeno.
 - O 1x1 voltou para o menu inicial, ao lado do BREAKERS, e saiu do mapa (lá fica só o VOLTAR). No fim e na pausa do 1x1, o botão MAPA virou MENU.
-- Menu inicial em lista: botões retangulares um embaixo do outro, cada um com o ícone em cima e o nome embaixo: JOGAR (um pouco maior), BREAKERS, 1x1 e OPÇÕES, este numa cor fixa (branco acinzentado) que não muda com o tema. A engrenagem saiu do canto; o troféu e o sino continuam em cima.
+- Menu inicial em lista: botões retangulares um embaixo do outro, cada um com o ícone em cima e o nome embaixo: JOGAR (um pouco maior), BREAKERS, 1x1 e OPÇÕES, este numa cor fixa (branco acinzentado) que não muda com o tema. A engrenagem saiu do canto; o troféu e o sino continuaram em cima.
 - 1x1: o mesmo tempo para lançar dos dois lados. Quem está embaixo também tem 6 s para soltar o dedo; depois disso o disco sai sozinho, como já era com o jogador de cima no modo 2 jogadores. Vale também contra a IA.
 
 ## [1.11.1] · 21/11/2026 · O disco da campanha no 1x1 e o INFINITO depois da 2-1

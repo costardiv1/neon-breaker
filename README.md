@@ -7,7 +7,7 @@
 **Um quebra-blocos minimalista em neon, feito para o celular.**
 Rebata o disco, atravesse os capítulos de uma cidade cibernética e derrube O SISTEMA.
 
-![versão](https://img.shields.io/badge/vers%C3%A3o-1.11.2-a65cff?style=for-the-badge)
+![versão](https://img.shields.io/badge/vers%C3%A3o-1.11.3-a65cff?style=for-the-badge)
 ![plataforma](https://img.shields.io/badge/celular-retrato-00e5ff?style=for-the-badge)
 ![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas-ff45c0?style=for-the-badge)
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES%20modules-ffd21f?style=for-the-badge)
@@ -53,7 +53,7 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 - **Anúncio opcional para dobrar as moedas** da fase vencida ou do chefão (por enquanto, anúncios de teste, um deles do QUEBRABLOCO, o projeto que deu origem ao Neon Breaker).
 - **Placar do INFINITO** pelo tempo sobrevivido, com as melhores partidas do aparelho e um placar online (Supabase) pronto para ser ligado. Na campanha, cada fase guarda o seu recorde no mapa.
 - **Arquivos dos chefões** nos créditos: o desenho de cada chefão derrotado; toque para reler o diário dele.
-- **Avisos de novidade**: um ! no menu BREAKERS quando há algo para comprar ou um formato novo, e um sino com todas as novidades.
+- **Avisos de novidade**: um ! no menu BREAKERS quando há algo para comprar ou um formato novo.
 - **13 cápsulas** de poderes e desvantagens que entram até o capítulo 6, do míssil teleguiado e da BOMBA ao APAGÃO, que deixa o campo no escuro.
 - **Animação própria ao bater** em cada formato: o ARCO salta, a LÂMINA pisca, a PONTA fica mais pontuda, a FERRADURA balança, a ASA bate as asas, a ONDA ondula, o FUNIL afunda, o DEGRAU desce um degrau, o ESCUDO absorve a batida e a COROA inclina as pontas.
 - **Trilha sonora sintetizada** por capítulo, cada vez mais rápida e frenética, com a borda do campo pulsando na batida.
@@ -193,7 +193,7 @@ A física roda em passo fixo de 120 Hz; o desenho usa coordenadas lógicas de 72
 ## Documentação
 
 - 📘 [Documentação do jogo (Word)](docs/Neon_Breaker_Documentacao.docx): regras, capítulos, chefões, economia, arquitetura, diagrama de casos de uso e diagramas de classe.
-- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.11.2.
+- 📝 [Changelog (Word)](docs/CHANGELOG.docx) e [CHANGELOG.md](CHANGELOG.md): da 0.1 alpha até a 1.11.3.
 - 🧩 Diagramas: [casos de uso](docs/diagramas/uc_resumido.png) · [módulos](docs/diagramas/classes_modulos.png) · [Game](docs/diagramas/classes_game.png) · [chefões](docs/diagramas/classes_chefoes.png) · [áudio](docs/diagramas/classes_audio.png)
 
 <div align="center"><img src="docs/diagramas/classes_chefoes.png" width="720" alt="Diagrama de classes dos chefões"></div>
