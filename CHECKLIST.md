@@ -5,6 +5,9 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 ## 1.11.2 (23/11/2026)
 
 - [x] No 1x1, limpando a faixa, a contagem NOVA LEVA EM 3, 2, 1 toca um bipe bem audível em cada número, mais agudo no 1, e um pulso quando os blocos voltam. *(testado pelo usuário)*
+- [x] O menu inicial tem JOGAR e, embaixo, BREAKERS e 1x1. O 1x1 abre a escolha CONTRA A IA ou 2 JOGADORES, e o VOLTAR de lá volta ao menu. *(testado pelo Claude)*
+- [x] No mapa ficou só o VOLTAR, sem o botão 1x1. *(testado pelo Claude)*
+- [x] No fim e na pausa do 1x1, o botão MENU volta ao menu inicial. *(conferido no código pelo Claude)*
 - [x] A cápsula MINI DISCO tem um anel pequeno com um ponto no meio, da mesma família do MEGA DISCO. *(testado pelo Claude)*
 
 ## 1.11.1 (21/11/2026)

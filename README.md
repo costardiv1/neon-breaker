@@ -45,7 +45,7 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 - **NEON FIGHTERS**: quem zera o jogo ganha a primeira fase do próximo, uma nave vista de cima (as asas do breaker ARCO) contra hordas e uma nave-mãe.
 - **A história em capítulos**: a cada chefão derrotado, um terminal digita um trecho do diário de quem está derrubando o sistema.
 - **Uma mecânica nova por capítulo**, misturada em cada fase com uma ou duas das antigas. No capítulo 10, O SISTEMA troca a mecânica no meio da fase (ATUALIZAÇÃO).
-- **Modo 1x1 contra a IA**: frente a frente, você embaixo, a IA em cima e os blocos no meio, com dois discos e cápsulas. Quem deixar um disco passar perde vida. Dá para jogar contra a IA ou com 2 jogadores no mesmo celular. Fica no mapa, ao lado do VOLTAR.
+- **Modo 1x1 contra a IA**: frente a frente, você embaixo, a IA em cima e os blocos no meio, com dois discos e cápsulas. Quem deixar um disco passar perde vida. Dá para jogar contra a IA ou com 2 jogadores no mesmo celular. Fica no menu inicial, ao lado do BREAKERS.
 - **Modo INFINITO**: uma fase só, com blocos descendo sem parar, mecânicas que entram e se revezam e um chefão aleatório a cada 3 min 30 s.
 - **Mapa em cidade 3D isométrica**: o caminho das fases é uma rua, com cercas de neon nos portões, carros de luz que passam atrás dos prédios e a torre AURUM no fim.
 - **Plataforma personalizável**: 10 formatos com física própria (liberados derrotando chefões), 8 paletas, 8 emblemas, 7 discos e 7 rastros.

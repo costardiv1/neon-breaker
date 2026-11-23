@@ -2045,9 +2045,10 @@ function layout() {
       // below, like the pause; OPÇÕES and PLACAR are small round icons in the
       // top corners, like the bell (COR and CRÉDITOS are in OPÇÕES)
       const { big, mid, top, y2 } = menuGrid(), B = bellRect();
-      // BREAKERS under JOGAR; the other modes are on the map
+      // BREAKERS and 1x1 under JOGAR; INFINITO and FIGHTERS are on the map
       const row = [
         { label: 'BREAKERS', fn: () => openBreakers(null, 'menu'), icon: 'breakers', bang: breakersAlert() },
+        { label: '1x1', fn: () => setScene('vsmenu'), icon: 'vs' },
       ];
       const gap = Math.min(124 - mid + 20, (W - 40 - row.length * mid) / (row.length - 1)), x0 = cx - (row.length * mid + (row.length - 1) * gap) / 2;
       return [
@@ -2059,10 +2060,9 @@ function layout() {
       ];
     }
     case 'map': {
-      // VOLTAR, with 1x1 beside it (INFINITO and FIGHTERS are on the map itself)
-      const list = mapButtons(), s = 84, y = H - 100 - s / 2;
-      list.push(btn(cx, H - 90, 300, bh, 'VOLTAR', () => setScene('menu')));
-      list.push({ x: cx + 166, y, w: s, h: s, label: '1x1', fn: () => setScene('vsmenu'), icon: 'vs', round: true, tag: true });
+      // VOLTAR (INFINITO and FIGHTERS are on the map itself)
+      const list = mapButtons();
+      list.push(btn(cx, H - 90, bw, bh, 'VOLTAR', () => setScene('menu')));
       return list;
     }
     case 'fighters': {
@@ -2076,21 +2076,21 @@ function layout() {
         { label: 'CONTRA A IA', fn: () => startVersus(false), icon: 'vs' },
         { label: '2 JOGADORES', fn: () => startVersus(true), icon: 'two' },
       ]);
-      list.push(btn(cx, H - 90, 300, bh, 'VOLTAR', () => setScene('map')));
+      list.push(btn(cx, H - 90, 300, bh, 'VOLTAR', () => setScene('menu')));
       return list;
     }
     case 'versus': {
       const V = versus;
       if (!V || V.state === 'play' || V.endT < 1.4) return [];
       return iconMenu(H * 0.6, { label: 'JOGAR DE NOVO', fn: startVersus, icon: 'restart' },
-        [{ label: 'MAPA', fn: () => setScene('map'), icon: 'pin' }]);
+        [{ label: 'MENU', fn: () => setScene('menu'), icon: 'home' }]);
     }
     case 'vpause': {
       const { big, mid, top, y2 } = menuGrid();
       return [
         { x: cx - big / 2, y: top, w: big, h: big, label: 'CONTINUAR', fn: () => setScene('versus'), icon: 'play', big: true },
         { x: cx - 62 - mid, y: y2, w: mid, h: mid, label: 'RECOMEÇAR', fn: startVersus, icon: 'restart' },
-        { x: cx + 62, y: y2, w: mid, h: mid, label: 'MAPA', fn: () => setScene('map'), icon: 'pin' },
+        { x: cx + 62, y: y2, w: mid, h: mid, label: 'MENU', fn: () => setScene('menu'), icon: 'home' },
       ];
     }
     case 'fpause': {
