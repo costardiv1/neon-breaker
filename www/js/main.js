@@ -82,7 +82,7 @@ sfx.enabled = store.get('sound', true);
 sfx.musicOn = store.get('music', true);
 
 const DROP_STEPS = [0.13, 0.25, 0.5, 1];
-const opts = Object.assign({ vibe: true, sens: 1.25, dev: false, inf: false, speed: 1, startStage: 0, fps: false, drop: 0, unlock: false },
+const opts = Object.assign({ vibe: true, sens: 1.25, dev: false, inf: false, speed: 1, startStage: 0, fps: false, drop: 0, unlock: false, field: 'auto' },
   store.get('opts', {}));
 if (oldLayout || !(opts.startStage >= 0 && opts.startStage < TOTAL_STAGES)) opts.startStage = 0;
 
@@ -302,6 +302,7 @@ game.setColor(col());
 window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), nf: () => startFighters(), get fighters() { return fighters; }, vs: (two = false) => startVersus(two), get versus() { return versus; }, scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
 
 function applyOpts() {
+  if (opts.dev) opts.devKnown = true;   // once unlocked, the MODO DEV row stays in the OPÇÕES (switched off or on)
   store.set('opts', opts);
   haptics.on = opts.vibe;
   game.infinite = opts.dev && opts.inf;
@@ -334,9 +335,17 @@ function setScene(s) {
 setScene('menu');
 
 // ---------- layout ----------
+// How the field fits the screen (testing, from the dev panel):
+//   auto  - the field fills the screen, so the bricks are closer to the paddle on wide screens and far on tall ones
+//   dist  - the bricks are always the same distance from the paddle; on tall screens the room left is empty at the top
+//   fixed - the whole game is always the same size; tall or wide screens get empty bands around it
+const FIELD_REF = 1280;   // the screen height the field is measured on (720 x 1280)
+const FIELD_MODES = { auto: 'NORMAL (enche a tela)', dist: 'DISTÂNCIA FIXA', fixed: 'CAMPO FIXO' };
 function resize() {
   const vw = window.innerWidth, vh = window.innerHeight;
-  const Hl = Math.max(1100, Math.min(1650, (W * vh) / vw));
+  const fm = opts.field || 'auto';
+  const lo = fm === 'auto' ? 1100 : FIELD_REF, hi = fm === 'fixed' ? FIELD_REF : 1650;
+  const Hl = Math.max(lo, Math.min(hi, (W * vh) / vw));
   let cssW = vw, cssH = (vw * Hl) / W;
   if (cssH > vh) { cssH = vh; cssW = (vh * W) / Hl; }
   canvas.style.width = cssW + 'px';
@@ -348,7 +357,8 @@ function resize() {
   canvas.height = Math.round(Hl * view.res);
   H = Hl;
   safeTop = (parseFloat(getComputedStyle(safeEl).paddingTop) || 0) * (W / cssW);
-  game.setLayout(H, safeTop + 130);
+  // dist: the field keeps the height it has on a 1280 screen, so its top comes down on taller ones
+  game.setLayout(H, fm === 'dist' ? Math.max(safeTop + 130, H - FIELD_REF + 130) : safeTop + 130);
   clearSprites();
 }
 window.addEventListener('resize', () => {
@@ -430,24 +440,12 @@ function optionRows() {
         presetGfx({ glow: NEON[i < 0 ? 2 : (i + d + n) % n].v });
       }, wide: true },
     ];
-    if (opts.dev) {
-      rows.push({ label: 'MODO DEV', icon: 'dev', val: () => onOff(true), tap: () => { opts.dev = false; } });
-      rows.push({ label: 'CONFIG. DEV', icon: 'gear', val: () => 'ABRIR', tap: () => setScene('dev') });
+    if (opts.dev || opts.devKnown) {   // the dev settings are in the floating panel
+      rows.push({ label: 'MODO DEV', icon: 'dev', val: () => onOff(opts.dev), tap: () => { opts.dev = !opts.dev; } });
     }
     return rows;
   }
-  return [
-    { label: 'VIDAS INFINITAS', val: () => onOff(opts.inf, true), tap: () => { opts.inf = !opts.inf; } },
-    { label: 'DESBLOQUEAR TUDO (E PERKS)', val: () => onOff(opts.unlock), tap: () => { opts.unlock = !opts.unlock; } },
-    { label: 'VELOCIDADE', slider: SL.speed },
-    { label: 'FASE', slider: SL.stage },
-    { label: 'DROPS', slider: SL.drop },
-    { label: 'MOSTRAR FPS', val: () => onOff(opts.fps), tap: () => { opts.fps = !opts.fps; } },
-    { label: 'RESETAR PROGRESSO', val: () => (performance.now() - resetArm < 3000 ? 'TOQUE DE NOVO' : 'RESETAR'), tap: () => {
-      if (performance.now() - resetArm < 3000) { resetArm = 0; resetProgress(); } else resetArm = performance.now();
-    } },
-    { label: 'JOGAR NA FASE', val: () => stageLabel(opts.startStage), tap: () => startGame(opts.startStage) },
-  ];
+  return [];
 }
 
 // Wipes progress, chips, coins and everything bought with them.
@@ -477,7 +475,7 @@ function optionIcons() {
     ...[sens, quality, neon].map((row) => ({ label: row.label, icon: row.icon, val: row.val(), step: (d) => done(() => row.step(d)) })),
     { label: 'TUTORIAL', fn: () => openTutView(0), icon: 'help', val: 'VER' },
     { label: 'CRÉDITOS', fn: () => setScene('credits'), icon: 'star', val: 'ABRIR' },
-    ...dev.map((row) => ({ label: row.label, icon: row.icon, val: row.val(), fn: done(row.tap), sw: row.label === 'MODO DEV' ? true : undefined })),
+    ...dev.map((row) => ({ label: row.label, icon: row.icon, val: row.val(), fn: done(row.tap), sw: row.label === 'MODO DEV' ? !!opts.dev : undefined })),
   ];
   // a list like the main menu, one under the other; shorter buttons when the screen is short
   const g = 12, top = safeTop + 168, room = H - 150 - top;
@@ -506,26 +504,7 @@ function optionIcons() {
   return list;
 }
 const OPT_ICON_LEFT = true;   // OPÇÕES: icon on the left and the switch on the right (false: icon over the name)
-function optionButtons() {
-  if (scene === 'options') return optionIcons();
-  const list = [];
-  const rows = optionRows(), y0 = safeTop + 200;
-  const stepY = Math.min(90, (H - 190 - y0) / Math.max(1, rows.length - 1));
-  rows.forEach((row, i) => {
-    const y = y0 + i * stepY;
-    const done = (fn) => () => { fn(); applyOpts(); };
-    if (row.slider) {
-      list.push({ x: W / 2 - 320, y: y - 37, w: 640, h: 74, label: row.label, slider: row.slider, fn: () => {} });
-    } else if (row.step) {
-      list.push(btn(W / 2, y, 640, 74, row.label, null, { optRow: row }));
-      list.push(btn(W / 2 + (row.wide ? 10 : 120), y, 64, 64, '', done(() => row.step(-1)), { arrow: -1 }));
-      list.push(btn(W / 2 + 280, y, 64, 64, '', done(() => row.step(1)), { arrow: 1 }));
-    } else {
-      list.push(btn(W / 2, y, 640, 74, row.label, done(row.tap), { optRow: row }));
-    }
-  });
-  return list;
-}
+function optionButtons() { return optionIcons(); }
 
 // ---------- world map: an isometric neon city ----------
 // The route is a street that winds down through the districts, with bends and
@@ -829,21 +808,21 @@ function toggleEquip(k) {
 const isEquipped = (k) => (isPassive(k) ? equipP : equip) === k;
 function browsePerk(d) { const n = perkKeys().length; perkSel[perkKind] = (perkSel[perkKind] + d + n) % n; }
 const perkCard = () => {
-  const y = safeTop + 352;
-  return { x: 140, y, w: W - 280, h: H - 300 - y };
+  const y = safeTop + 374;
+  return { x: 140, y, w: W - 280, h: H - 304 - y };
 };
 function perkButtons() {
   const list = [], cx = W / 2, cd = perkCard();
   list.push({ x: cd.x + cd.w - 62, y: cd.y + 8, w: 56, h: 56, label: '', fn: startPerkTut, icon: 'help', bare: true });   // the perks tutorial, any time
-  ['ATIVOS', 'PASSIVOS'].forEach((t, i) => list.push(btn(cx + (i ? 150 : -150), safeTop + 302, 280, 50, t, () => { perkKind = i; }, { small: true, sel: perkKind === i, fs: 14, bang: perkAlert(i) })));
+  ['ATIVOS', 'PASSIVOS'].forEach((t, i) => list.push(btn(cx + (i ? 150 : -150), safeTop + 330, 280, 50, t, () => { perkKind = i; }, { small: true, sel: perkKind === i, fs: 14, bang: perkAlert(i) })));
   list.push(btn(cx - 300, cd.y + cd.h / 2, 84, 84, '', () => browsePerk(-1), { arrow: -1 }));
   list.push(btn(cx + 300, cd.y + cd.h / 2, 84, 84, '', () => browsePerk(1), { arrow: 1 }));
-  const k = perkKey(), lvl = perkLvl(k), info = perkInfo(k), y = H - 178;
+  const k = perkKey(), lvl = perkLvl(k), info = perkInfo(k), y = H - 182;
   const label = lvl >= 3 ? 'MÁXIMO' : (lvl ? 'EVOLUIR  ' : 'COMPRAR  ') + info.cost[lvl] + ' CHIPS';
   if (lvl) {
-    list.push(btn(cx - 155, y, 290, 64, label, lvl >= 3 ? null : () => buy(k), { fs: 14, bang: canBuyPerk(k) }));
-    list.push(btn(cx + 155, y, 290, 64, isEquipped(k) ? 'EQUIPADO' : 'EQUIPAR', () => toggleEquip(k), { fs: 14 }));
-  } else list.push(btn(cx, y, 420, 64, label, () => buy(k), { fs: 15, bang: canBuyPerk(k) }));
+    list.push(btn(cx - 150, y, 284, 80, label, lvl >= 3 ? null : () => buy(k), { licon: lvl >= 3 ? 'star' : 'chip', off: lvl >= 3, bang: canBuyPerk(k) }));
+    list.push(btn(cx + 150, y, 284, 80, isEquipped(k) ? 'EQUIPADO' : 'EQUIPAR', () => toggleEquip(k), { licon: 'check', sel: isEquipped(k) }));
+  } else list.push(btn(cx, y, 360, 80, label, () => buy(k), { licon: 'chip', bang: canBuyPerk(k) }));
   return list;
 }
 function renderPerks(c, now) {
@@ -1053,6 +1032,7 @@ function platMsg(c, now, y) {
 // Shapes unlock as bosses fall; colors and emblems are bought with coins.
 const PLAT_TABS = ['FORMATO', 'CORES', 'EMBLEMA', 'DISCO', 'RASTRO', 'PERKS'];
 const PERK_TAB = 5;
+const PLAT_ICONS = ['breakers', 'pal', 'emblem', 'disc', 'trail', 'card'];
 const PAL_COST = [10, 15, 20, 25, 30, 55, 35, 0];
 const EMB_COST = [0, 0, 90, 110, 130, 160, 270, 190];
 let platTab = 0;
@@ -1098,18 +1078,19 @@ function buyItem() {
 const platSelY = () => safeTop + 700;
 function platButtons() {
   const list = [], cx = W / 2, per = Math.ceil(PLAT_TABS.length / 2), tw = (W - 48) / per;
-  PLAT_TABS.forEach((t, i) => list.push({ x: 24 + (i % per) * tw + 4, y: safeTop + 150 + Math.floor(i / per) * 58, w: tw - 8, h: 50, label: t, fn: () => { platTab = i; openPlat(); perkTabOpened(); }, ptab: i, bang: tabAlert(i) }));
+  PLAT_TABS.forEach((t, i) => list.push({ x: 24 + (i % per) * tw + 5, y: safeTop + 142 + Math.floor(i / per) * 78, w: tw - 10, h: 70, label: t, fn: () => { platTab = i; openPlat(); perkTabOpened(); },
+    licon: PLAT_ICONS[i], sel: platTab === i, bang: tabAlert(i) }));
   if (opts.dev) list.push(btn(cx, safeTop + 124, 120, 36, '+ DEV', () => { chips += 500; coins += 100; saveChips(); }, { small: true }));
   if (platTab === PERK_TAB) list.push(...perkButtons());
   else {
     const y = platSelY(), key = catKey(), i = browse[key];
     list.push(btn(cx - 270, y, 84, 84, '', () => browseItem(-1), { arrow: -1 }));
     list.push(btn(cx + 270, y, 84, 84, '', () => browseItem(1), { arrow: 1 }));
-    if (key !== 'shape' && !itemOpen(key, i)) list.push(btn(cx, y + 125, 420, 72, 'COMPRAR  ·  ' + itemCost(key, i) + ' MOEDAS', buyItem, { fs: 17, bang: coins >= itemCost(key, i) }));
-    if (key === 'shape') {
+    if (key !== 'shape' && !itemOpen(key, i)) list.push(btn(cx, y + 135, 360, 96, 'COMPRAR  ·  ' + itemCost(key, i) + ' MOEDAS', buyItem, { licon: 'coin', bang: coins >= itemCost(key, i) }));
+    if (key === 'shape') {   // two switches, like the OPÇÕES
       const tog = (k2) => () => { plat[k2] = !plat[k2]; store.set('plat', plat); };
-      list.push(btn(cx - 140, y + 190, 260, 56, 'LINHA: ' + (plat.dash ? 'TRACEJADA' : 'SÓLIDA'), tog('dash'), { fs: 13 }));
-      list.push(btn(cx + 140, y + 190, 260, 56, 'DETALHES: ' + (plat.detail ? 'SIM' : 'NÃO'), tog('detail'), { fs: 13 }));
+      list.push(btn(cx - 150, y + 190, 284, 68, 'TRACEJADA', tog('dash'), { licon: 'dash', optLine: true, sw: !!plat.dash }));
+      list.push(btn(cx + 150, y + 190, 284, 68, 'DETALHES', tog('detail'), { licon: 'detail', optLine: true, sw: !!plat.detail }));
     }
   }
   list.push(backBtn('VOLTAR', () => setScene(platBack)));
@@ -1958,6 +1939,46 @@ function drawMenuIcon(c, kind, x, y, k) {
     }
     c.lineCap = 'round';
     neonStroke(c, k, k, 4, x - 24, y, x + 24, y, 0.8);
+  } else if (kind === 'emblem') {   // a hexagon badge with a star
+    for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + i * TAU / 6; c[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * 22, y + Math.sin(a) * 22); }
+    c.closePath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 4.5 : 10; c[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    c.closePath(); c.lineJoin = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'disc') {   // a disc: a ring with a dot
+    c.arc(x, y, 18, 0, TAU);
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+    c.beginPath(); c.arc(x, y, 6, 0, TAU); c.fillStyle = k; c.fill();
+  } else if (kind === 'trail') {   // a disc leaving streaks behind
+    c.arc(x + 12, y, 9, 0, TAU);
+    c.moveTo(x - 22, y - 8); c.lineTo(x - 2, y - 8); c.moveTo(x - 24, y); c.lineTo(x, y); c.moveTo(x - 22, y + 8); c.lineTo(x - 2, y + 8);
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'card') {   // a perk card with a bolt
+    roundRectPath(c, x - 15, y - 21, 30, 42, 5);
+    c.moveTo(x + 3, y - 12); c.lineTo(x - 6, y + 2); c.lineTo(x + 2, y + 2); c.lineTo(x - 3, y + 13);
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'coin') {   // a coin
+    c.arc(x, y, 19, 0, TAU); c.moveTo(x + 12, y); c.arc(x, y, 12, 0, TAU);
+    neonStroke(c, '#ffd84a', '#ffd84a', 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'chip') {   // a chip: a square with pins
+    c.rect(x - 13, y - 13, 26, 26); c.rect(x - 6, y - 6, 12, 12);
+    for (const d of [-7, 0, 7]) { c.moveTo(x + d, y - 13); c.lineTo(x + d, y - 20); c.moveTo(x + d, y + 13); c.lineTo(x + d, y + 20); c.moveTo(x - 13, y + d); c.lineTo(x - 20, y + d); c.moveTo(x + 13, y + d); c.lineTo(x + 20, y + d); }
+    neonStroke(c, k, k, 2.6, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'check') {
+    c.moveTo(x - 17, y + 1); c.lineTo(x - 5, y + 13); c.lineTo(x + 18, y - 12);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    neonStroke(c, k, k, 4, x - 22, y, x + 22, y, 0.9);
+  } else if (kind === 'dash') {   // a dashed arc
+    for (let i = 0; i < 4; i++) { const u0 = -1 + i * 0.52, u1 = u0 + 0.32; c.moveTo(x + u0 * 22, y + 12 * u0 * u0 - 4); c.lineTo(x + u1 * 22, y + 12 * u1 * u1 - 4); }
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 4, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'detail') {   // an arc with little marks under it
+    for (let i = 0; i <= 24; i++) { const u = -1 + i / 12; c[i ? 'lineTo' : 'moveTo'](x + u * 22, y - 6 + 10 * u * u); }
+    for (const u of [-0.6, 0, 0.6]) { c.moveTo(x + u * 22, y + 2 + 10 * u * u); c.lineTo(x + u * 22, y + 9 + 10 * u * u); }
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
   } else if (kind === 'ship') {
     // the NEON FIGHTERS ship: the ARCO curve as wings and a pointed body
     for (let i = 0; i <= 20; i++) { const u = -1 + i / 10; c[i ? 'lineTo' : 'moveTo'](x + u * 26, y + 4 + 12 * u * u); }
@@ -2085,6 +2106,17 @@ devUI = createDevPanel({
   endlessSkip: () => game.devEndlessSkip(), endlessBoss: () => game.devEndlessBoss(),
   testStory: () => startStory(Math.max(0, Math.min(STORY.length - 1, bossesBeaten() - 1))),
   testCrash: () => startCrash(), toMap: () => setScene('map'),
+  fieldLabel: () => '📐 Campo: ' + FIELD_MODES[opts.field || 'auto'],
+  fieldTap: () => {   // NORMAL → DISTÂNCIA FIXA → CAMPO FIXO → NORMAL
+    const ks = Object.keys(FIELD_MODES);
+    opts.field = ks[(ks.indexOf(opts.field || 'auto') + 1) % ks.length];
+    applyOpts(); resize();
+  },
+  resetLabel: () => (performance.now() - resetArm < 3000 ? '⚠️ Toque de novo para resetar' : '🗑️ Resetar progresso'),
+  resetTap: () => {   // the first tap arms it, the second wipes everything and goes to the menu
+    if (performance.now() - resetArm < 3000) { resetArm = 0; resetProgress(); menuMsg = { text: 'PROGRESSO RESETADO', t: performance.now() / 1000 }; setScene('menu'); }
+    else resetArm = performance.now();
+  },
   cycle: (key, n) => cycle(key, 1, n),
   cycleActive: () => cyclePerk(ACTIVE_KEYS, game.ability && game.ability.type, (k) => { game.ability = k ? { type: k, lvl: 3 } : null; game.energy = 1; }),
   cyclePassive: () => cyclePerk(PASSIVE_KEYS, game.passive && game.passive.type, (k) => { game.passive = k ? { type: k, lvl: 3 } : null; }),
@@ -2171,10 +2203,9 @@ function layout() {
       const t = performance.now() / 1000 - crash.t0;
       return t > CRASH_END ? [backBtn('CONTINUAR', () => startStory(STORY.length - 1), 'play', H * 0.72)] : [];
     }
-    case 'options':
-    case 'dev': {
+    case 'options': {
       const list = optionButtons();
-      list.push(backBtn('VOLTAR', () => setScene(scene === 'dev' ? 'options' : 'menu')));
+      list.push(backBtn('VOLTAR', () => setScene('menu')));
       return list;
     }
     case 'plat': return platButtons();
@@ -2576,13 +2607,17 @@ function drawButton(c, b) {
   if (b.off) c.globalAlpha = 0.45;
   else if (b.dim) c.globalAlpha = 0.6;
   roundRectPath(c, b.x, b.y, b.w, b.h, 16);
-  c.fillStyle = rgba(k, down ? 0.18 : 0.04);
+  c.fillStyle = rgba(k, down ? 0.18 : b.sel ? 0.26 : 0.04);
   c.fill();
-  neonStroke(c, k, k, b.big ? 3.2 : 2.2, b.x, b.y, b.x + b.w, b.y + b.h, b.big ? 1 : 0.6);
+  neonStroke(c, k, k, b.big || b.sel ? 3.2 : 2.2, b.x, b.y, b.x + b.w, b.y + b.h, b.big || b.sel ? 1 : 0.6);
   if (b.optLine) {   // OPÇÕES: icon, name, and the switch or the value on the right
     const cy = b.y + b.h / 2, R = b.x + b.w, s = b.h / 120;
     c.save(); c.translate(b.x + 46, cy); c.scale(s, s); drawMenuIcon(c, b.licon, 0, 0, k); c.restore();
-    glowText(c, b.label, b.x + 86, cy + 1, 17, '#ffffff', k, 'left', 700, 3);
+    let lf = 17;
+    c.font = `700 ${lf}px Orbitron`;
+    const room = b.w - 86 - (b.sw !== undefined ? 100 : b.steps ? 210 : 120), lw = c.measureText(b.label).width + b.label.length * 3;
+    if (lw > room) lf *= room / lw;
+    glowText(c, b.label, b.x + 86, cy + 1, lf, '#ffffff', k, 'left', 700, 3);
     if (b.sw !== undefined) {   // a switch: a pill with the knob on the right when on
       c.globalAlpha = 1;
       const sw = 64, sh = 34, sx = R - 24 - sw, sy = cy - sh / 2;
@@ -3722,8 +3757,8 @@ function render() {
     renderScores(ctx, now);
   } else if (scene === 'devgate') {
     renderDevGate(ctx, now);
-  } else if (scene === 'options' || scene === 'dev') {
-    neonTitle(ctx, scene === 'dev' ? 'CONFIG. DEV' : 'OPÇÕES', W / 2, safeTop + 105, 46, k, k, 12);
+  } else if (scene === 'options') {
+    neonTitle(ctx, 'OPÇÕES', W / 2, safeTop + 105, 46, k, k, 12);
     if (optMsg && now - optMsg.t < 2.2) {
       ctx.globalAlpha = Math.min(1, (2.2 - (now - optMsg.t)) * 2);
       glowText(ctx, optMsg.text, W / 2, H - 165, 17, '#ffffff', k, 'center', 700, 4);

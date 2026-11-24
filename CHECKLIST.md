@@ -11,7 +11,9 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] O botão OPÇÕES do menu inicial está na cor do tema, um pouco esmaecida. *(testado pelo Claude)*
 - [x] No 1x1, as cápsulas mostram o ícone do efeito no lugar do nome. *(testado pelo Claude)*
 - [x] No 1x1, a plataforma não passa da borda, nem com a cápsula MAIOR encostada na parede. *(testado pelo Claude)*
-- [ ] Com o modo dev ligado, as OPÇÕES mostram MODO DEV (switch) e CONFIG. DEV na lista.
+- [x] Com o modo dev destravado, a linha MODO DEV fica nas OPÇÕES: o switch desliga e liga de novo sem a senha. *(testado pelo Claude no PC)*
+- [ ] O BREAKERS: abas com ícone (a aberta acesa), COMPRAR com a moeda, TRACEJADA e DETALHES com switch, botões dos perks maiores.
+- [ ] No painel dev (aba Jogo): desbloquear tudo, resetar progresso (dois toques) e 📐 Campo. Comparar NORMAL, DISTÂNCIA FIXA e CAMPO FIXO no celular e escolher um.
 
 ## 1.11.3 (23/11/2026)
 

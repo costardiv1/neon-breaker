@@ -28,6 +28,10 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] Botão OPÇÕES na cor do tema esmaecida.
 - [x] TUTORIAL das OPÇÕES: VER mostra só os cartões, com VOLTAR.
 - [x] 1x1: cápsulas com ícone e plataformas dentro da borda.
+- [x] BREAKERS no estilo dos outros menus. *(subiu sem atualizar)*
+- [x] CONFIG. DEV removido; desbloquear tudo e resetar progresso no painel flutuante. *(subiu sem atualizar)*
+- [x] Linha MODO DEV fica nas OPÇÕES depois de desligada. *(subiu sem atualizar)*
+- [ ] Equilibrar o campo entre telas largas e compridas: botão 📐 Campo no painel dev para testar NORMAL, DISTÂNCIA FIXA e CAMPO FIXO; falta escolher. *(subiu sem atualizar)*
 
 ### 1.11.3 (23/11/2026)
 

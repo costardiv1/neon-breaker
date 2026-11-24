@@ -7,6 +7,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 ### Adicionado
 
 - OPÇÕES › TUTORIAL agora diz VER e mostra só os cartões do tutorial, no meio da tela, sem entrar no jogo: as setas ‹ › passam os 7 cartões e o VOLTAR volta para as OPÇÕES.
+- Modo dev: o painel flutuante ganhou desbloquear tudo (e perks), resetar progresso (com um segundo toque para confirmar) e um botão 📐 Campo para testar como o campo se ajusta à tela: NORMAL (enche a tela), DISTÂNCIA FIXA (os blocos sempre à mesma distância da plataforma) e CAMPO FIXO (o jogo sempre do mesmo tamanho, com faixas onde a tela sobra).
 
 ### Alterado
 
@@ -14,6 +15,9 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - OPÇÕES em lista, uma linha embaixo da outra, com o ícone à esquerda do nome: EFEITOS, MÚSICA e VIBRAÇÃO têm um switch à direita; SENSIBILIDADE, QUALIDADE e NEON mostram o valor entre as setas ‹ ›; TUTORIAL e CRÉDITOS têm uma seta ›. SENSIBILIDADE, QUALIDADE, NEON e o modo dev ganharam ícones.
 - O botão OPÇÕES do menu inicial voltou para a cor do tema, um pouco esmaecida.
 - 1x1: as cápsulas mostram um ícone no lugar do nome, como as da campanha (MAIOR, MENOR, VELOZ, ESCUDO, +1 DISCO e INVERTE).
+- O menu BREAKERS segue o estilo dos outros menus: as abas são retângulos com ícone em cima do nome (a aberta fica acesa), o COMPRAR tem o ícone da moeda, TRACEJADA e DETALHES viraram linhas com switch, e os botões dos perks (COMPRAR/EVOLUIR e EQUIPAR) ficaram maiores, com ícone.
+- A tela CONFIG. DEV saiu das OPÇÕES: o que só existia nela foi para o painel flutuante do modo dev.
+- A linha MODO DEV continua nas OPÇÕES depois de desligada, com o switch apagado, e liga de novo com um toque, sem precisar da senha.
 
 ### Corrigido
 
