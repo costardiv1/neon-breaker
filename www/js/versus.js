@@ -29,7 +29,8 @@ const CR = 34;               // the rounded corners of the field, like the campa
 const COUNT = 3;             // the countdown before a new band (s)
 
 // the capsules: they fall from a broken brick toward whoever broke it
-const CAP_CHANCE = 0.24, CAP_V = 230, CAP_W = 92, CAP_H = 30;
+const CAP_CHANCE = 0.24, CAP_V = 230, CAP_W = 60, CAP_H = 30, CAP_CATCH = 92;
+const EDGE = 4;               // the platforms keep this far from the walls
 export const VS_CAPS = {
   // text: what the player reads when they catch it, and when the AI does;
   // two: what the one who caught it reads, with 2 players
@@ -41,6 +42,28 @@ export const VS_CAPS = {
   invert: { name: 'INVERTE', text: ['IA COM CONTROLE INVERTIDO', 'SEU CONTROLE INVERTEU'], two: 'O OUTRO FICOU INVERTIDO', t: 4 },
 };
 const CAP_KEYS = Object.keys(VS_CAPS);
+// the capsule's icon, in white, like the campaign's capsules
+function capIcon(c, kind, cx, m) {
+  c.save();
+  c.strokeStyle = c.fillStyle = '#ffffff';
+  c.lineWidth = 2.6; c.lineCap = 'round'; c.lineJoin = 'round';
+  const line = (pts) => { c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.stroke(); };
+  switch (kind) {
+    case 'grow':   // arrows pointing out
+      line([cx - 13, m, cx + 13, m]); line([cx - 9, m - 5, cx - 14, m, cx - 9, m + 5]); line([cx + 9, m - 5, cx + 14, m, cx + 9, m + 5]); break;
+    case 'shrink':   // arrows pointing in
+      line([cx - 14, m - 5, cx - 8, m, cx - 14, m + 5]); line([cx + 14, m - 5, cx + 8, m, cx + 14, m + 5]); line([cx - 3, m, cx + 3, m]); break;
+    case 'fast':
+      line([cx - 9, m - 6, cx - 3, m, cx - 9, m + 6]); line([cx + 1, m - 6, cx + 7, m, cx + 1, m + 6]); break;
+    case 'shield':   // a shield
+      c.beginPath(); c.moveTo(cx, m - 9); c.lineTo(cx + 8, m - 6); c.quadraticCurveTo(cx + 8, m + 4, cx, m + 9); c.quadraticCurveTo(cx - 8, m + 4, cx - 8, m - 6); c.closePath(); c.stroke(); break;
+    case 'multi': for (const dx of [-10, 0, 10]) { c.beginPath(); c.arc(cx + dx, m, 3, 0, TAU); c.fill(); } break;
+    case 'invert':   // two arrows pointing opposite ways
+      line([cx - 13, m - 4, cx + 9, m - 4]); line([cx + 4, m - 8, cx + 9, m - 4]);
+      line([cx + 13, m + 4, cx - 9, m + 4]); line([cx - 4, m + 8, cx - 9, m + 4]); break;
+  }
+  c.restore();
+}
 
 // the AI gets a color that stands apart from the player's theme
 const warm = (c) => ['#ff7a1a', '#ff2d4a', '#ff45c0', '#ffd21f'].includes(c);
@@ -141,7 +164,7 @@ export class Versus {
     if (b) this.launch(b, (Math.random() - 0.5) * 0.6);
   }
   cancel(id) { this.drags.delete(id); }
-  clampX(p, x) { return Math.max(LEFT + p.hw * 0.75, Math.min(RIGHT - p.hw * 0.75, x)); }
+  clampX(p, x) { return Math.max(LEFT + EDGE + p.hw, Math.min(RIGHT - EDGE - p.hw, x)); }   // the whole platform stays inside the frame
 
   update(dt) {
     this.t += dt;
@@ -154,6 +177,7 @@ export class Versus {
       for (const k in p.fx) p.fx[k] = Math.max(0, p.fx[k] - dt);
       const want = HW * (p.fx.grow ? 1.35 : 1) * (p.fx.shrink ? 0.68 : 1);
       p.hw += (want - p.hw) * Math.min(1, dt * 8);
+      p.tx = this.clampX(p, p.tx); p.x = this.clampX(p, p.x);   // growing near a wall pushes it back in
       p.serveT = Math.max(0, p.serveT - dt);
     }
     const me = this.me;
@@ -236,7 +260,7 @@ export class Versus {
       else if (inc && this.t >= inc.react) {
         const left = (inc.y - ai.y) / (this.me.y - ai.y);   // 1 just off the player, 0 at the AI
         if (inc.wrong && left > 0.45) {   // fooled by the wall: it goes where the disc points
-          ai.tx = Math.max(LEFT + ai.hw, Math.min(RIGHT - ai.hw, inc.x + (inc.vx * (ai.y + R - inc.y)) / inc.vy));
+          ai.tx = Math.max(LEFT + EDGE + ai.hw, Math.min(RIGHT - EDGE - ai.hw, inc.x + (inc.vx * (ai.y + R - inc.y)) / inc.vy));
         } else {
           inc.wrong = false;
           ai.tx = this.predict(inc, ai.y + R) + inc.err * (0.4 + 0.6 * Math.max(0, left)) - inc.aim * ai.hw * 0.7;
@@ -255,7 +279,7 @@ export class Versus {
     const dv = want - ai.vx, a = AI_ACC * dt;
     ai.vx += Math.max(-a, Math.min(a, dv));
     ai.x += ai.vx * dt;
-    const lo = LEFT + ai.hw * 0.75, hi = RIGHT - ai.hw * 0.75;
+    const lo = LEFT + EDGE + ai.hw, hi = RIGHT - EDGE - ai.hw;
     if (ai.x < lo || ai.x > hi) { ai.x = Math.max(lo, Math.min(hi, ai.x)); ai.vx = 0; }
   }
   // how many walls the disc will hit before it reaches the line at y
@@ -370,7 +394,7 @@ export class Versus {
       q.t += dt;
       q.y += (q.to === 'me' ? 1 : -1) * CAP_V * dt;
       const p = this.side(q.to);
-      if (Math.abs(q.y - p.y) < CAP_H / 2 + 8 && Math.abs(q.x - p.x) < p.hw + CAP_W / 2 - 10) { q.done = true; this.collect(q.to, q.kind); }
+      if (Math.abs(q.y - p.y) < CAP_H / 2 + 8 && Math.abs(q.x - p.x) < p.hw + CAP_CATCH / 2 - 10) { q.done = true; this.collect(q.to, q.kind); }
       else if (q.y > this.bottom + 40 || q.y < this.top - 40) q.done = true;
     }
     this.caps = this.caps.filter((q) => !q.done);
@@ -513,7 +537,7 @@ export class Versus {
       c.beginPath(); c.moveTo(x + r, y); c.lineTo(x + CAP_W - r, y); c.arc(x + CAP_W - r, q.y, r, -Math.PI / 2, Math.PI / 2); c.lineTo(x + r, y + CAP_H); c.arc(x + r, q.y, r, Math.PI / 2, Math.PI * 1.5); c.closePath();
       c.fillStyle = rgba(k, 0.25); c.fill();
       neonStroke(c, k, '#ffffff', 2.4, x, y, x + CAP_W, y + CAP_H, 0.9 + 0.3 * Math.sin(q.t * 8));
-      glowText(c, VS_CAPS[q.kind].name, q.x, q.y + 1, 12, '#ffffff', k, 'center', 800, 2);
+      capIcon(c, q.kind, q.x, q.y);
     }
     // the platforms: the AI's is flipped, facing down
     drawPlatform(c, this.plat, this.me.x, this.me.y, this.me.hw, this.t, col, this.me.hit);

@@ -2,6 +2,17 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.12.4 (23/11/2026)
+
+- [x] As OPÇÕES são uma lista com o ícone à esquerda do nome, switches em EFEITOS, MÚSICA e VIBRAÇÃO e setas em SENSIBILIDADE, QUALIDADE e NEON. *(testado pelo Claude)*
+- [x] Tocar na linha da MÚSICA liga e desliga o switch; as setas da SENSIBILIDADE sobem e descem o valor. *(testado pelo Claude)*
+- [x] OPÇÕES › TUTORIAL (VER) mostra os cartões sem entrar no jogo, e o VOLTAR volta para as OPÇÕES. *(testado pelo Claude)*
+- [ ] O cartão do TUTORIAL das OPÇÕES fica no meio da tela, e as setas passam do 1º ao 7º (a da esquerda apagada no primeiro, a da direita no último).
+- [x] O botão OPÇÕES do menu inicial está na cor do tema, um pouco esmaecida. *(testado pelo Claude)*
+- [x] No 1x1, as cápsulas mostram o ícone do efeito no lugar do nome. *(testado pelo Claude)*
+- [x] No 1x1, a plataforma não passa da borda, nem com a cápsula MAIOR encostada na parede. *(testado pelo Claude)*
+- [ ] Com o modo dev ligado, as OPÇÕES mostram MODO DEV (switch) e CONFIG. DEV na lista.
+
 ## 1.11.3 (23/11/2026)
 
 - [x] O menu inicial não tem mais o sino nem o troféu; no canto superior direito fica só a paleta, que abre a COR. O VOLTAR da COR volta ao menu. *(testado pelo Claude)*

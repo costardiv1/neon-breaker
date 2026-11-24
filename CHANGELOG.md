@@ -2,6 +2,23 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.12.4] · 23/11/2026 · OPÇÕES em lista e cápsulas com ícone no 1x1
+
+### Adicionado
+
+- OPÇÕES › TUTORIAL agora diz VER e mostra só os cartões do tutorial, no meio da tela, sem entrar no jogo: as setas ‹ › passam os 7 cartões e o VOLTAR volta para as OPÇÕES.
+
+### Alterado
+
+- A numeração das versões foi corrigida daqui para frente: o segundo número muda quando entra algo grande e novo (modo, chefão, capítulo) e o terceiro nos ajustes. Recontando desde a 1.9, a 1.11.3 seria a 1.12.3, por isso esta versão é a 1.12.4.
+- OPÇÕES em lista, uma linha embaixo da outra, com o ícone à esquerda do nome: EFEITOS, MÚSICA e VIBRAÇÃO têm um switch à direita; SENSIBILIDADE, QUALIDADE e NEON mostram o valor entre as setas ‹ ›; TUTORIAL e CRÉDITOS têm uma seta ›. SENSIBILIDADE, QUALIDADE, NEON e o modo dev ganharam ícones.
+- O botão OPÇÕES do menu inicial voltou para a cor do tema, um pouco esmaecida.
+- 1x1: as cápsulas mostram um ícone no lugar do nome, como as da campanha (MAIOR, MENOR, VELOZ, ESCUDO, +1 DISCO e INVERTE).
+
+### Corrigido
+
+- 1x1: as plataformas não atravessam mais a borda do campo, nem quando crescem encostadas na parede.
+
 ## [1.11.3] · 23/11/2026 · Todos os menus no estilo do menu inicial
 
 ### Alterado

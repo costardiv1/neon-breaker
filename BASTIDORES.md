@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.11.3** (23/11/2026)
+Versão atual publicada: **1.12.4** (23/11/2026)
 
 ## Objetivos
 
@@ -20,6 +20,14 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - Cada breaker vira uma nave diferente, inspirada no formato, mantendo emblema e cores, com um tiro próprio: ARCO duplo e reto; LÂMINA um laser forte e rápido; PONTA leque de 3; FERRADURA das duas pontas curvando para dentro; ASA das pontas das asas, abrindo; ONDA em zigue-zague; FUNIL convergindo à frente.
 
 ## Histórico
+
+### 1.12.4 (23/11/2026)
+
+- [x] Numeração corrigida: segundo número para algo grande e novo, terceiro para ajustes (a 1.11.3 seria a 1.12.3).
+- [x] OPÇÕES em lista, ícone à esquerda e switch à direita.
+- [x] Botão OPÇÕES na cor do tema esmaecida.
+- [x] TUTORIAL das OPÇÕES: VER mostra só os cartões, com VOLTAR.
+- [x] 1x1: cápsulas com ícone e plataformas dentro da borda.
 
 ### 1.11.3 (23/11/2026)
 

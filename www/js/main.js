@@ -22,7 +22,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.11.3';
+export const VERSION = '1.12.4';
 
 let H = 1280;
 let safeTop = 0;
@@ -187,6 +187,12 @@ function skipTutorial() {
   card = null;
   game.tutorial = false;
   setScene('play');
+}
+
+// OPÇÕES › TUTORIAL: just the cards, one after the other, without playing
+function openTutView(i) {
+  card = { ...TUT[i], focus: null, kicker: `TUTORIAL  ${i + 1}/${TUT.length}`, view: i };
+  setScene('tutview');
 }
 
 function markSeen(k) { seen[k] = true; store.set('seen', seen); }
@@ -413,20 +419,20 @@ function toggleMusic() { sfx.setMusic(!sfx.musicOn); store.set('music', sfx.musi
 function optionRows() {
   if (scene === 'options') {
     const rows = [
-      { label: 'SENSIBILIDADE', val: () => opts.sens.toFixed(1) + 'x', step: (d) => { opts.sens = clampN(Math.round((opts.sens + d * 0.1) * 10) / 10, 0.5, 2.5); } },
-      { label: 'QUALIDADE', val: () => (qualityIndex() < 0 ? 'PERSONAL.' : QUALITY[qualityIndex()].name), step: (d) => {
+      { label: 'SENSIBILIDADE', icon: 'sens', val: () => opts.sens.toFixed(1) + 'x', step: (d) => { opts.sens = clampN(Math.round((opts.sens + d * 0.1) * 10) / 10, 0.5, 2.5); } },
+      { label: 'QUALIDADE', icon: 'quality', val: () => (qualityIndex() < 0 ? 'PERSONAL.' : QUALITY[qualityIndex()].name), step: (d) => {
         const i = qualityIndex(), n = QUALITY.length;
         const q = QUALITY[i < 0 ? (d > 0 ? n - 1 : 0) : (i + d + n) % n];
         presetGfx({ res: q.res, fx: q.fx, trail: q.trail, grid: q.grid });
       }, wide: true },
-      { label: 'NEON', val: () => (neonIndex() < 0 ? pct(opts.gfx.glow) : NEON[neonIndex()].name), step: (d) => {
+      { label: 'NEON', icon: 'neon', val: () => (neonIndex() < 0 ? pct(opts.gfx.glow) : NEON[neonIndex()].name), step: (d) => {
         const i = neonIndex(), n = NEON.length;
         presetGfx({ glow: NEON[i < 0 ? 2 : (i + d + n) % n].v });
       }, wide: true },
     ];
     if (opts.dev) {
-      rows.push({ label: 'MODO DEV', val: () => onOff(true), tap: () => { opts.dev = false; } });
-      rows.push({ label: 'CONFIG. DEV', val: () => 'ABRIR  ›', tap: () => setScene('dev') });
+      rows.push({ label: 'MODO DEV', icon: 'dev', val: () => onOff(true), tap: () => { opts.dev = false; } });
+      rows.push({ label: 'CONFIG. DEV', icon: 'gear', val: () => 'ABRIR', tap: () => setScene('dev') });
     }
     return rows;
   }
@@ -458,24 +464,53 @@ function resetProgress() {
 let resetArm = 0;          // first tap arms the reset, the second confirms it
 let optMsg = null;
 
-// OPÇÕES: the on/off switches and the screens it opens are rectangles with an icon, the settings with values are rows
+// OPÇÕES: everything is a rectangle with an icon, the name and the value
 function optionIcons() {
   const done = (fn) => () => { fn(); applyOpts(); };
-  const items = [
-    [{ label: 'EFEITOS', fn: done(toggleSfx), icon: sfx.enabled ? 'sfx' : 'sfxOff', dim: !sfx.enabled },
-     { label: 'MÚSICA', fn: done(toggleMusic), icon: sfx.musicOn ? 'music' : 'musicOff', dim: !sfx.musicOn },
-     { label: 'VIBRAÇÃO', fn: done(() => { opts.vibe = !opts.vibe; }), icon: opts.vibe ? 'vibe' : 'vibeOff', dim: !opts.vibe }],
-    [{ label: 'TUTORIAL', fn: () => { store.set('tutDone', false); startGame(0); }, icon: 'help' },
-     { label: 'CRÉDITOS', fn: () => setScene('credits'), icon: 'star' }],
+  // every button the same: a rectangle with the icon, the name and, under it, the value;
+  // the settings with a value change with the arrows on each side (each half of the button)
+  const [sens, quality, neon, ...dev] = optionRows();
+  const all = [
+    { label: 'EFEITOS', fn: done(toggleSfx), icon: sfx.enabled ? 'sfx' : 'sfxOff', dim: !sfx.enabled, val: sfx.enabled ? 'LIGADOS' : 'DESLIGADOS', sw: sfx.enabled },
+    { label: 'MÚSICA', fn: done(toggleMusic), icon: sfx.musicOn ? 'music' : 'musicOff', dim: !sfx.musicOn, val: onOff(sfx.musicOn, true), sw: sfx.musicOn },
+    { label: 'VIBRAÇÃO', fn: done(() => { opts.vibe = !opts.vibe; }), icon: opts.vibe ? 'vibe' : 'vibeOff', dim: !opts.vibe, val: onOff(opts.vibe, true), sw: opts.vibe },
+    ...[sens, quality, neon].map((row) => ({ label: row.label, icon: row.icon, val: row.val(), step: (d) => done(() => row.step(d)) })),
+    { label: 'TUTORIAL', fn: () => openTutView(0), icon: 'help', val: 'VER' },
+    { label: 'CRÉDITOS', fn: () => setScene('credits'), icon: 'star', val: 'ABRIR' },
+    ...dev.map((row) => ({ label: row.label, icon: row.icon, val: row.val(), fn: done(row.tap), sw: row.label === 'MODO DEV' ? true : undefined })),
   ];
-  const w = 200, h = 100, g = 14, list = [];
-  items.forEach((row, j) => row.forEach((r, i) => list.push(btn(W / 2 + (i - (row.length - 1) / 2) * (w + g), safeTop + 230 + j * (h + g), w, h, r.label, r.fn, { licon: r.icon, dim: r.dim }))));
+  // a list like the main menu, one under the other; shorter buttons when the screen is short
+  const g = 12, top = safeTop + 168, room = H - 150 - top;
+  if (OPT_ICON_LEFT) {   // wide rows: the icon on the left of the name, the switch or the value on the right
+    const w = 560, h = Math.min(84, (room - g * (all.length - 1)) / all.length), list = [];
+    all.forEach((r, n) => {
+      const x = W / 2, y = top + h / 2 + n * (h + g), o = { licon: r.icon, val: r.val, sw: r.sw, optLine: true };
+      if (r.step) {
+        list.push(btn(x, y, w, h, r.label, null, Object.assign(o, { steps: true })));
+        const R = x + w / 2;   // the arrows sit at R - 160 and R - 34
+        list.push({ x: R - 200, y: y - h / 2, w: 83, h, label: '', fn: r.step(-1), hidden: true });
+        list.push({ x: R - 83, y: y - h / 2, w: 83, h, label: '', fn: r.step(1), hidden: true });
+      } else list.push(btn(x, y, w, h, r.label, r.fn, o));
+    });
+    return list;
+  }
+  const w = 260, h = Math.min(104, (room - g * (all.length - 1)) / all.length), list = [];
+  all.forEach((r, n) => {
+    const x = W / 2, y = top + h / 2 + n * (h + g);
+    if (r.step) {
+      list.push(btn(x, y, w, h, r.label, null, { licon: r.icon, val: r.val, steps: true }));
+      list.push({ x: x - w / 2, y: y - h / 2, w: w / 2, h, label: '', fn: r.step(-1), hidden: true });
+      list.push({ x, y: y - h / 2, w: w / 2, h, label: '', fn: r.step(1), hidden: true });
+    } else list.push(btn(x, y, w, h, r.label, r.fn, { licon: r.icon, dim: r.dim, val: r.val }));
+  });
   return list;
 }
+const OPT_ICON_LEFT = true;   // OPÇÕES: icon on the left and the switch on the right (false: icon over the name)
 function optionButtons() {
-  const list = scene === 'options' ? optionIcons() : [];
-  const rows = optionRows(), y0 = scene === 'options' ? safeTop + 440 : safeTop + 200;
-  const stepY = Math.min(scene === 'options' ? 84 : 90, (H - 190 - y0) / Math.max(1, rows.length - 1));
+  if (scene === 'options') return optionIcons();
+  const list = [];
+  const rows = optionRows(), y0 = safeTop + 200;
+  const stepY = Math.min(90, (H - 190 - y0) / Math.max(1, rows.length - 1));
   rows.forEach((row, i) => {
     const y = y0 + i * stepY;
     const done = (fn) => () => { fn(); applyOpts(); };
@@ -1002,7 +1037,7 @@ function pageButtons(y, prev, next, label, skip, bigMid = false) {
   const cx = W / 2, s = 84, list = [];
   list.push({ x: cx - 300 + 28, y: y - s / 2, w: s, h: s, label: '', fn: prev || (() => {}), icon: 'prev', round: true, off: !prev, popDone: true });
   list.push(btn(cx, y, 260, 66, label, skip, bigMid ? { big: true } : { fs: 15 }));
-  if (!bigMid) list.push({ x: cx + 300 - 28 - s, y: y - s / 2, w: s, h: s, label: '', fn: next, icon: 'next', round: true, popDone: true });
+  if (!bigMid) list.push({ x: cx + 300 - 28 - s, y: y - s / 2, w: s, h: s, label: '', fn: next || (() => {}), icon: 'next', round: true, off: !next, popDone: true });
   return list;
 }
 
@@ -1885,6 +1920,30 @@ function drawMenuIcon(c, kind, x, y, k) {
     c.moveTo(x - d * 8, y - 18); c.lineTo(x + d * 10, y); c.lineTo(x - d * 8, y + 18);
     c.lineCap = 'round'; c.lineJoin = 'round';
     neonStroke(c, k, k, 4, x - 10, y, x + 10, y, 0.9);
+  } else if (kind === 'sens') {   // a finger's touch: a dot with ripples
+    c.arc(x, y + 4, 5, 0, TAU); c.fillStyle = k; c.fill();
+    c.beginPath(); c.arc(x, y + 4, 12, Math.PI * 1.1, Math.PI * 1.9);
+    c.moveTo(x - 19 * Math.cos(Math.PI * 0.1), y + 4 - 19 * Math.sin(Math.PI * 0.1)); c.arc(x, y + 4, 19, Math.PI * 1.1, Math.PI * 1.9);
+    c.lineCap = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'quality') {   // a screen on a stand
+    c.rect(x - 20, y - 16, 40, 26);
+    c.moveTo(x, y + 10); c.lineTo(x, y + 18); c.moveTo(x - 10, y + 19); c.lineTo(x + 10, y + 19);
+    c.moveTo(x - 9, y - 3); c.lineTo(x - 3, y + 3); c.lineTo(x + 9, y - 9);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'neon') {   // a light bulb
+    c.arc(x, y - 6, 13, Math.PI * 0.8, Math.PI * 2.2);
+    c.lineTo(x + 6, y + 12); c.lineTo(x - 6, y + 12); c.closePath();
+    c.moveTo(x - 6, y + 17); c.lineTo(x + 6, y + 17);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 1.2);
+  } else if (kind === 'dev') {   // </>
+    c.moveTo(x - 10, y - 12); c.lineTo(x - 21, y); c.lineTo(x - 10, y + 12);
+    c.moveTo(x + 10, y - 12); c.lineTo(x + 21, y); c.lineTo(x + 10, y + 12);
+    c.moveTo(x + 5, y - 16); c.lineTo(x - 5, y + 16);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
   } else if (kind === 'help') {
     c.arc(x, y - 8, 12, Math.PI * 1.05, Math.PI * 2.3);
     c.quadraticCurveTo(x, y - 1, x, y + 8);
@@ -2033,7 +2092,7 @@ devUI = createDevPanel({
 });
 
 // the main menu's list: the centres of JOGAR, BREAKERS, 1x1 and OPÇÕES
-const MENU_GREY = '#c4ccd6';   // OPÇÕES keeps this color whatever the theme
+const menuFaded = () => mix(col(), '#7c818a', 0.5);   // OPÇÕES: the theme color, faded
 const MENU_ICON_TOP = true;    // the icon over the name (false: on its left)
 function menuList() {
   const hb = MENU_ICON_TOP ? 132 : 96, h = MENU_ICON_TOP ? 108 : 76, g = MENU_ICON_TOP ? 18 : 22;
@@ -2072,7 +2131,7 @@ function layout() {
         btn(cx, M.y[0], M.wb, M.hb, 'JOGAR', () => setScene('map'), { big: true, licon: 'play' }),
         btn(cx, M.y[1], M.w, M.h, 'BREAKERS', () => openBreakers(null, 'menu'), { bang: breakersAlert(), licon: 'breakers' }),
         btn(cx, M.y[2], M.w, M.h, '1x1', () => setScene('vsmenu'), { licon: 'vs' }),
-        btn(cx, M.y[3], M.w, M.h, 'OPÇÕES', () => setScene('options'), { tint: MENU_GREY, licon: 'gear' }),
+        btn(cx, M.y[3], M.w, M.h, 'OPÇÕES', () => setScene('options'), { tint: menuFaded(), licon: 'gear' }),
         Object.assign(B, { label: '', fn: () => setScene('colors'), icon: 'pal', round: true }),
       ];
     }
@@ -2179,6 +2238,11 @@ function layout() {
       const list = adDone(performance.now() / 1000) ? [btn(W - 110, safeTop + 60, 170, 56, 'FECHAR  ✕', finishAd, { fs: 15 })] : [];
       if (ad && ad.kind === 'quebrabloco') list.push({ x: W / 2 - 170, y: H - 330 + 170 - 36, w: 340, h: 70, label: '', fn: () => openUrl(QB_URL), hidden: true });
       return list;
+    }
+    case 'tutview': {
+      if (!card) return [];
+      const box = cardBox(), i = card.view;
+      return pageButtons(box.y + box.h - 62, i > 0 ? () => openTutView(i - 1) : null, i < TUT.length - 1 ? () => openTutView(i + 1) : null, 'VOLTAR', () => { card = null; setScene('options'); });
     }
     case 'card': {
       const box = cardBox();
@@ -2515,6 +2579,59 @@ function drawButton(c, b) {
   c.fillStyle = rgba(k, down ? 0.18 : 0.04);
   c.fill();
   neonStroke(c, k, k, b.big ? 3.2 : 2.2, b.x, b.y, b.x + b.w, b.y + b.h, b.big ? 1 : 0.6);
+  if (b.optLine) {   // OPÇÕES: icon, name, and the switch or the value on the right
+    const cy = b.y + b.h / 2, R = b.x + b.w, s = b.h / 120;
+    c.save(); c.translate(b.x + 46, cy); c.scale(s, s); drawMenuIcon(c, b.licon, 0, 0, k); c.restore();
+    glowText(c, b.label, b.x + 86, cy + 1, 17, '#ffffff', k, 'left', 700, 3);
+    if (b.sw !== undefined) {   // a switch: a pill with the knob on the right when on
+      c.globalAlpha = 1;
+      const sw = 64, sh = 34, sx = R - 24 - sw, sy = cy - sh / 2;
+      roundRectPath(c, sx, sy, sw, sh, sh / 2);
+      c.fillStyle = rgba(k, b.sw ? 0.35 : 0.06); c.fill();
+      if (b.sw) neonStroke(c, k, k, 2, sx, sy, sx + sw, sy + sh, 0.7);
+      else { c.strokeStyle = rgba('#ffffff', 0.35); c.lineWidth = 2; c.stroke(); }
+      c.beginPath(); c.arc(b.sw ? sx + sw - sh / 2 : sx + sh / 2, cy, sh / 2 - 5, 0, TAU);
+      c.fillStyle = b.sw ? '#ffffff' : rgba('#ffffff', 0.45); c.fill();
+    } else if (b.steps) {
+      let fs = 14;
+      c.font = `700 ${fs}px Orbitron`;
+      const tw = c.measureText(b.val).width + b.val.length * 2;
+      if (tw > 92) fs *= 92 / tw;
+      glowText(c, b.val, R - 97, cy + 1, fs, '#ffffff', k, 'center', 700, 2);
+      for (const ax of [R - 160, R - 34]) {
+        const d = ax > R - 97 ? 1 : -1, on = pressed && pressed.hidden && inside(pressed, { x: ax, y: cy });
+        c.beginPath(); c.moveTo(ax - d * 6, cy - 11); c.lineTo(ax + d * 5, cy); c.lineTo(ax - d * 6, cy + 11);
+        c.lineCap = 'round'; c.lineJoin = 'round';
+        neonStroke(c, k, k, on ? 4 : 3, ax - 8, cy, ax + 8, cy, on ? 1 : 0.7);
+      }
+    } else {   // a screen it opens: the value and a chevron
+      glowText(c, b.val, R - 52, cy + 1, 12, rgba('#ffffff', 0.7), k, 'right', 700, 2);
+      c.beginPath(); c.moveTo(R - 36, cy - 9); c.lineTo(R - 28, cy); c.lineTo(R - 36, cy + 9);
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      neonStroke(c, k, k, 3, R - 40, cy, R - 24, cy, 0.7);
+    }
+    c.globalAlpha = 1;
+    return;
+  }
+  if (b.licon && MENU_ICON_TOP && b.val !== undefined) {   // OPÇÕES: icon, name and value
+    const s = b.h / 170, cx = b.x + b.w / 2;
+    c.save(); c.translate(cx, b.y + b.h * 0.29); c.scale(s, s); drawMenuIcon(c, b.licon, 0, 0, k); c.restore();
+    let fs = 15;
+    c.font = `700 ${fs}px Orbitron`;
+    const tw = c.measureText(b.label).width + b.label.length * 3;
+    if (tw > b.w - 24) fs *= (b.w - 24) / tw;
+    glowText(c, b.label, cx, b.y + b.h * 0.6, fs, '#ffffff', k, 'center', 700, 3);
+    const vy = b.y + b.h * 0.82;
+    glowText(c, b.val, cx, vy, b.steps ? 13 : 11, rgba('#ffffff', b.steps ? 0.95 : 0.7), k, 'center', 700, 2);
+    if (b.steps) for (const d of [-1, 1]) {
+      const ax = cx + d * (b.w / 2 - 20), on = pressed && pressed.hidden && inside(pressed, { x: ax, y: vy });
+      c.beginPath(); c.moveTo(ax - d * 5, vy - 9); c.lineTo(ax + d * 4, vy); c.lineTo(ax - d * 5, vy + 9);
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      neonStroke(c, k, k, on ? 4 : 3, ax - 8, vy, ax + 8, vy, on ? 1 : 0.7);
+    }
+    c.globalAlpha = 1;
+    return;
+  }
   if (b.licon && MENU_ICON_TOP) {   // the main menu, icon over the name
     const s = b.h / 150;
     c.save(); c.translate(b.x + b.w / 2, b.y + b.h * 0.36); c.scale(s, s); drawMenuIcon(c, b.licon, 0, 0, k); c.restore();
@@ -3458,7 +3575,8 @@ function cardBox() {
   const demo = card && hasDemo(card.demo) ? demoH() + 24 : 0, caps = card && card.caps && card.caps.length ? 64 : 0;
   const h = 190 + demo + lines.length * 36 + caps + 90;
   const f = focusPoint();
-  const y = f && f.y > H * 0.5 ? game.top + 70 : Math.min(H * 0.42, H - h - 40);
+  const y = card && card.view !== undefined ? (H - h) / 2   // OPÇÕES › TUTORIAL: in the middle of the screen
+    : f && f.y > H * 0.5 ? game.top + 70 : Math.min(H * 0.42, H - h - 40);
   return { x: W / 2 - 300, y, w: 600, h, lines, demo };
 }
 
@@ -3598,6 +3716,8 @@ function render() {
     neonTitle(ctx, 'COR', W / 2, safeTop + 120, 64, k, k, 18);
   } else if (scene === 'credits') {
     renderCredits(ctx);
+  } else if (scene === 'tutview') {
+    if (card) renderCard(ctx, now);
   } else if (scene === 'scores') {
     renderScores(ctx, now);
   } else if (scene === 'devgate') {
