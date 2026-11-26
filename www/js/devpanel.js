@@ -91,7 +91,7 @@ export function createDevPanel(api) {
     const jogo = [
       slider('Velocidade do disco', api.sl.speed, ['30%', '250%']),
       slider('Sensibilidade', api.sl.sens, ['0,5×', '2,5×']),
-      slider('Cápsulas caindo', api.sl.drop, ['13%', '100%']),
+      slider('Cápsulas aleatórias', api.sl.drop, ['só ?', '100%']),
       check('♾️ Vidas infinitas', () => o.inf, (v) => { o.inf = v; api.applyOpts(); }),
       check('🧊 Congelar o jogo', api.getFreeze, api.setFreeze),
       check('📊 Mostrar FPS', () => o.fps, (v) => { o.fps = v; api.applyOpts(); }),

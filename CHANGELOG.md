@@ -8,6 +8,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 
 - OPÇÕES › TUTORIAL agora diz VER e mostra só os cartões do tutorial, no meio da tela, sem entrar no jogo: as setas ‹ › passam os 7 cartões e o VOLTAR volta para as OPÇÕES.
 - Modo dev: o painel flutuante ganhou desbloquear tudo (e perks) e resetar progresso (com um segundo toque para confirmar).
+- Blocos com ?: agora as cápsulas só caem deles. Cada fase tem de 3 a 6 (um a cada 6,5 blocos), espalhados da fileira da frente até a do fundo, e em lugares diferentes cada vez que a fase começa. Um ? solta um power-up, ou um debuff 1 vez em cada 4 (menos com o perk SORTE). Nas lutas com chefão há sempre um ? na faixa de blocos (dois na fúria): quebrado, outro aparece em outro bloco depois de 5 s, e um ? que ninguém pega pula para outro bloco a cada 12 s. No INFINITO, cada fileira nova tem 35% de chance de trazer um ?.
 - OPÇÕES › RESETAR PROGRESSO, embaixo de CRÉDITOS: o primeiro toque mostra CONFIRMAR? por 3 s e o segundo zera fases, recorde, chips, moedas, perks e itens.
 
 ### Alterado
@@ -20,6 +21,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - A tela CONFIG. DEV saiu das OPÇÕES: o que só existia nela foi para o painel flutuante do modo dev.
 - A linha MODO DEV continua nas OPÇÕES depois de desligada, com o switch apagado, e liga de novo com um toque, sem precisar da senha. O DESATIVAR do menu secreto (5 toques na versão) tranca o modo dev de novo e tira a linha.
 - As OPÇÕES ficam centralizadas na tela, entre o título e o VOLTAR.
+- Os blocos comuns não soltam mais cápsulas ao acaso (eram 13%), e acertar o chefão também não (eram 20%): toda cápsula vem de um ?. No painel dev, o controle Cápsulas aleatórias começa em só ? e ainda liga a queda aleatória para testes.
 - No PC (sem toque), o jogo tem sempre o formato de um celular, 720 × 1560: mudar o tamanho do navegador só aumenta ou diminui o jogo, com faixas escuras em volta. No celular ele continua enchendo a tela.
 
 ### Corrigido

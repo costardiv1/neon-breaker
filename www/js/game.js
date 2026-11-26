@@ -16,7 +16,15 @@ const COLS = 9, MARGIN = 32, GAP = 8, BH = 28;
 const BW = (W - MARGIN * 2 - GAP * (COLS - 1)) / COLS;
 const TRAIL_LEN = 560;
 const MAX_BALLS = 12;
-const DROP_CHANCE = 0.13;
+const DROP_CHANCE = 0;   // capsules only come from ? bricks (the dev panel can bring random drops back)
+// ? bricks: the only source of capsules. Each stage has 3 to 6 (one per 6.5 bricks), spread from the
+// front row to the back one, in new places every time. A ? drops a power-up, or a debuff 1 time in 4
+// (less with the SORTE perk). In boss fights and in the INFINITO the ? keeps showing up on other bricks.
+const MARK_BAD = 0.25;
+const MARK_MIN = 3, MARK_MAX = 6, MARK_PER = 6.5;
+const BOSS_MARK_WAIT = 5;    // boss fights: seconds before a new ? after one is broken
+const BOSS_MARK_HOP = 12;    // and seconds before an untouched ? jumps to another brick
+const ENDLESS_MARK = 0.35;   // INFINITO: chance a new row brings a ?
 const WHITE = '#ffffff';
 const COIN_COL = '#ffd84a';
 const CORE_R = 20;
@@ -738,6 +746,8 @@ export class Game {
     this.abil = null;
     this.combo = 0;
     this.breaks = 0;
+    this.markT = 2; this.hopT = BOSS_MARK_HOP;
+    if (!this.endless && !st.bonus && !st.boss && !this.bonus) this.markBricks();
     this.clearT = 0;
     this.stageCoins = 0;     // coins caught in this stage (the ad doubles them)
     this.stageChips = 0;     // chips earned in this stage
@@ -955,6 +965,8 @@ export class Game {
       this.bricks.push(br);
       if (counts(br)) this.alive++;
     }
+    const plain = this.bricks.filter((b) => b.row === r && !b.dead && b.kind === 'n' && b.phase === undefined);
+    if (plain.length && Math.random() < ENDLESS_MARK) plain[Math.floor(Math.random() * plain.length)].mark = '?';
     if (E.mechs.includes('slide')) this.rows[r] = this.rowMotion(r);
   }
 
@@ -1200,6 +1212,7 @@ export class Game {
     this.updateMechanics(dt);
     if (this.boss) {
       this.boss.update(dt);
+      this.updateBossMark(dt);
       // keep a supply of common bricks (power-up sources) during boss fights
       this.bandT -= dt;
       if (this.bandT <= 0) {
@@ -1891,6 +1904,7 @@ export class Game {
       if (this.bonus) this.rainBrick(cx, cy);   // bonus stages: the coin rain, and no capsules
       else if (!this.tutorial && Math.random() < COIN_CHANCE * GRANA_MUL[this.pLvl('grana')] * (this.endless ? ENDLESS_COIN : 1)) this.coins.push({ x: cx, y: cy, vy: -140, t: Math.random() * 3 });
       if (this.tutorial && this.breaks === 3) this.spawnDrop(cx, cy, 'wide');
+      else if (br.mark && !this.tutorial) { this.spawnDrop(cx, cy, null, Math.random() < MARK_BAD * SORTE_MUL[this.pLvl('sorte')] ? 'bad' : 'good'); this.markT = BOSS_MARK_WAIT; }
       else if (!this.tutorial && !this.bonus && Math.random() < this.dropChance) this.spawnDrop(cx, cy);
     } else {
       this.burst(cx, cy, 6, 0.6, [tone]);
@@ -1931,7 +1945,50 @@ export class Game {
 
   ring(x, y, r) { this.rings.push({ x, y, r, t: 0, max: 0.45 }); }
 
-  spawnDrop(x, y, forced = null) {
+  // Marks the capsule bricks (see MARK_BAD): the front row is reached first, the back row last,
+  // and the middle in between; each in a different column when it can.
+  markBricks() {
+    const ok = this.bricks.filter((b) => counts(b) && b.kind === 'n' && b.phase === undefined);
+    if (ok.length < 6) return;
+    const rows = [...new Set(ok.map((b) => b.row))].sort((a, b) => b - a);   // front (lowest row) first
+    const pickRow = (f) => rows[Math.min(rows.length - 1, Math.round(f * (rows.length - 1)))];
+    const n = Math.max(MARK_MIN, Math.min(MARK_MAX, Math.round(ok.length / MARK_PER)));
+    const plan = Array.from({ length: n }, (_, i) => i / (n - 1));   // front row to back row
+    const used = new Set(), cols = new Set();
+    plan.forEach((f) => {
+      const y = pickRow(f);
+      let cand = ok.filter((b) => b.row === y && !used.has(b) && !cols.has(b.col));
+      if (!cand.length) cand = ok.filter((b) => b.row === y && !used.has(b));
+      if (!cand.length) cand = ok.filter((b) => !used.has(b));
+      if (!cand.length) return;
+      const b = cand[Math.floor(Math.random() * cand.length)];
+      used.add(b); if (cols.size < COLS - 1) cols.add(b.col);
+      b.mark = '?';
+    });
+  }
+
+  // Boss fights: one ? at a time (two in the fury) on a random brick of the band; after it is
+  // broken a new one comes in a few seconds, and an untouched one jumps to another brick.
+  updateBossMark(dt) {
+    const live = this.bricks.filter((b) => !b.dead && counts(b) && b.kind === 'n' && b.phase === undefined);
+    const marked = live.filter((b) => b.mark);
+    this.markT = (this.markT ?? 2) - dt;
+    this.hopT = (this.hopT ?? BOSS_MARK_HOP) - dt;
+    if (this.hopT <= 0 && marked.length) {   // jump to a brick it was not on
+      this.hopT = BOSS_MARK_HOP;
+      const b = marked[0], to = live.filter((q) => !q.mark);
+      if (to.length) { b.mark = null; to[Math.floor(Math.random() * to.length)].mark = '?'; }
+      return;
+    }
+    if (this.markT > 0 || marked.length >= (this.boss.fury ? 2 : 1)) return;
+    const free = live.filter((b) => !b.mark);
+    if (!free.length) return;
+    free[Math.floor(Math.random() * free.length)].mark = '?';
+    this.markT = BOSS_MARK_WAIT; this.hopT = BOSS_MARK_HOP;
+  }
+
+  // want: 'good' or 'bad' keeps only power-ups or only debuffs (the capsule bricks)
+  spawnDrop(x, y, forced = null, want = null) {
     let type = forced;
     if (!type) {
       // in boss fights lasers and missiles are more likely; +1 VIDA too with the last life
@@ -1939,9 +1996,9 @@ export class Game {
       const recent = this.recent || (this.recent = []);
       const badRun = recent.length >= 2 && recent.slice(-2).every((q) => !POWERS[q].good);
       const seenN = (k) => recent.filter((q) => q === k).length;
-      const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 2 : k === 'life' && this.lives === 1 ? v.w * 2 : v.w) * (v.good ? 1 : badRun ? 0 : luck) * Math.pow(0.25, seenN(k));
+      const wt = (k, v) => (this.boss && (k === 'laser' || k === 'missile') ? v.w * 2 : k === 'life' && this.lives === 1 ? v.w * 2 : v.w) * (v.good || want ? 1 : badRun ? 0 : luck) * Math.pow(0.25, seenN(k));
       const pool = Object.entries(POWERS).filter(([k, v]) => (this.endless || v.d <= this.stage.w + 1) && !(k === 'life' && this.lives >= 6)
-        && !(k === 'multi' && this.balls.length >= MULTI_MAX));
+        && !(k === 'multi' && this.balls.length >= MULTI_MAX) && (!want || v.good === (want === 'good')));
       const total = pool.reduce((s, [k, v]) => s + wt(k, v), 0);
       let roll = Math.random() * total;
       for (const [k, v] of pool) { roll -= wt(k, v); if (roll <= 0) { type = k; break; } }
@@ -2702,6 +2759,11 @@ export class Game {
         const cx = br.x + br.w / 2, cy = br.y + br.h / 2, d = Math.min(9, br.h * 0.3);
         c.beginPath(); c.moveTo(cx - d, cy - d); c.lineTo(cx + d, cy + d); c.moveTo(cx + d, cy - d); c.lineTo(cx - d, cy + d);
         neonStroke(c, WHITE, col, 2.6, cx - d, cy, cx + d, cy, 0.7);
+      }
+      if (br.mark && !this.tutorial) {   // ? brick: a capsule inside
+        c.globalAlpha = 0.85 + 0.15 * Math.sin(this.t * 5 + br.col);
+        glowText(c, '?', br.x + br.w / 2, br.y + br.h / 2 + 1, 22, WHITE, col, 'center', 900, 0);
+        c.globalAlpha = 1;
       }
       if (br.flash > 0) {
         c.globalCompositeOperation = 'lighter';

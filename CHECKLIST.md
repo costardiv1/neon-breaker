@@ -18,6 +18,10 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] As OPÇÕES ficam no meio da tela. *(testado pelo Claude)*
 - [x] O DESATIVAR do menu secreto tira a linha MODO DEV, e as peças não compradas voltam para as gratuitas. *(testado pelo Claude)*
 - [ ] No PC, mudar o tamanho do navegador mantém o jogo no mesmo formato de celular, só maior ou menor.
+- [x] Cada fase tem de 3 a 6 blocos com ?, espalhados da frente ao fundo, e só eles soltam cápsulas. *(testado pelo Claude)*
+- [ ] Jogando a mesma fase de novo, os ? aparecem em outros blocos.
+- [ ] Num chefão, aparece um ? na faixa de blocos; quebrado, outro aparece em outro lugar depois de alguns segundos.
+- [ ] No INFINITO, de vez em quando uma fileira nova traz um ?.
 
 ## 1.11.3 (23/11/2026)
 

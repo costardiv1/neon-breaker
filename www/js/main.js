@@ -81,7 +81,7 @@ let newBest = false;
 sfx.enabled = store.get('sound', true);
 sfx.musicOn = store.get('music', true);
 
-const DROP_STEPS = [0.13, 0.25, 0.5, 1];
+const DROP_STEPS = [0, 0.13, 0.25, 0.5, 1];   // random drops on common bricks (dev only; normally 0: only the ? bricks)
 const opts = Object.assign({ vibe: true, sens: 1.25, dev: false, inf: false, speed: 1, startStage: 0, fps: false, drop: 0, unlock: false },
   store.get('opts', {}));
 if (oldLayout || !(opts.startStage >= 0 && opts.startStage < TOTAL_STAGES)) opts.startStage = 0;
