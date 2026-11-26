@@ -29,7 +29,11 @@ const CR = 34;               // the rounded corners of the field, like the campa
 const COUNT = 3;             // the countdown before a new band (s)
 
 // the capsules: they fall from a broken brick toward whoever broke it
-const CAP_CHANCE = 0.24, CAP_V = 230, CAP_W = 60, CAP_H = 30, CAP_CATCH = 92;
+// ? bricks, like the campaign: the only source of capsules. Each band has MARK_N of them (one in the
+// row next to each player and two in the middle rows); when one breaks, another shows up on a
+// different brick MARK_WAIT seconds later.
+const MARK_N = 4, MARK_WAIT = 4;
+const CAP_V = 230, CAP_W = 60, CAP_H = 30, CAP_CATCH = 92;
 const EDGE = 4;               // the platforms keep this far from the walls
 export const VS_CAPS = {
   // text: what the player reads when they catch it, and when the AI does;
@@ -106,9 +110,19 @@ export class Versus {
       for (let c = 0; c < COLS; c++) {
         if (Math.random() < 0.12) continue;   // a few holes, so each band is different
         const inner = r === 1 || r === 2;
-        this.bricks.push({ x: 32 + c * (BW + GAP), y: y0 + r * (BH + GAP), w: BW, h: BH, hp: inner ? 2 : 1, max: inner ? 2 : 1, flash: 0, wait: 0, pop: 1 });
+        this.bricks.push({ x: 32 + c * (BW + GAP), y: y0 + r * (BH + GAP), w: BW, h: BH, hp: inner ? 2 : 1, max: inner ? 2 : 1, flash: 0, wait: 0, pop: 1, r, c, mark: false });
       }
     }
+    // the ?: one in each outer row (one per side) and two in the middle, in different columns
+    const cols = new Set();
+    for (const row of [0, 3, 1, 2]) {
+      let cand = this.bricks.filter((q) => q.r === row && !q.mark && !cols.has(q.c));
+      if (!cand.length) cand = this.bricks.filter((q) => q.r === row && !q.mark);
+      if (!cand.length) continue;
+      const q = cand[Math.floor(Math.random() * cand.length)];
+      q.mark = true; cols.add(q.c);
+    }
+    this.markT = 0; this.marksOwed = 0;
     if (slow) {
       const order = this.bricks.slice().sort(() => Math.random() - 0.5);
       order.forEach((q, i) => { q.wait = 0.15 + i * 0.07; q.pop = 0; });
@@ -204,6 +218,7 @@ export class Versus {
     }
     this.balls = this.balls.filter((b) => !b.dead);
     this.updateCaps(dt);
+    this.updateMarks(dt);
     // the countdown to the new band, then the bricks light up one by one
     if (this.refillT > 0) {
       const n0 = Math.ceil(this.refillT);
@@ -380,8 +395,18 @@ export class Versus {
       this.parts.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life, max: life, col: i % 3 ? tone : '#ffffff', sq: true });
     }
     this.burst(cx, cy, 8, 1, [tone]);
-    if (Math.random() < CAP_CHANCE && this.caps.length < 2) this.drop(q.x + q.w / 2, q.y + q.h / 2, own);
+    if (q.mark) { q.mark = false; this.drop(cx, cy, own); this.marksOwed++; this.markT = MARK_WAIT; }
     if (this.bricks.every((z) => z.hp <= 0) && this.refillT <= 0) { this.refillT = COUNT; sfx.count(); }   // the 3
+  }
+
+  // a broken ? comes back on another brick of the band, a few seconds later
+  updateMarks(dt) {
+    if (!this.marksOwed || (this.markT -= dt) > 0) return;
+    const free = this.bricks.filter((q) => this.live(q) && !q.mark);
+    if (!free.length) { this.marksOwed = 0; return; }
+    free[Math.floor(Math.random() * free.length)].mark = true;
+    this.marksOwed--;
+    this.markT = MARK_WAIT;
   }
 
   // ---------- capsules ----------
@@ -519,6 +544,7 @@ export class Versus {
       c.globalAlpha = (0.45 + 0.55 * q.hp / q.max) * Math.min(1, q.pop * 2);
       if (e !== 1) { c.save(); c.translate(q.x + q.w / 2, q.y + q.h / 2); c.scale(e, e); c.translate(-q.x - q.w / 2, -q.y - q.h / 2); }
       drawSprite(c, brickSprite('n', q.hp, col), q.x, q.y);
+      if (q.mark) glowText(c, '?', q.x + q.w / 2, q.y + q.h / 2 + 1, 22, '#ffffff', col, 'center', 900, 0);   // a capsule inside
       if (q.flash > 0) { roundRectPath(c, q.x + 1.5, q.y + 1.5, q.w - 3, q.h - 3, 5); c.fillStyle = rgba('#ffffff', 0.5 * q.flash); c.fill(); }
       if (e !== 1) c.restore();
       c.globalAlpha = 1;

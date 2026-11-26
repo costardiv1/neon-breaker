@@ -22,6 +22,8 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [ ] Jogando a mesma fase de novo, os ? aparecem em outros blocos.
 - [ ] Num chefão, aparece um ? na faixa de blocos; quebrado, outro aparece em outro lugar depois de alguns segundos.
 - [ ] No INFINITO, de vez em quando uma fileira nova traz um ?.
+- [x] No 1x1, cada leva tem 4 ? e só eles soltam cápsulas; um ? quebrado volta em outro bloco 4 s depois. *(testado pelo Claude)*
+- [ ] Numa partida de 1x1 inteira, as cápsulas dos ? vão para quem quebrou e a disputa pelos ? fica equilibrada.
 
 ## 1.11.3 (23/11/2026)
 

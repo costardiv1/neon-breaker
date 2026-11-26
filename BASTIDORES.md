@@ -35,6 +35,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] RESETAR PROGRESSO nas OPÇÕES e OPÇÕES centralizadas. *(subiu sem atualizar)*
 - [x] DESATIVAR do menu secreto tira a linha MODO DEV; peças não compradas voltam para as gratuitas. *(subiu sem atualizar)*
 - [x] Cápsulas só dos blocos com ?: 3 a 6 por fase, um que muda de lugar nos chefões, alguns no INFINITO. *(subiu sem atualizar)*
+- [x] 1x1 com 4 ? por leva, que voltam em outro bloco. *(subiu sem atualizar)*
 
 ### 1.11.3 (23/11/2026)
 

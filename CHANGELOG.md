@@ -9,6 +9,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - OPÇÕES › TUTORIAL agora diz VER e mostra só os cartões do tutorial, no meio da tela, sem entrar no jogo: as setas ‹ › passam os 7 cartões e o VOLTAR volta para as OPÇÕES.
 - Modo dev: o painel flutuante ganhou desbloquear tudo (e perks) e resetar progresso (com um segundo toque para confirmar).
 - Blocos com ?: agora as cápsulas só caem deles. Cada fase tem de 3 a 6 (um a cada 6,5 blocos), espalhados da fileira da frente até a do fundo, e em lugares diferentes cada vez que a fase começa. Um ? solta um power-up, ou um debuff 1 vez em cada 4 (menos com o perk SORTE). Nas lutas com chefão há sempre um ? na faixa de blocos (dois na fúria): quebrado, outro aparece em outro bloco depois de 5 s, e um ? que ninguém pega pula para outro bloco a cada 12 s. No INFINITO, cada fileira nova tem 35% de chance de trazer um ?.
+- 1x1 com blocos de ?: cada leva tem 4 (um na fileira de cada jogador e dois nas do meio), e só eles soltam cápsulas, que vão na direção de quem quebrou. Um ? quebrado volta em outro bloco 4 s depois.
 - OPÇÕES › RESETAR PROGRESSO, embaixo de CRÉDITOS: o primeiro toque mostra CONFIRMAR? por 3 s e o segundo zera fases, recorde, chips, moedas, perks e itens.
 
 ### Alterado
