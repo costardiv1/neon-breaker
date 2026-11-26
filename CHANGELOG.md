@@ -2,22 +2,17 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
-## [1.12.4] · 23/11/2026 · OPÇÕES em lista e cápsulas com ícone no 1x1
+## [1.13.0] · 26/11/2026 · Blocos com ?: as cápsulas saem só deles
 
 ### Adicionado
 
-- OPÇÕES › TUTORIAL agora diz VER e mostra só os cartões do tutorial, no meio da tela, sem entrar no jogo: as setas ‹ › passam os 7 cartões e o VOLTAR volta para as OPÇÕES.
-- Modo dev: o painel flutuante ganhou desbloquear tudo (e perks) e resetar progresso (com um segundo toque para confirmar).
 - Blocos com ?: agora as cápsulas só caem deles. Cada fase tem de 3 a 6 (um a cada 6,5 blocos), espalhados da fileira da frente até a do fundo, e em lugares diferentes cada vez que a fase começa. Um ? solta um power-up, ou um debuff 1 vez em cada 4 (menos com o perk SORTE). Nas lutas com chefão há sempre um ? na faixa de blocos (dois na fúria): quebrado, outro aparece em outro bloco depois de 5 s, e um ? que ninguém pega pula para outro bloco a cada 12 s. No INFINITO, cada fileira nova tem 35% de chance de trazer um ?.
 - 1x1 com blocos de ?: cada leva tem 4 (um na fileira de cada jogador e dois nas do meio), e só eles soltam cápsulas, que vão na direção de quem quebrou. Um ? quebrado volta em outro bloco 4 s depois.
+- Modo dev: o painel flutuante ganhou desbloquear tudo (e perks) e resetar progresso (com um segundo toque para confirmar).
 - OPÇÕES › RESETAR PROGRESSO, embaixo de CRÉDITOS: o primeiro toque mostra CONFIRMAR? por 3 s e o segundo zera fases, recorde, chips, moedas, perks e itens.
 
 ### Alterado
 
-- A numeração das versões foi corrigida daqui para frente: o segundo número muda quando entra algo grande e novo (modo, chefão, capítulo) e o terceiro nos ajustes. Recontando desde a 1.9, a 1.11.3 seria a 1.12.3, por isso esta versão é a 1.12.4.
-- OPÇÕES em lista, uma linha embaixo da outra, com o ícone à esquerda do nome: EFEITOS, MÚSICA e VIBRAÇÃO têm um switch à direita; SENSIBILIDADE, QUALIDADE e NEON mostram o valor entre as setas ‹ ›; TUTORIAL e CRÉDITOS têm uma seta ›. SENSIBILIDADE, QUALIDADE, NEON e o modo dev ganharam ícones.
-- O botão OPÇÕES do menu inicial voltou para a cor do tema, um pouco esmaecida.
-- 1x1: as cápsulas mostram um ícone no lugar do nome, como as da campanha (MAIOR, MENOR, VELOZ, ESCUDO, +1 DISCO e INVERTE).
 - O menu BREAKERS segue o estilo dos outros menus: as abas são retângulos com ícone em cima do nome (a aberta fica acesa), o COMPRAR tem o ícone da moeda, TRACEJADA e DETALHES viraram linhas com switch, e os botões dos perks (COMPRAR/EVOLUIR e EQUIPAR) ficaram maiores, com ícone.
 - A tela CONFIG. DEV saiu das OPÇÕES: o que só existia nela foi para o painel flutuante do modo dev.
 - A linha MODO DEV continua nas OPÇÕES depois de desligada, com o switch apagado, e liga de novo com um toque, sem precisar da senha. O DESATIVAR do menu secreto (5 toques na versão) tranca o modo dev de novo e tira a linha.
@@ -27,8 +22,26 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 
 ### Corrigido
 
-- 1x1: as plataformas não atravessam mais a borda do campo, nem quando crescem encostadas na parede.
 - Ao desligar o modo dev (ou o desbloquear tudo), as peças da plataforma que o jogador não comprou nem liberou voltam para as gratuitas.
+- BREAKERS: as bolinhas embaixo do nome seguem a ordem das setas, então a SISTEMA aparece em primeiro nas CORES; no RASTRO a ordem é PADRÃO, FAÍSCAS, PRISMA, PALETA, HÉLICE DUPLA, ECO e, por último, DESLIGADO.
+- Os rastros PADRÃO, PRISMA e PALETA ficavam fracos com o brilho neon desligado ou baixo: agora ficam mais grossos e fortes nesse caso.
+
+## [1.12.4] · 23/11/2026 · OPÇÕES em lista e cápsulas com ícone no 1x1
+
+### Adicionado
+
+- OPÇÕES › TUTORIAL agora diz VER e mostra só os cartões do tutorial, no meio da tela, sem entrar no jogo: as setas ‹ › passam os 7 cartões e o VOLTAR volta para as OPÇÕES.
+
+### Alterado
+
+- A numeração das versões foi corrigida daqui para frente: o segundo número muda quando entra algo grande e novo (modo, chefão, capítulo) e o terceiro nos ajustes. Recontando desde a 1.9, a 1.11.3 seria a 1.12.3, por isso esta versão é a 1.12.4.
+- OPÇÕES em lista, uma linha embaixo da outra, com o ícone à esquerda do nome: EFEITOS, MÚSICA e VIBRAÇÃO têm um switch à direita; SENSIBILIDADE, QUALIDADE e NEON mostram o valor entre as setas ‹ ›; TUTORIAL e CRÉDITOS têm uma seta ›. SENSIBILIDADE, QUALIDADE, NEON e o modo dev ganharam ícones.
+- O botão OPÇÕES do menu inicial voltou para a cor do tema, um pouco esmaecida.
+- 1x1: as cápsulas mostram um ícone no lugar do nome, como as da campanha (MAIOR, MENOR, VELOZ, ESCUDO, +1 DISCO e INVERTE).
+
+### Corrigido
+
+- 1x1: as plataformas não atravessam mais a borda do campo, nem quando crescem encostadas na parede.
 
 ## [1.11.3] · 23/11/2026 · Todos os menus no estilo do menu inicial
 

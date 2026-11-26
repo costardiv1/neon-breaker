@@ -22,7 +22,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.12.4';
+export const VERSION = '1.13.0';
 
 let H = 1280;
 let safeTop = 0;
@@ -1061,7 +1061,11 @@ const catName = (key, i) => CATS[key].name(i);
 const itemCost = (key, i) => CATS[key].cost(i);
 optsReady = true;   // fixPlat can run from here on
 // the carousel goes in order of price (cheapest first); the shapes in the order they unlock
-const catOrder = (key) => { const ix = [...Array(catN(key)).keys()]; return key === 'shape' ? ix : ix.sort((a, b) => itemCost(key, a) - itemCost(key, b) || a - b); };
+const lastOf = (key, i) => (key === 'trail' && TRAILS[i].name === 'DESLIGADO' ? 1 : 0);   // "no trail" at the end
+const catOrder = (key) => {
+  const ix = [...Array(catN(key)).keys()];
+  return key === 'shape' ? ix : ix.sort((a, b) => lastOf(key, a) - lastOf(key, b) || itemCost(key, a) - itemCost(key, b) || a - b);
+};
 function itemOpen(key, i) {
   if (opts.dev && opts.unlock) return true;
   return key === 'shape' ? i <= bossesBeaten() : itemCost(key, i) === 0 || owned[key].includes(i);
@@ -1166,8 +1170,9 @@ function renderPlatScreen(c, now) {
   const y = platSelY();
   glowText(c, PLAT_TABS[platTab] + '  ' + (catOrder(key).indexOf(i) + 1) + '/' + n, W / 2, y - 34, 13, rgba(k, 0.75), k, 'center', 500, 5);
   glowText(c, catName(key, i), W / 2, y + 2, 26, open ? '#ffffff' : rgba('#ffffff', 0.55), k, 'center', 700, 4);
-  for (let q = 0; q < n; q++) {
-    const x = W / 2 + (q - (n - 1) / 2) * 20, yy = y + 44;
+  const ord = catOrder(key);
+  for (let o = 0; o < n; o++) {
+    const q = ord[o], x = W / 2 + (o - (n - 1) / 2) * 20, yy = y + 44;
     c.beginPath(); c.arc(x, yy, q === i ? 6 : 4, 0, TAU);
     if (itemOpen(key, q)) { c.fillStyle = q === i ? '#ffffff' : k; c.fill(); } else { c.strokeStyle = rgba(k, 0.6); c.lineWidth = 1.5; c.stroke(); }
     if (key !== 'shape' && !itemOpen(key, q) && coins >= itemCost(key, q)) drawBang(c, x + 7, yy - 9, 6);

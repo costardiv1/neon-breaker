@@ -465,10 +465,12 @@ export function drawTrail(c, path, hx, hy, col, maxLen = TRAIL_LEN, r = BALL_R, 
     }
   };
   // classic tapered tube; colorAt(dist) picks the color of the wide passes
+  // with the neon glow off or low there is no bloom around it, so the tube is drawn stronger
+  const bare = Math.max(0, 1 - (view.glow || 0) / 0.75);
   const tube = (colorAt, lite = gfx.trail < 0.75) => {
     const passes = lite
-      ? [[r * 0.9, 0.7, false], [Math.max(2, r * 0.19), 0.9, true]]
-      : [[r * 1.7, 0.16, false], [r * 0.8, 0.8, false], [Math.max(2, r * 0.19), 0.9, true]];
+      ? [[r * (0.9 + 0.2 * bare), 0.7 + 0.25 * bare, false], [Math.max(2, r * 0.19), 0.9, true]]
+      : [[r * 1.7, 0.16 + 0.24 * bare, false], [r * (0.8 + 0.2 * bare), 0.8 + 0.2 * bare, false], [Math.max(2, r * (0.19 + 0.06 * bare)), 0.9 + 0.1 * bare, true]];
     for (const [w, alpha, core] of passes) {
       c.lineWidth = w;
       for (let i = first; i < n - 1; i++) {

@@ -2,6 +2,24 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.13.0 (26/11/2026)
+
+- [x] Cada fase tem de 3 a 6 blocos com ?, espalhados da frente ao fundo, e só eles soltam cápsulas. *(testado pelo Claude)*
+- [ ] Jogando a mesma fase de novo, os ? aparecem em outros blocos.
+- [ ] Num chefão, aparece um ? na faixa de blocos; quebrado, outro aparece em outro lugar depois de alguns segundos.
+- [ ] No INFINITO, de vez em quando uma fileira nova traz um ?.
+- [x] No 1x1, cada leva tem 4 ? e só eles soltam cápsulas; um ? quebrado volta em outro bloco 4 s depois. *(testado pelo Claude)*
+- [ ] Numa partida de 1x1 inteira, as cápsulas dos ? vão para quem quebrou e a disputa pelos ? fica equilibrada.
+- [x] Com o modo dev destravado, a linha MODO DEV fica nas OPÇÕES: o switch desliga e liga de novo sem a senha. *(testado pelo Claude no PC)*
+- [ ] O BREAKERS: abas com ícone (a aberta acesa), COMPRAR com a moeda, TRACEJADA e DETALHES com switch, botões dos perks maiores.
+- [x] No painel dev (aba Jogo): desbloquear tudo e resetar progresso (dois toques). Campo comparado no celular: ficou o NORMAL.
+- [x] OPÇÕES › RESETAR PROGRESSO embaixo de CRÉDITOS: CONFIRMAR? no primeiro toque, zera no segundo. *(testado pelo Claude)*
+- [x] As OPÇÕES ficam no meio da tela. *(testado pelo Claude)*
+- [x] O DESATIVAR do menu secreto tira a linha MODO DEV, e as peças não compradas voltam para as gratuitas. *(testado pelo Claude)*
+- [ ] No PC, mudar o tamanho do navegador mantém o jogo no mesmo formato de celular, só maior ou menor.
+- [ ] No BREAKERS, a SISTEMA é a primeira das CORES e as bolinhas acompanham as setas; no RASTRO, o DESLIGADO é o último.
+- [ ] Com o brilho neon desligado, os rastros PADRÃO, PRISMA e PALETA aparecem fortes durante o jogo.
+
 ## 1.12.4 (23/11/2026)
 
 - [x] As OPÇÕES são uma lista com o ícone à esquerda do nome, switches em EFEITOS, MÚSICA e VIBRAÇÃO e setas em SENSIBILIDADE, QUALIDADE e NEON. *(testado pelo Claude)*
@@ -11,19 +29,6 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] O botão OPÇÕES do menu inicial está na cor do tema, um pouco esmaecida. *(testado pelo Claude)*
 - [x] No 1x1, as cápsulas mostram o ícone do efeito no lugar do nome. *(testado pelo Claude)*
 - [x] No 1x1, a plataforma não passa da borda, nem com a cápsula MAIOR encostada na parede. *(testado pelo Claude)*
-- [x] Com o modo dev destravado, a linha MODO DEV fica nas OPÇÕES: o switch desliga e liga de novo sem a senha. *(testado pelo Claude no PC)*
-- [ ] O BREAKERS: abas com ícone (a aberta acesa), COMPRAR com a moeda, TRACEJADA e DETALHES com switch, botões dos perks maiores.
-- [x] No painel dev (aba Jogo): desbloquear tudo e resetar progresso (dois toques). Campo comparado no celular: ficou o NORMAL.
-- [x] OPÇÕES › RESETAR PROGRESSO embaixo de CRÉDITOS: CONFIRMAR? no primeiro toque, zera no segundo. *(testado pelo Claude)*
-- [x] As OPÇÕES ficam no meio da tela. *(testado pelo Claude)*
-- [x] O DESATIVAR do menu secreto tira a linha MODO DEV, e as peças não compradas voltam para as gratuitas. *(testado pelo Claude)*
-- [ ] No PC, mudar o tamanho do navegador mantém o jogo no mesmo formato de celular, só maior ou menor.
-- [x] Cada fase tem de 3 a 6 blocos com ?, espalhados da frente ao fundo, e só eles soltam cápsulas. *(testado pelo Claude)*
-- [ ] Jogando a mesma fase de novo, os ? aparecem em outros blocos.
-- [ ] Num chefão, aparece um ? na faixa de blocos; quebrado, outro aparece em outro lugar depois de alguns segundos.
-- [ ] No INFINITO, de vez em quando uma fileira nova traz um ?.
-- [x] No 1x1, cada leva tem 4 ? e só eles soltam cápsulas; um ? quebrado volta em outro bloco 4 s depois. *(testado pelo Claude)*
-- [ ] Numa partida de 1x1 inteira, as cápsulas dos ? vão para quem quebrou e a disputa pelos ? fica equilibrada.
 
 ## 1.11.3 (23/11/2026)
 

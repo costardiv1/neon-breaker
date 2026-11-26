@@ -2,7 +2,7 @@
 
 Anotações internas do desenvolvimento do Neon Breaker.
 
-Versão atual publicada: **1.12.4** (23/11/2026)
+Versão atual publicada: **1.13.0** (26/11/2026)
 
 ## Objetivos
 
@@ -21,6 +21,19 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 ## Histórico
 
+### 1.13.0 (26/11/2026)
+
+- [x] Cápsulas só dos blocos com ?: 3 a 6 por fase, um que muda de lugar nos chefões, alguns no INFINITO.
+- [x] 1x1 com 4 ? por leva, que voltam em outro bloco.
+- [x] BREAKERS no estilo dos outros menus.
+- [x] CONFIG. DEV removido; desbloquear tudo e resetar progresso no painel flutuante.
+- [x] Linha MODO DEV fica nas OPÇÕES depois de desligada.
+- [x] Campo testado (NORMAL, DISTÂNCIA FIXA e CAMPO FIXO): ficou o NORMAL no celular; no PC o jogo tem formato fixo de celular.
+- [x] RESETAR PROGRESSO nas OPÇÕES e OPÇÕES centralizadas.
+- [x] DESATIVAR do menu secreto tira a linha MODO DEV; peças não compradas voltam para as gratuitas.
+- [x] BREAKERS: SISTEMA primeiro nas CORES, bolinhas na ordem das setas, DESLIGADO por último no RASTRO.
+- [x] Rastros PADRÃO, PRISMA e PALETA fortes com o neon desligado.
+
 ### 1.12.4 (23/11/2026)
 
 - [x] Numeração corrigida: segundo número para algo grande e novo, terceiro para ajustes (a 1.11.3 seria a 1.12.3).
@@ -28,14 +41,6 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] Botão OPÇÕES na cor do tema esmaecida.
 - [x] TUTORIAL das OPÇÕES: VER mostra só os cartões, com VOLTAR.
 - [x] 1x1: cápsulas com ícone e plataformas dentro da borda.
-- [x] BREAKERS no estilo dos outros menus. *(subiu sem atualizar)*
-- [x] CONFIG. DEV removido; desbloquear tudo e resetar progresso no painel flutuante. *(subiu sem atualizar)*
-- [x] Linha MODO DEV fica nas OPÇÕES depois de desligada. *(subiu sem atualizar)*
-- [x] Campo testado (NORMAL, DISTÂNCIA FIXA e CAMPO FIXO): ficou o NORMAL no celular; no PC o jogo tem formato fixo de celular. *(subiu sem atualizar)*
-- [x] RESETAR PROGRESSO nas OPÇÕES e OPÇÕES centralizadas. *(subiu sem atualizar)*
-- [x] DESATIVAR do menu secreto tira a linha MODO DEV; peças não compradas voltam para as gratuitas. *(subiu sem atualizar)*
-- [x] Cápsulas só dos blocos com ?: 3 a 6 por fase, um que muda de lugar nos chefões, alguns no INFINITO. *(subiu sem atualizar)*
-- [x] 1x1 com 4 ? por leva, que voltam em outro bloco. *(subiu sem atualizar)*
 
 ### 1.11.3 (23/11/2026)
 
