@@ -7,7 +7,8 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 ### Adicionado
 
 - OPÇÕES › TUTORIAL agora diz VER e mostra só os cartões do tutorial, no meio da tela, sem entrar no jogo: as setas ‹ › passam os 7 cartões e o VOLTAR volta para as OPÇÕES.
-- Modo dev: o painel flutuante ganhou desbloquear tudo (e perks), resetar progresso (com um segundo toque para confirmar) e um botão 📐 Campo para testar como o campo se ajusta à tela: NORMAL (enche a tela), DISTÂNCIA FIXA (os blocos sempre à mesma distância da plataforma) e CAMPO FIXO (o jogo sempre do mesmo tamanho, com faixas onde a tela sobra).
+- Modo dev: o painel flutuante ganhou desbloquear tudo (e perks) e resetar progresso (com um segundo toque para confirmar).
+- OPÇÕES › RESETAR PROGRESSO, embaixo de CRÉDITOS: o primeiro toque mostra CONFIRMAR? por 3 s e o segundo zera fases, recorde, chips, moedas, perks e itens.
 
 ### Alterado
 
@@ -17,11 +18,14 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - 1x1: as cápsulas mostram um ícone no lugar do nome, como as da campanha (MAIOR, MENOR, VELOZ, ESCUDO, +1 DISCO e INVERTE).
 - O menu BREAKERS segue o estilo dos outros menus: as abas são retângulos com ícone em cima do nome (a aberta fica acesa), o COMPRAR tem o ícone da moeda, TRACEJADA e DETALHES viraram linhas com switch, e os botões dos perks (COMPRAR/EVOLUIR e EQUIPAR) ficaram maiores, com ícone.
 - A tela CONFIG. DEV saiu das OPÇÕES: o que só existia nela foi para o painel flutuante do modo dev.
-- A linha MODO DEV continua nas OPÇÕES depois de desligada, com o switch apagado, e liga de novo com um toque, sem precisar da senha.
+- A linha MODO DEV continua nas OPÇÕES depois de desligada, com o switch apagado, e liga de novo com um toque, sem precisar da senha. O DESATIVAR do menu secreto (5 toques na versão) tranca o modo dev de novo e tira a linha.
+- As OPÇÕES ficam centralizadas na tela, entre o título e o VOLTAR.
+- No PC (sem toque), o jogo tem sempre o formato de um celular, 720 × 1560: mudar o tamanho do navegador só aumenta ou diminui o jogo, com faixas escuras em volta. No celular ele continua enchendo a tela.
 
 ### Corrigido
 
 - 1x1: as plataformas não atravessam mais a borda do campo, nem quando crescem encostadas na parede.
+- Ao desligar o modo dev (ou o desbloquear tudo), as peças da plataforma que o jogador não comprou nem liberou voltam para as gratuitas.
 
 ## [1.11.3] · 23/11/2026 · Todos os menus no estilo do menu inicial
 

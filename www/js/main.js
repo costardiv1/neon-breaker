@@ -82,7 +82,7 @@ sfx.enabled = store.get('sound', true);
 sfx.musicOn = store.get('music', true);
 
 const DROP_STEPS = [0.13, 0.25, 0.5, 1];
-const opts = Object.assign({ vibe: true, sens: 1.25, dev: false, inf: false, speed: 1, startStage: 0, fps: false, drop: 0, unlock: false, field: 'auto' },
+const opts = Object.assign({ vibe: true, sens: 1.25, dev: false, inf: false, speed: 1, startStage: 0, fps: false, drop: 0, unlock: false },
   store.get('opts', {}));
 if (oldLayout || !(opts.startStage >= 0 && opts.startStage < TOTAL_STAGES)) opts.startStage = 0;
 
@@ -301,8 +301,18 @@ game.chipWallet = () => chips;
 game.setColor(col());
 window.__nb = { game, render: () => render(), iso: () => isoData(), go: (s) => setScene(s), crash: () => startCrash(), nf: () => startFighters(), get fighters() { return fighters; }, vs: (two = false) => startVersus(two), get versus() { return versus; }, scroll: (v) => { if (v !== undefined) mapScroll = v; return mapScroll; }, get scene() { return scene; } }; // debug handle
 
+// Without "unlock everything", a platform piece the player doesn't own goes back to a free one
+// (the dev mode may have picked anything).
+const PLAT_FREE = { shape: 0, pal: PALETTES.length - 1, emb: 1, disc: 0, trail: 0 };
+function fixPlat() {
+  let changed = false;
+  for (const key in PLAT_FREE) if (!itemOpen(key, plat[key])) { plat[key] = PLAT_FREE[key]; changed = true; }
+  if (changed) store.set('plat', plat);
+}
+let optsReady = false;   // the first applyOpts runs before the shop data exists
 function applyOpts() {
   if (opts.dev) opts.devKnown = true;   // once unlocked, the MODO DEV row stays in the OPÇÕES (switched off or on)
+  if (optsReady && !devAll()) fixPlat();
   store.set('opts', opts);
   haptics.on = opts.vibe;
   game.infinite = opts.dev && opts.inf;
@@ -322,7 +332,7 @@ function setScene(s) {
   if (s === 'map' && scene !== 'map') focusMap();
   if (scene === 'map' && s !== 'map') store.set('mapY', Math.round(mapScroll));   // the map remembers where it was
   if (s === 'plat' && scene !== 'plat') openPlat();
-  showGateInput(s === 'devgate' && !opts.dev);
+  showGateInput(s === 'devgate' && !devUnlocked());
   if (s !== 'scores') showNameInput(false);
   if (s !== scene) sceneT0 = performance.now() / 1000;
   scene = s;
@@ -335,17 +345,14 @@ function setScene(s) {
 setScene('menu');
 
 // ---------- layout ----------
-// How the field fits the screen (testing, from the dev panel):
-//   auto  - the field fills the screen, so the bricks are closer to the paddle on wide screens and far on tall ones
-//   dist  - the bricks are always the same distance from the paddle; on tall screens the room left is empty at the top
-//   fixed - the whole game is always the same size; tall or wide screens get empty bands around it
-const FIELD_REF = 1280;   // the screen height the field is measured on (720 x 1280)
-const FIELD_MODES = { auto: 'NORMAL (enche a tela)', dist: 'DISTÂNCIA FIXA', fixed: 'CAMPO FIXO' };
+// On a phone the field fills the screen (tested against a fixed distance and a fixed field on 24/11/2026: this one won).
+// On a PC (mouse, no touch) the game keeps one phone shape, 720 x 1560 (19.5:9), whatever the window size:
+// resizing the browser only scales it, with dark bands around it.
+const PC_H = 1560;
+const isPhone = () => window.matchMedia('(pointer: coarse)').matches;
 function resize() {
   const vw = window.innerWidth, vh = window.innerHeight;
-  const fm = opts.field || 'auto';
-  const lo = fm === 'auto' ? 1100 : FIELD_REF, hi = fm === 'fixed' ? FIELD_REF : 1650;
-  const Hl = Math.max(lo, Math.min(hi, (W * vh) / vw));
+  const Hl = isPhone() ? Math.max(1100, Math.min(1650, (W * vh) / vw)) : PC_H;
   let cssW = vw, cssH = (vw * Hl) / W;
   if (cssH > vh) { cssH = vh; cssW = (vh * W) / Hl; }
   canvas.style.width = cssW + 'px';
@@ -357,8 +364,7 @@ function resize() {
   canvas.height = Math.round(Hl * view.res);
   H = Hl;
   safeTop = (parseFloat(getComputedStyle(safeEl).paddingTop) || 0) * (W / cssW);
-  // dist: the field keeps the height it has on a 1280 screen, so its top comes down on taller ones
-  game.setLayout(H, fm === 'dist' ? Math.max(safeTop + 130, H - FIELD_REF + 130) : safeTop + 130);
+  game.setLayout(H, safeTop + 130);
   clearSprites();
 }
 window.addEventListener('resize', () => {
@@ -475,14 +481,19 @@ function optionIcons() {
     ...[sens, quality, neon].map((row) => ({ label: row.label, icon: row.icon, val: row.val(), step: (d) => done(() => row.step(d)) })),
     { label: 'TUTORIAL', fn: () => openTutView(0), icon: 'help', val: 'VER' },
     { label: 'CRÉDITOS', fn: () => setScene('credits'), icon: 'star', val: 'ABRIR' },
+    // the first tap arms it (for 3 s), the second wipes everything
+    { label: 'RESETAR PROGRESSO', icon: 'trash', val: performance.now() - resetArm < 3000 ? 'CONFIRMAR?' : 'ZERAR', fn: () => {
+      if (performance.now() - resetArm < 3000) { resetArm = 0; resetProgress(); } else resetArm = performance.now();
+    } },
     ...dev.map((row) => ({ label: row.label, icon: row.icon, val: row.val(), fn: done(row.tap), sw: row.label === 'MODO DEV' ? !!opts.dev : undefined })),
   ];
   // a list like the main menu, one under the other; shorter buttons when the screen is short
   const g = 12, top = safeTop + 168, room = H - 150 - top;
   if (OPT_ICON_LEFT) {   // wide rows: the icon on the left of the name, the switch or the value on the right
     const w = 560, h = Math.min(84, (room - g * (all.length - 1)) / all.length), list = [];
+    const total = all.length * (h + g) - g, y0 = Math.max(top, Math.min(H - 150 - total, (H - total) / 2));
     all.forEach((r, n) => {
-      const x = W / 2, y = top + h / 2 + n * (h + g), o = { licon: r.icon, val: r.val, sw: r.sw, optLine: true };
+      const x = W / 2, y = y0 + h / 2 + n * (h + g), o = { licon: r.icon, val: r.val, sw: r.sw, optLine: true };
       if (r.step) {
         list.push(btn(x, y, w, h, r.label, null, Object.assign(o, { steps: true })));
         const R = x + w / 2;   // the arrows sit at R - 160 and R - 34
@@ -1048,6 +1059,7 @@ const catKey = () => ['shape', 'pal', 'emb', 'disc', 'trail'][platTab];
 const catN = (key) => CATS[key].n();
 const catName = (key, i) => CATS[key].name(i);
 const itemCost = (key, i) => CATS[key].cost(i);
+optsReady = true;   // fixPlat can run from here on
 // the carousel goes in order of price (cheapest first); the shapes in the order they unlock
 const catOrder = (key) => { const ix = [...Array(catN(key)).keys()]; return key === 'shape' ? ix : ix.sort((a, b) => itemCost(key, a) - itemCost(key, b) || a - b); };
 function itemOpen(key, i) {
@@ -1798,6 +1810,13 @@ function drawMenuIcon(c, kind, x, y, k) {
     c.bezierCurveTo(x + 17, y + 3, x + 5, y + 12, x, y + 23);
     c.moveTo(x + 6, y - 6); c.arc(x, y - 6, 6, 0, TAU);
     neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
+  } else if (kind === 'trash') {   // a bin: lid, handle and body with stripes
+    c.moveTo(x - 18, y - 12); c.lineTo(x + 18, y - 12);
+    c.moveTo(x - 6, y - 12); c.lineTo(x - 6, y - 18); c.lineTo(x + 6, y - 18); c.lineTo(x + 6, y - 12);
+    c.moveTo(x - 13, y - 12); c.lineTo(x - 11, y + 19); c.lineTo(x + 11, y + 19); c.lineTo(x + 13, y - 12);
+    c.moveTo(x - 4.5, y - 5); c.lineTo(x - 4, y + 12); c.moveTo(x + 4.5, y - 5); c.lineTo(x + 4, y + 12);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    neonStroke(c, k, k, 3, x - 22, y, x + 22, y, 0.8);
   } else if (kind === 'restart') {
     const a1 = Math.PI * 1.42, r = 18;
     c.arc(x, y + 1, r, -Math.PI * 0.2, a1);
@@ -2067,12 +2086,13 @@ function tryDevPassword() {
     setTimeout(() => { if (scene === 'devgate') setScene('options'); }, 1300);
   } else { sfx.power(false); if (gateInput) { gateInput.value = ''; gateInput.focus(); } }
 }
+function devUnlocked() { return opts.dev || opts.devKnown; }   // unlocked: the MODO DEV row is in the OPÇÕES (on or off)
 function renderDevGate(c, now) {
   const k = col();
   neonTitle(c, 'MODO DEV', W / 2, safeTop + 230, 54, k, k, 12);
-  if (opts.dev && !(gateMsg && gateMsg.ok && now - gateMsg.t < 1.3)) {
-    glowText(c, 'O modo dev está ativo.', W / 2, safeTop + 380, 20, '#ffffff', k, 'center', 500, 2);
-  } else if (!opts.dev) {
+  if (devUnlocked() && !(gateMsg && gateMsg.ok && now - gateMsg.t < 1.3)) {
+    glowText(c, opts.dev ? 'O modo dev está ativo.' : 'O modo dev está desligado nas OPÇÕES.', W / 2, safeTop + 380, 20, '#ffffff', k, 'center', 500, 2);
+  } else if (!devUnlocked()) {
     glowText(c, 'Digite a senha', W / 2, safeTop + 420, 20, 'rgba(255,255,255,0.85)', k, 'center', 500, 3);
     if (gateInput && gateInput.style.display !== 'none') placeGateInput();
   }
@@ -2106,12 +2126,6 @@ devUI = createDevPanel({
   endlessSkip: () => game.devEndlessSkip(), endlessBoss: () => game.devEndlessBoss(),
   testStory: () => startStory(Math.max(0, Math.min(STORY.length - 1, bossesBeaten() - 1))),
   testCrash: () => startCrash(), toMap: () => setScene('map'),
-  fieldLabel: () => '📐 Campo: ' + FIELD_MODES[opts.field || 'auto'],
-  fieldTap: () => {   // NORMAL → DISTÂNCIA FIXA → CAMPO FIXO → NORMAL
-    const ks = Object.keys(FIELD_MODES);
-    opts.field = ks[(ks.indexOf(opts.field || 'auto') + 1) % ks.length];
-    applyOpts(); resize();
-  },
   resetLabel: () => (performance.now() - resetArm < 3000 ? '⚠️ Toque de novo para resetar' : '🗑️ Resetar progresso'),
   resetTap: () => {   // the first tap arms it, the second wipes everything and goes to the menu
     if (performance.now() - resetArm < 3000) { resetArm = 0; resetProgress(); menuMsg = { text: 'PROGRESSO RESETADO', t: performance.now() / 1000 }; setScene('menu'); }
@@ -2215,7 +2229,7 @@ function layout() {
     case 'scores': return scoreButtons();
     case 'devgate': {
       const y = safeTop + 640;
-      if (opts.dev) return [btn(cx, y, 400, 72, 'DESATIVAR', () => { opts.dev = false; applyOpts(); gateMsg = { text: 'MODO DEV DESATIVADO', ok: true, t: performance.now() / 1000 }; }), backBtn('VOLTAR', () => setScene('menu'))];
+      if (devUnlocked()) return [btn(cx, y, 400, 72, 'DESATIVAR', () => { opts.dev = false; opts.devKnown = false; applyOpts(); gateMsg = { text: 'MODO DEV DESATIVADO', ok: true, t: performance.now() / 1000 }; }), backBtn('VOLTAR', () => setScene('menu'))];
       return [btn(cx, y, 400, 72, 'CONFIRMAR', tryDevPassword, { big: true }), backBtn('VOLTAR', () => setScene('menu'))];
     }
     case 'colors': {

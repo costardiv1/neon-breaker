@@ -31,7 +31,9 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] BREAKERS no estilo dos outros menus. *(subiu sem atualizar)*
 - [x] CONFIG. DEV removido; desbloquear tudo e resetar progresso no painel flutuante. *(subiu sem atualizar)*
 - [x] Linha MODO DEV fica nas OPÇÕES depois de desligada. *(subiu sem atualizar)*
-- [ ] Equilibrar o campo entre telas largas e compridas: botão 📐 Campo no painel dev para testar NORMAL, DISTÂNCIA FIXA e CAMPO FIXO; falta escolher. *(subiu sem atualizar)*
+- [x] Campo testado (NORMAL, DISTÂNCIA FIXA e CAMPO FIXO): ficou o NORMAL no celular; no PC o jogo tem formato fixo de celular. *(subiu sem atualizar)*
+- [x] RESETAR PROGRESSO nas OPÇÕES e OPÇÕES centralizadas. *(subiu sem atualizar)*
+- [x] DESATIVAR do menu secreto tira a linha MODO DEV; peças não compradas voltam para as gratuitas. *(subiu sem atualizar)*
 
 ### 1.11.3 (23/11/2026)
 

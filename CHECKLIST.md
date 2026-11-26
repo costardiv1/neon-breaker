@@ -13,7 +13,11 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [x] No 1x1, a plataforma não passa da borda, nem com a cápsula MAIOR encostada na parede. *(testado pelo Claude)*
 - [x] Com o modo dev destravado, a linha MODO DEV fica nas OPÇÕES: o switch desliga e liga de novo sem a senha. *(testado pelo Claude no PC)*
 - [ ] O BREAKERS: abas com ícone (a aberta acesa), COMPRAR com a moeda, TRACEJADA e DETALHES com switch, botões dos perks maiores.
-- [ ] No painel dev (aba Jogo): desbloquear tudo, resetar progresso (dois toques) e 📐 Campo. Comparar NORMAL, DISTÂNCIA FIXA e CAMPO FIXO no celular e escolher um.
+- [x] No painel dev (aba Jogo): desbloquear tudo e resetar progresso (dois toques). Campo comparado no celular: ficou o NORMAL.
+- [x] OPÇÕES › RESETAR PROGRESSO embaixo de CRÉDITOS: CONFIRMAR? no primeiro toque, zera no segundo. *(testado pelo Claude)*
+- [x] As OPÇÕES ficam no meio da tela. *(testado pelo Claude)*
+- [x] O DESATIVAR do menu secreto tira a linha MODO DEV, e as peças não compradas voltam para as gratuitas. *(testado pelo Claude)*
+- [ ] No PC, mudar o tamanho do navegador mantém o jogo no mesmo formato de celular, só maior ou menor.
 
 ## 1.11.3 (23/11/2026)
 

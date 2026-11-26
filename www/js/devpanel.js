@@ -96,7 +96,6 @@ export function createDevPanel(api) {
       check('🧊 Congelar o jogo', api.getFreeze, api.setFreeze),
       check('📊 Mostrar FPS', () => o.fps, (v) => { o.fps = v; api.applyOpts(); }),
       check('🔓 Desbloquear tudo (e perks)', () => o.unlock, (v) => { o.unlock = v; api.applyOpts(); }),
-      `<div class="row">${b(api.fieldLabel(), api.fieldTap)}</div>`,
       `<div class="grid">${[
         b('❤️ +1 vida', () => { g.lives = Math.min(6, g.lives + 1); }),
         b('⚡ Energia cheia', () => { g.energy = 1; }),
