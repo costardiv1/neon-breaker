@@ -2510,6 +2510,7 @@ let swipe = null;
 
 window.addEventListener('keydown', (e) => {
   sfx.unlock();
+  if (scene === 'fighters' && fighters && (e.key === ' ' || e.key === 'e' || e.key === 'Shift')) { fighters.usePerk(); return; }   // ONDA DE CHOQUE on the PC
   if (scene === 'play') {
     if (e.key === 'ArrowLeft' || e.key === 'a') game.keys.left = true;
     if (e.key === 'ArrowRight' || e.key === 'd') game.keys.right = true;

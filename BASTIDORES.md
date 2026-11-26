@@ -33,6 +33,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] DESATIVAR do menu secreto tira a linha MODO DEV; peças não compradas voltam para as gratuitas.
 - [x] BREAKERS: SISTEMA primeiro nas CORES, bolinhas na ordem das setas, DESLIGADO por último no RASTRO.
 - [x] Rastros PADRÃO, PRISMA e PALETA fortes com o neon desligado.
+- [x] NEON FIGHTERS: 1 a 4 lasers, cadência nova, cápsulas ? voando, velocidade máxima, drones atirando (tiros vermelhos) com hélices, botão da ONDA DE CHOQUE. *(subiu sem atualizar)*
 
 ### 1.12.4 (23/11/2026)
 

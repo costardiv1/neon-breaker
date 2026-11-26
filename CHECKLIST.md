@@ -19,6 +19,11 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [ ] No PC, mudar o tamanho do navegador mantém o jogo no mesmo formato de celular, só maior ou menor.
 - [ ] No BREAKERS, a SISTEMA é a primeira das CORES e as bolinhas acompanham as setas; no RASTRO, o DESLIGADO é o último.
 - [ ] Com o brilho neon desligado, os rastros PADRÃO, PRISMA e PALETA aparecem fortes durante o jogo.
+- [x] NEON FIGHTERS: a nave começa com 1 laser e as cápsulas ? dão LASER +1 até 4, TIRO RÁPIDO, ESCUDO +1 ou ONDA CARREGADA. *(testado pelo Claude)*
+- [x] NEON FIGHTERS: o botão da ONDA DE CHOQUE enche com os inimigos derrubados e, tocado, apaga os tiros e acerta os inimigos e a COLMEIA. *(testado pelo Claude)*
+- [ ] NEON FIGHTERS: a velocidade da nave e a cadência ficam boas na mão; dá para desviar dos tiros vermelhos dos drones.
+- [ ] NEON FIGHTERS: dá para tocar no botão da onda com outro dedo sem largar a nave.
+- [ ] NEON FIGHTERS: a demo inteira fica frenética mas dá para vencer a COLMEIA.
 
 ## 1.12.4 (23/11/2026)
 

@@ -1,16 +1,28 @@
 // ---------- NEON FIGHTERS: the first stage of the next game (a demo) ----------
 // Unlocked by beating O SISTEMA. A ship seen from above, built on the ARCO
-// breaker (curved wings) with the player's emblem and colors, fires two
-// lasers on its own while the player drags it around. Hordes of enemies come
+// breaker (curved wings) with the player's emblem and colors, fires on its own
+// (1 laser, up to 4 with the ? capsules) while the player drags it around. Hordes of enemies come
 // in for about two and a half minutes, then the mother ship, A COLMEIA.
 import { TAU, rgba, mix, neonStroke, glowText, neonTitle, view } from './render.js';
 import { drawShip } from './platform.js';
+import { drawAbilityIcon } from './game.js';
 import { sfx, music, vibrate } from './audio.js';
 
 const W = 720;
 const SHIP_R = 22;          // the ship's hitbox (a bit smaller than the drawing)
-const FIRE = [0.15, 0.13, 0.1];   // seconds between shots, per power level
+const FIRE = [0.18, 0.14, 0.09];  // seconds between shots, per TIRO RÁPIDO level
+const LASERS = 4;                  // the ship starts with 1 laser and gets up to 4
+// laser layout per count: [x offset, sideways speed]
+const GUNS = [null, [[0, 0]], [[-11, 0], [11, 0]], [[-18, -160], [0, 0], [18, 160]], [[-26, -240], [-9, 0], [9, 0], [26, 240]]];
 const BOLT_V = 1150;
+const SHIP_V = 1400, SHIP_ACC = 20;   // top speed (px/s) and how fast it gets there
+const FOE_SHOT = '#ff3b5c';           // enemy shots: a hostile red, apart from the ship's color
+const DRONE_SHOT_V = 250, TANK_WARN = 0.4;
+// ? capsules: fly across the screen; the player grabs them for a power
+const CAP_FIRST = 6, CAP_EVERY = [8, 12], CAP_R = 20;
+// ONDA DE CHOQUE: the demo's perk; kills charge it, the button fires it
+const SHOCK_R = 380, SHOCK_T = 0.6, SHOCK_DMG = 3, SHOCK_BOSS = 18;
+const CHARGE = { drone: 0.05, dart: 0.08, tank: 0.2, boss: 0.005 };
 const BOSS_AT = 150;        // seconds into the stage when the mother ship comes
 const BOSS_HP = 320;
 const SHIELDS = 3;
@@ -32,8 +44,10 @@ export class Fighters {
   constructor(H, top, plat, col) {
     this.H = H; this.top = top; this.plat = plat; this.col = col;
     this.t = -2.6;          // a short title before the first horda
-    this.ship = { x: W / 2, y: H - 260, tx: W / 2, ty: H - 260, hp: SHIELDS, inv: 0, fire: 0, lvl: 0, tilt: 0 };
-    this.bolts = []; this.foes = []; this.shots = []; this.parts = []; this.orbs = []; this.floats = [];
+    this.ship = { x: W / 2, y: H - 260, tx: W / 2, ty: H - 260, vx: 0, vy: 0, hp: SHIELDS, inv: 0, fire: 0, guns: 1, rate: 0, tilt: 0 };
+    this.bolts = []; this.foes = []; this.shots = []; this.parts = []; this.caps = []; this.floats = [];
+    this.capT = CAP_FIRST;
+    this.energy = 0; this.wave = null;
     this.next = WAVES.map((w) => w[0]);
     this.horde = -1;
     this.banner = null;
@@ -49,7 +63,10 @@ export class Fighters {
 
   // a touch sends the ship to the finger (a bit above it, so the finger never
   // covers it) and then it follows the drag; the mouse is followed without a click
+  perkRect() { return { x: W - 112, y: this.H - 150, w: 84, h: 84 }; }
   press(x, y, mouse) {
+    const r = this.perkRect();
+    if (this.state === 'play' && x > r.x - 10 && x < r.x + r.w + 10 && y > r.y - 10 && y < r.y + r.h + 10) { this.usePerk(); this.btnTap = true; return; }
     if (mouse) return;
     this.move(x, y, true);
     this.drag = { x, y, sx: this.ship.tx, sy: this.ship.ty };
@@ -61,7 +78,10 @@ export class Fighters {
     s.tx = Math.max(36, Math.min(W - 36, s.tx));
     s.ty = Math.max(this.top + 120, Math.min(this.H - 120, s.ty));
   }
-  release() { this.drag = null; }
+  release() {
+    if (this.btnTap) { this.btnTap = false; return; }   // the finger that tapped the button lets go: the drag goes on
+    this.drag = null;
+  }
 
   // ---------- update ----------
   update(dt) {
@@ -77,18 +97,20 @@ export class Fighters {
 
     const s = this.ship;
     const ox = s.x;
-    s.x += (s.tx - s.x) * Math.min(1, dt * 18);
-    s.y += (s.ty - s.y) * Math.min(1, dt * 18);
+    // it heads for the finger with a short acceleration and a top speed, so dodging takes a little foresight
+    const dx = s.tx - s.x, dy = s.ty - s.y, d = Math.hypot(dx, dy);
+    const want = Math.min(SHIP_V, d * 14), wx = d > 0.5 ? (dx / d) * want : 0, wy = d > 0.5 ? (dy / d) * want : 0;
+    s.vx += (wx - s.vx) * Math.min(1, dt * SHIP_ACC); s.vy += (wy - s.vy) * Math.min(1, dt * SHIP_ACC);
+    s.x += s.vx * dt; s.y += s.vy * dt;
     s.tilt += (Math.max(-1, Math.min(1, (s.x - ox) / (dt * 600))) - s.tilt) * Math.min(1, dt * 10);
     s.inv = Math.max(0, s.inv - dt);
     if (this.t < 0) return;
 
-    // the ship fires on its own: two lasers, more with power
+    // the ship fires on its own: 1 to 4 lasers (LASER +1), faster with TIRO RÁPIDO
     s.fire -= dt;
     if (s.fire <= 0) {
-      s.fire = FIRE[s.lvl];
-      for (const o of [-13, 13]) this.bolts.push({ x: s.x + o, y: s.y - 18, vx: 0 });
-      if (s.lvl >= 1) for (const o of [-1, 1]) this.bolts.push({ x: s.x + o * 26, y: s.y - 4, vx: o * 240 });
+      s.fire = FIRE[s.rate];
+      for (const [o, vx] of GUNS[s.guns]) this.bolts.push({ x: s.x + o, y: s.y - (vx ? 6 : 18), vx });
       sfx.shipShot();
     }
     for (const b of this.bolts) { b.x += b.vx * dt; b.y -= BOLT_V * dt; }
@@ -106,16 +128,71 @@ export class Fighters {
     }
     this.updateFoes(dt);
     this.updateShots(dt);
-    for (const o of this.orbs) {
-      o.y += 120 * dt; o.t += dt;
-      if (Math.hypot(o.x - s.x, o.y - s.y) < 34) {
-        o.got = true;
-        if (s.lvl < 2) { s.lvl++; this.float(s.lvl === 1 ? 'TIRO TRIPLO' : 'TIRO RÁPIDO', s.x, s.y - 50); }
-        else { this.score += 100; this.float('+100', s.x, s.y - 50); }
-        sfx.power(true);
-      }
+    this.updateWave(dt);
+    this.updateCaps(dt);
+  }
+
+  // ---------- ? capsules ----------
+  // one flies across the screen every 8 to 12 s (tanks drop one too); what it gives is a surprise
+  updateCaps(dt) {
+    const s = this.ship;
+    if (!this.boss || this.boss.y > this.top) this.capT -= dt;
+    if (this.capT <= 0) {
+      this.capT = CAP_EVERY[0] + Math.random() * (CAP_EVERY[1] - CAP_EVERY[0]);
+      const side = Math.random() < 0.5 ? -1 : 1;
+      this.caps.push({ x: side < 0 ? -30 : W + 30, y: this.top + 120 + Math.random() * (this.H * 0.35), vx: -side * (130 + Math.random() * 50), vy: 45, t: Math.random() * 6 });
     }
-    this.orbs = this.orbs.filter((o) => !o.got && o.y < this.H + 30);
+    for (const q of this.caps) {
+      q.t += dt;
+      q.x += q.vx * dt; q.y += (q.vy + Math.sin(q.t * 3) * 60) * dt;
+      if (Math.hypot(q.x - s.x, q.y - s.y) < CAP_R + SHIP_R + 6) { q.got = true; this.grab(q); }
+    }
+    this.caps = this.caps.filter((q) => !q.got && q.y < this.H + 40 && q.x > -60 && q.x < W + 60);
+  }
+  grab(q) {
+    const s = this.ship;
+    const pool = [];
+    if (s.guns < LASERS) pool.push(['guns', 3]);
+    if (s.rate < FIRE.length - 1) pool.push(['rate', 2]);
+    if (s.hp < SHIELDS) pool.push(['shield', 1.2]);
+    if (this.energy < 1) pool.push(['energy', 1.5]);
+    let roll = Math.random() * pool.reduce((a, p) => a + p[1], 0), kind = 'points';
+    for (const [k, w] of pool) { roll -= w; if (roll <= 0) { kind = k; break; } }
+    const text = { guns: 'LASER +1', rate: 'TIRO RÁPIDO', shield: 'ESCUDO +1', energy: 'ONDA CARREGADA', points: '+200' }[kind];
+    if (kind === 'guns') s.guns++;
+    else if (kind === 'rate') s.rate++;
+    else if (kind === 'shield') s.hp++;
+    else if (kind === 'energy') this.energy = 1;
+    else this.score += 200;
+    this.float(text, s.x, s.y - 50);
+    this.burst(q.x, q.y, 14);
+    sfx.power(true);
+  }
+
+  // ---------- ONDA DE CHOQUE ----------
+  charge(k) { const was = this.energy < 1; this.energy = Math.min(1, this.energy + k); if (was && this.energy >= 1) sfx.charge(); }
+  usePerk() {
+    if (this.energy < 1 || this.wave || this.state !== 'play' || this.t < 0) return;
+    this.energy = 0;
+    this.wave = { x: this.ship.x, y: this.ship.y, r: 0, t: 0, hit: new Set(), boss: false };
+    this.shake = 0.5; sfx.blast(); vibrate(40);
+  }
+  updateWave(dt) {
+    const w = this.wave;
+    if (!w) return;
+    w.t += dt; w.r = SHOCK_R * Math.min(1, w.t / SHOCK_T);
+    for (const q of this.shots) if (Math.hypot(q.x - w.x, q.y - w.y) < w.r) q.dead = true;   // it wipes the enemy shots
+    for (const e of this.foes) {
+      if (e.dead || w.hit.has(e) || Math.hypot(e.x - w.x, e.y - w.y) > w.r + this.radius(e)) continue;
+      w.hit.add(e); e.hp -= SHOCK_DMG; e.flash = 1;
+      if (e.hp <= 0) { this.noCharge = true; this.kill(e, true); this.noCharge = false; }   // the wave's own kills don't refill it
+    }
+    const B = this.boss;
+    if (B && !w.boss && Math.hypot(B.x - w.x, B.y - w.y) < w.r + 80) {
+      w.boss = true; B.hp -= SHOCK_BOSS; B.flash = 1;
+      if (B.hp <= 0) { this.win(); }
+    }
+    if (w.t > SHOCK_T + 0.25) this.wave = null;
   }
 
   spawn(kind) {
@@ -138,7 +215,7 @@ export class Fighters {
 
   foe(kind, x, y, o) {
     const hp = { drone: 1, dart: 2, tank: 10 }[kind];
-    return Object.assign({ kind, x, y, x0: x, t: 0, hp, max: hp, flash: 0, amp: 70, f: 1.2, ph: 0, cd: 1.2 + Math.random() }, o);
+    return Object.assign({ kind, x, y, x0: x, t: 0, hp, max: hp, flash: 0, amp: 70, f: 1.2, ph: 0, cd: 1.2 + Math.random() * 2, spin: Math.random() * TAU }, o);
   }
 
   updateFoes(dt) {
@@ -148,6 +225,8 @@ export class Fighters {
       if (e.kind === 'drone') {
         e.y += 150 * dt;
         e.x = e.x0 + e.amp * Math.sin(e.t * e.f + e.ph);
+        e.cd -= dt;   // every drone fires a slow shot straight down
+        if (e.cd <= 0 && e.y > this.top + 40 && e.y < this.H - 300) { e.cd = 2.2 + Math.random() * 1.4; this.shots.push({ x: e.x, y: e.y + 14, vx: 0, vy: DRONE_SHOT_V, small: true }); }
       } else if (e.kind === 'dart') {
         if (e.t < 0.8) e.y += 160 * dt;   // comes in, takes aim...
         else {
@@ -159,6 +238,7 @@ export class Fighters {
         else if (e.t > 9) e.y += 120 * dt;
         e.x += Math.sin(e.t * 0.8) * 40 * dt;
         e.cd -= dt;
+        e.warn = e.cd < TANK_WARN && e.y < this.H - 300;   // the turret blinks right before it fires
         if (e.cd <= 0 && e.y < this.H - 300) { e.cd = 1.7; this.aim(e.x, e.y + 20, 3, 0.25, 300); }
       }
       if (Math.hypot(e.x - s.x, e.y - s.y) < SHIP_R + this.radius(e)) { this.hurt(); if (e.kind !== 'tank') this.kill(e, false); }
@@ -183,7 +263,8 @@ export class Fighters {
     if (byShot) {
       const pts = { drone: 10, dart: 20, tank: 80 }[e.kind];
       this.score += pts;
-      if (e.kind === 'tank' || Math.random() < 0.03) this.orbs.push({ x: e.x, y: e.y, t: 0 });
+      if (!this.noCharge) this.charge(CHARGE[e.kind]);
+      if (e.kind === 'tank') this.caps.push({ x: e.x, y: e.y, vx: 0, vy: 110, t: 0 });   // a tank always leaves a ?
     }
     sfx.brk(e.kind === 'tank' ? 8 : 3);
     if (e.kind === 'tank') { this.shake = 0.4; vibrate(20); }
@@ -210,7 +291,7 @@ export class Fighters {
   hurt() {
     const s = this.ship;
     if (s.inv > 0 || this.state !== 'play') return;
-    s.hp--; s.inv = 1.6; s.lvl = Math.max(0, s.lvl - 1);
+    s.hp--; s.inv = 1.6; s.guns = Math.max(1, s.guns - 1);   // a hit costs one laser
     this.shake = 0.9;
     this.burst(s.x, s.y, 20);
     sfx.hurt(); vibrate(70);
@@ -253,7 +334,7 @@ export class Fighters {
     }
     for (const b of this.bolts) {
       if (b.dead || Math.hypot(b.x - B.x, b.y - B.y) > 78) continue;
-      b.dead = true; B.hp--; B.flash = 1;
+      b.dead = true; B.hp--; B.flash = 1; this.charge(CHARGE.boss);
       if (Math.random() < 0.3) this.parts.push({ x: b.x, y: b.y, vx: (Math.random() - 0.5) * 200, vy: -Math.random() * 160, life: 0.4, max: 0.4, c: '#ffffff' });
       if (B.hp === Math.floor(BOSS_HP / 2)) { this.banner = { text: 'FÚRIA', sub: 'A COLMEIA', t: 1.8, max: 1.8 }; this.shake = 0.8; sfx.fury(); }
       if (B.hp <= 0) { this.win(); return; }
@@ -300,11 +381,22 @@ export class Fighters {
     }
     c.globalAlpha = 1;
 
-    for (const o of this.orbs) {
-      const r = 13 + 2 * Math.sin(o.t * 8);
-      c.beginPath(); c.arc(o.x, o.y, r, 0, TAU); c.fillStyle = rgba(col, 0.25); c.fill();
-      neonStroke(c, col, col, 2.5, o.x - r, o.y, o.x + r, o.y, 1);
-      glowText(c, 'P', o.x, o.y + 1, 15, '#ffffff', col, 'center', 800, 2);
+    for (const q of this.caps) {   // a ? capsule: a glowing pill that spins a little
+      const r = CAP_R + 2 * Math.sin(q.t * 8);
+      c.save(); c.translate(q.x, q.y); c.rotate(Math.sin(q.t * 2) * 0.25);
+      c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fillStyle = rgba(col, 0.25); c.fill();
+      neonStroke(c, col, col, 2.8, -r, 0, r, 0, 1.1);
+      c.beginPath(); c.arc(0, 0, r + 6 + 3 * Math.sin(q.t * 5), 0, TAU); c.strokeStyle = rgba(col, 0.25); c.lineWidth = 1.5; c.stroke();
+      glowText(c, '?', 0, 1, 20, '#ffffff', col, 'center', 900, 0);
+      c.restore();
+    }
+    if (this.wave) {   // ONDA DE CHOQUE: a ring that grows from the ship
+      const w = this.wave, k = Math.max(0, 1 - Math.max(0, w.t - SHOCK_T) / 0.25);
+      for (const f of [1, 0.86]) {
+        c.beginPath(); c.arc(w.x, w.y, w.r * f, 0, TAU);
+        c.strokeStyle = rgba(f === 1 ? '#ffffff' : col, 0.9 * k); c.lineWidth = f === 1 ? 5 : 2.5;
+        c.shadowColor = col; c.shadowBlur = 22 * view.blur; c.stroke(); c.shadowBlur = 0;
+      }
     }
     if (this.boss) this.drawBoss(c);
     for (const e of this.foes) this.drawFoe(c, e);
@@ -314,9 +406,10 @@ export class Fighters {
       c.beginPath(); c.moveTo(b.x, b.y); c.lineTo(b.x - b.vx * 0.02, b.y + 22);
       c.strokeStyle = '#ffffff'; c.lineWidth = 3.5; c.shadowColor = col; c.shadowBlur = 10 * view.blur; c.stroke(); c.shadowBlur = 0;
     }
-    for (const q of this.shots) {
-      c.beginPath(); c.arc(q.x, q.y, 7, 0, TAU); c.fillStyle = rgba(col, 0.35); c.fill();
-      c.beginPath(); c.arc(q.x, q.y, 4, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+    for (const q of this.shots) {   // enemy shots in red, so they read apart from the ship's lasers
+      const R = q.small ? 6 : 8;
+      c.beginPath(); c.arc(q.x, q.y, R, 0, TAU); c.fillStyle = rgba(FOE_SHOT, 0.4); c.fill();
+      c.beginPath(); c.arc(q.x, q.y, R * 0.55, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
     }
     if (this.state !== 'lost' && (s.inv <= 0 || Math.floor(this.t * 14) % 2 === 0)) drawShip(c, this.plat, s.x, s.y, now, col, s.tilt);
     for (const p of this.parts) {
@@ -337,11 +430,23 @@ export class Fighters {
     const col = this.col, k = e.flash, fill = rgba(col, 0.15 + 0.5 * k);
     c.save(); c.translate(e.x, e.y);
     c.beginPath();
-    if (e.kind === 'drone') {   // a diamond with a core
-      c.moveTo(0, -16); c.lineTo(17, 0); c.lineTo(0, 16); c.lineTo(-17, 0); c.closePath();
+    if (e.kind === 'drone') {   // a quadcopter: a diamond body, four arms and spinning propellers
+      for (const [ax, ay] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { c.moveTo(ax * 6, ay * 6); c.lineTo(ax * 17, ay * 17); }
+      c.strokeStyle = rgba(col, 0.8); c.lineWidth = 2.2; c.stroke();
+      const spin = e.spin + e.t * 38;
+      for (const [ax, ay] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const px = ax * 17, py = ay * 17;
+        c.beginPath(); c.arc(px, py, 8, 0, TAU); c.fillStyle = rgba(col, 0.1); c.fill();
+        c.strokeStyle = rgba(col, 0.35); c.lineWidth = 1; c.stroke();
+        const a = spin * (ax * ay);   // neighbours turn opposite ways
+        c.beginPath(); c.moveTo(px - Math.cos(a) * 8, py - Math.sin(a) * 8); c.lineTo(px + Math.cos(a) * 8, py + Math.sin(a) * 8);
+        c.strokeStyle = rgba('#ffffff', 0.85); c.lineWidth = 2; c.stroke();
+      }
+      c.beginPath();
+      c.moveTo(0, -11); c.lineTo(11, 0); c.lineTo(0, 11); c.lineTo(-11, 0); c.closePath();
       c.fillStyle = fill; c.fill();
-      neonStroke(c, col, col, 2.4, -17, 0, 17, 0, 0.8 + k);
-      c.beginPath(); c.arc(0, 0, 4, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
+      neonStroke(c, col, col, 2.4, -11, 0, 11, 0, 0.8 + k);
+      c.beginPath(); c.arc(0, 0, 3.5, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
     } else if (e.kind === 'dart') {   // an arrow pointing where it dives
       c.rotate(e.vx || e.vy ? Math.atan2(e.vy, e.vx) - Math.PI / 2 : 0);
       c.moveTo(0, 20); c.lineTo(14, -14); c.lineTo(0, -6); c.lineTo(-14, -14); c.closePath();
@@ -353,7 +458,9 @@ export class Fighters {
       c.fillStyle = fill; c.fill();
       neonStroke(c, col, col, 3, -30, 0, 30, 0, 0.9 + k);
       c.beginPath(); c.arc(0, 0, 11, 0, TAU); c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.stroke();
-      c.beginPath(); c.moveTo(0, 8); c.lineTo(0, 24); c.strokeStyle = '#ffffff'; c.lineWidth = 4; c.stroke();
+      const hot = e.warn && Math.floor(e.t * 16) % 2 === 0;   // blinks red right before the fan
+      c.beginPath(); c.moveTo(0, 8); c.lineTo(0, 24); c.strokeStyle = hot ? FOE_SHOT : '#ffffff'; c.lineWidth = hot ? 6 : 4; c.stroke();
+      if (hot) { c.beginPath(); c.arc(0, 26, 6, 0, TAU); c.fillStyle = rgba(FOE_SHOT, 0.6); c.fill(); }
       c.fillStyle = '#ffffff'; c.fillRect(-14, -36, 28 * (e.hp / e.max), 3);
     }
     c.restore();
@@ -399,11 +506,22 @@ export class Fighters {
     c.moveTo(W - 56, hy - 14); c.lineTo(W - 56, hy + 14);
     c.moveTo(W - 40, hy - 14); c.lineTo(W - 40, hy + 14);
     neonStroke(c, col, col, 4, W - 56, hy - 14, W - 40, hy + 14, 0.7);
+    if (this.state === 'play') {   // ONDA DE CHOQUE: the ring fills with kills; tap when it is full
+      const r = this.perkRect(), cx = r.x + r.w / 2, cy = r.y + r.h / 2, R = 34, full = this.energy >= 1 && !this.wave;
+      c.beginPath(); c.arc(cx, cy, R, 0, TAU);
+      c.fillStyle = rgba(col, full ? 0.25 + 0.1 * Math.sin(this.t * 6) : 0.06); c.fill();
+      c.strokeStyle = rgba(col, 0.35); c.lineWidth = 2; c.stroke();
+      c.beginPath(); c.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + TAU * this.energy);
+      neonStroke(c, col, col, 3.5, cx - R, cy, cx + R, cy, full ? 1.3 : 0.6);
+      drawAbilityIcon(c, 'shock', cx, cy, 15, full ? '#ffffff' : rgba(col, 0.9));
+      if (full) glowText(c, 'TOQUE', cx, cy - R - 14, 11, '#ffffff', col, 'center', 700, 2);
+    }
     if (this.t < 0) {   // the title before the first horda
       c.globalAlpha = Math.min(1, (this.t + 2.6) / 0.5, -this.t / 0.4);
       neonTitle(c, 'NEON', W / 2, H * 0.4, 96, col, col, 14);
       neonTitle(c, 'FIGHTERS', W / 2, H * 0.4 + 84, 52, mix(col, '#ffffff', 0.4), col, 14);
       glowText(c, 'ARRASTE PARA MOVER  ·  O TIRO É AUTOMÁTICO', W / 2, H * 0.4 + 150, 15, '#ffffff', col, 'center', 600, 3);
+      glowText(c, 'PEGUE AS CÁPSULAS ?  ·  O BOTÃO SOLTA A ONDA DE CHOQUE', W / 2, H * 0.4 + 178, 13, rgba('#ffffff', 0.8), col, 'center', 500, 2);
       c.globalAlpha = 1;
     }
     if (this.banner) {
