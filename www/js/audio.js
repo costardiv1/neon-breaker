@@ -288,6 +288,11 @@ class Sfx {
   count(last = false) {
     this.voice({ f: last ? 1320 : 880, dur: last ? 0.22 : 0.14, type: 'triangle', detune: [-4, 4], vol: 0.2, ff: 5000, fto: 1800, q: 2, send: 0.35 });
   }
+  // two short nasal honks
+  quack() {
+    for (let i = 0; i < 2; i++) this.voice({ f: 560, to: 330, dur: 0.12, type: 'sawtooth', detune: [-18, 18], vol: 0.16,
+      filter: 'bandpass', ff: 1400, fto: 750, q: 3, send: 0.2, delay: i * 0.17 });
+  }
   click() {
     this.voice({ f: 1480, to: 740, dur: 0.06, type: 'square', vol: 0.05, filter: 'bandpass', ff: 2000, q: 4, send: 0.4 });
   }

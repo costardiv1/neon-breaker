@@ -16,13 +16,17 @@ const LASERS = 4;                  // the ship starts with 1 laser and gets up t
 const GUNS = [null, [[0, 0]], [[-11, 0], [11, 0]], [[-18, -160], [0, 0], [18, 160]], [[-26, -240], [-9, 0], [9, 0], [26, 240]]];
 const BOLT_V = 1150;
 const SHIP_V = 1400, SHIP_ACC = 20;   // top speed (px/s) and how fast it gets there
-const FOE_SHOT = '#ff3b5c';           // enemy shots: a hostile red, apart from the ship's color
+const FOE_SHOT = '#ff3b5c';           // the tank's turret blinks this red before it fires
 const DRONE_SHOT_V = 250, TANK_WARN = 0.4;
 // ? capsules: fly across the screen; the player grabs them for a power
 const CAP_FIRST = 6, CAP_EVERY = [8, 12], CAP_R = 20;
 // ONDA DE CHOQUE: the demo's perk; kills charge it, the button fires it
 const SHOCK_R = 380, SHOCK_T = 0.6, SHOCK_DMG = 3, SHOCK_BOSS = 18;
 const CHARGE = { drone: 0.05, dart: 0.08, tank: 0.2, boss: 0.005 };
+// the ground under the drones scrolls by: fields, then a forest, then the city where the mother ship waits
+const GROUND_V = 110, ROW_H = 90;
+const BIOMES = [[0, 'campo'], [45, 'floresta'], [95, 'cidade']];
+const AVE = 70;   // half the width of the city avenue
 const BOSS_AT = 150;        // seconds into the stage when the mother ship comes
 const BOSS_HP = 320;
 const SHIELDS = 3;
@@ -38,12 +42,15 @@ const WAVES = [
   [95, 140, 2.2, 'darts'],
   [110, 140, 4.5, 'tank'],
 ];
+const INTRO_T = 4.6;
+const INTRO = ['> as máquinas tomaram o céu.', '> o breaker virou nave.', '> derrube a COLMEIA.'];
 const HORDES = [[0, 'HORDA 1'], [30, 'HORDA 2'], [60, 'HORDA 3'], [95, 'HORDA 4'], [120, 'HORDA FINAL']];
 
 export class Fighters {
   constructor(H, top, plat, col) {
     this.H = H; this.top = top; this.plat = plat; this.col = col;
-    this.t = -2.6;          // a short title before the first horda
+    this.t = -INTRO_T;      // a short title before the first horda
+    this.shipTaps = 0;
     this.ship = { x: W / 2, y: H - 260, tx: W / 2, ty: H - 260, vx: 0, vy: 0, hp: SHIELDS, inv: 0, fire: 0, guns: 1, rate: 0, tilt: 0 };
     this.bolts = []; this.foes = []; this.shots = []; this.parts = []; this.caps = []; this.floats = [];
     this.capT = CAP_FIRST;
@@ -56,8 +63,9 @@ export class Fighters {
     this.state = 'play';   // play | won | lost
     this.endT = 0;
     this.shake = 0;
-    this.stars = [];
-    for (let i = 0; i < 70; i++) this.stars.push({ x: Math.random() * W, y: Math.random() * H, v: 60 + Math.random() * 260 });
+    this.rows = []; this.lanes = [];
+    for (let x = -10; x < W; ) { const w = 120 + Math.random() * 130; this.lanes.push({ x, w, left: 0 }); x += w; }
+    for (let y = H - ROW_H; y > -ROW_H * 2; y -= ROW_H) this.rows.push(this.makeRow(y, 'campo'));
     music.play('fighters');
   }
 
@@ -67,6 +75,9 @@ export class Fighters {
   press(x, y, mouse) {
     const r = this.perkRect();
     if (this.state === 'play' && x > r.x - 10 && x < r.x + r.w + 10 && y > r.y - 10 && y < r.y + r.h + 10) { this.usePerk(); this.btnTap = true; return; }
+    if (this.t < 0 && Math.hypot(x - this.ship.x, y - this.ship.y) < 60 && ++this.shipTaps >= 5) {   // 5 taps on the ship in the opening
+      this.shipTaps = 0; sfx.quack(); this.float('qua!', this.ship.x, this.ship.y - 50);
+    }
     if (mouse) return;
     this.move(x, y, true);
     this.drag = { x, y, sx: this.ship.tx, sy: this.ship.ty };
@@ -83,12 +94,80 @@ export class Fighters {
     this.drag = null;
   }
 
+  // ---------- the ground ----------
+  biome() { let b = BIOMES[0][1]; for (const [t, n] of BIOMES) if (this.t >= t) b = n; return b; }
+  makeRow(y, kind) {
+    const R = Math.random, row = { y, kind, items: [] }, it = row.items;
+    if (kind === 'campo') {
+      for (const L of this.lanes) {   // a patchwork of crop fields, 1 to 3 rows tall, now and then a little house
+        if (L.left-- > 0) continue;
+        if (R() < 0.12) { L.left = 0; it.push({ k: 'h', x: L.x + L.w / 2, y: 20 + R() * 50, s: 14 + R() * 6 }); continue; }
+        const n = 1 + Math.floor(R() * 3); L.left = n - 1;
+        it.push({ k: 'f', x: L.x + 5, w: L.w - 10, n, v: R() < 0.5 });
+      }
+      for (const L of this.lanes) if (R() < 0.15) it.push({ k: 't', x: L.x, y: R() * ROW_H, r: 9 + R() * 7 });   // lone trees between fields
+    } else if (kind === 'floresta') {
+      const n = 11 + Math.floor(R() * 5);
+      for (let i = 0; i < n; i++) it.push({ k: 't', x: R() * W, y: R() * ROW_H, r: 14 + R() * 16 });
+    } else {
+      row.street = R() < 0.3;   // a cross street now and then; blocks of rooftops on both sides of the avenue
+      if (!row.street) for (const [a, b] of [[0, W / 2 - AVE], [W / 2 + AVE, W]]) {
+        let x = a + 6;
+        while (x < b - 30) { const w = Math.min(b - 6 - x, 50 + R() * 80); it.push({ k: 'r', x, w, h: 50 + R() * 26, dot: R() < 0.5 }); x += w + 10; }
+      }
+    }
+    return row;
+  }
+  updateGround(dt) {
+    for (const r of this.rows) r.y += GROUND_V * dt;
+    this.rows = this.rows.filter((r) => r.y < this.H + ROW_H * 3);   // a tall field reaches up from its row
+    let top = Math.min(...this.rows.map((r) => r.y));
+    while (top > -ROW_H) { top -= ROW_H; this.rows.push(this.makeRow(top, this.biome())); }
+  }
+  drawGround(c, col) {
+    const faint = new Path2D(), lit = new Path2D();
+    let dash = null;
+    for (const row of this.rows) {
+      const y0 = row.y;
+      if (row.kind === 'cidade') {
+        if (row.street) { for (const yy of [y0 + 20, y0 + ROW_H - 20]) { lit.moveTo(0, yy); lit.lineTo(W, yy); } }
+        for (const xx of [W / 2 - AVE + 8, W / 2 + AVE - 8]) { lit.moveTo(xx, y0); lit.lineTo(xx, y0 + ROW_H); }
+        (dash = dash || new Path2D()).moveTo(W / 2, y0); dash.lineTo(W / 2, y0 + ROW_H);
+      }
+      for (const q of row.items) {
+        if (q.k === 'f') {
+          const top = y0 + ROW_H - q.n * ROW_H + 5, bot = y0 + ROW_H - 5;
+          if (bot < 0 || top > this.H) continue;
+          lit.rect(q.x, top, q.w, bot - top);
+          if (q.v) for (let x = q.x + 12; x < q.x + q.w - 4; x += 12) { faint.moveTo(x, top + 6); faint.lineTo(x, bot - 6); }
+          else for (let y = top + 12; y < bot - 4; y += 12) { faint.moveTo(q.x + 6, y); faint.lineTo(q.x + q.w - 6, y); }
+        } else if (q.k === 'h') {
+          const s = q.s, x = q.x, y = y0 + q.y;
+          lit.rect(x - s, y - s * 0.7, s * 2, s * 1.4); lit.moveTo(x - s, y - s * 0.7); lit.lineTo(x, y); lit.lineTo(x + s, y - s * 0.7);
+          lit.moveTo(x, y); lit.lineTo(x - s, y + s * 0.7); lit.moveTo(x, y); lit.lineTo(x + s, y + s * 0.7);
+        } else if (q.k === 't') {
+          const y = y0 + q.y;
+          lit.moveTo(q.x + q.r, y); lit.arc(q.x, y, q.r, 0, TAU);
+          faint.moveTo(q.x + q.r * 0.45, y); faint.arc(q.x, y, q.r * 0.45, 0, TAU);
+        } else if (q.k === 'r') {
+          const y = y0 + (ROW_H - q.h) / 2;
+          lit.rect(q.x, y, q.w, q.h); faint.rect(q.x + 6, y + 6, q.w - 12, q.h - 12);
+          if (q.dot) faint.rect(q.x + q.w / 2 - 5, y + q.h / 2 - 5, 10, 10);
+        }
+      }
+    }
+    c.lineWidth = 1.2;
+    c.strokeStyle = rgba(col, 0.1); c.stroke(faint);
+    c.strokeStyle = rgba(col, 0.2); c.stroke(lit);
+    if (dash) { c.save(); c.setLineDash([18, 22]); c.lineDashOffset = -(this.t * GROUND_V) % 40; c.strokeStyle = rgba(col, 0.25); c.lineWidth = 2; c.stroke(dash); c.restore(); }
+  }
+
   // ---------- update ----------
   update(dt) {
     this.t += dt;
     this.shake = Math.max(0, this.shake - dt * 3);
     if (this.banner) { this.banner.t -= dt; if (this.banner.t <= 0) this.banner = null; }
-    for (const st of this.stars) { st.y += st.v * dt; if (st.y > this.H) { st.y = 0; st.x = Math.random() * W; } }
+    this.updateGround(dt);
     for (const p of this.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.97; p.vy *= 0.97; p.life -= dt; }
     this.parts = this.parts.filter((p) => p.life > 0);
     for (const f of this.floats) { f.y -= 40 * dt; f.t -= dt; }
@@ -368,18 +447,7 @@ export class Fighters {
     const col = this.col, s = this.ship, H = this.H;
     c.save();
     if (this.shake > 0) c.translate((Math.random() * 2 - 1) * 10 * this.shake, (Math.random() * 2 - 1) * 10 * this.shake);
-    // space: a grid that scrolls down and streaks of stars
-    c.strokeStyle = rgba(col, 0.07); c.lineWidth = 1; c.beginPath();
-    for (let x = 40; x < W; x += 80) { c.moveTo(x, 0); c.lineTo(x, H); }
-    const off = (this.t * 120) % 80;
-    for (let y = off - 80; y < H; y += 80) { c.moveTo(0, y); c.lineTo(W, y); }
-    c.stroke();
-    for (const st of this.stars) {
-      c.globalAlpha = 0.2 + st.v / 500;
-      c.fillStyle = st.v > 240 ? '#ffffff' : col;
-      c.fillRect(st.x, st.y, 2, 2 + st.v / 60);
-    }
-    c.globalAlpha = 1;
+    this.drawGround(c, col);
 
     for (const q of this.caps) {   // a ? capsule: a glowing pill that spins a little
       const r = CAP_R + 2 * Math.sin(q.t * 8);
@@ -406,9 +474,9 @@ export class Fighters {
       c.beginPath(); c.moveTo(b.x, b.y); c.lineTo(b.x - b.vx * 0.02, b.y + 22);
       c.strokeStyle = '#ffffff'; c.lineWidth = 3.5; c.shadowColor = col; c.shadowBlur = 10 * view.blur; c.stroke(); c.shadowBlur = 0;
     }
-    for (const q of this.shots) {   // enemy shots in red, so they read apart from the ship's lasers
+    for (const q of this.shots) {   // enemy shots: round, in the theme color with a white core (the ship's lasers are streaks)
       const R = q.small ? 6 : 8;
-      c.beginPath(); c.arc(q.x, q.y, R, 0, TAU); c.fillStyle = rgba(FOE_SHOT, 0.4); c.fill();
+      c.beginPath(); c.arc(q.x, q.y, R, 0, TAU); c.fillStyle = rgba(col, 0.35); c.fill();
       c.beginPath(); c.arc(q.x, q.y, R * 0.55, 0, TAU); c.fillStyle = '#ffffff'; c.fill();
     }
     if (this.state !== 'lost' && (s.inv <= 0 || Math.floor(this.t * 14) % 2 === 0)) drawShip(c, this.plat, s.x, s.y, now, col, s.tilt);
@@ -517,7 +585,15 @@ export class Fighters {
       if (full) glowText(c, 'TOQUE', cx, cy - R - 14, 11, '#ffffff', col, 'center', 700, 2);
     }
     if (this.t < 0) {   // the title before the first horda
-      c.globalAlpha = Math.min(1, (this.t + 2.6) / 0.5, -this.t / 0.4);
+      c.globalAlpha = Math.min(1, (this.t + INTRO_T) / 0.5, -this.t / 0.4);
+      let left = (this.t + INTRO_T) * 30;   // the intro is typed like the diary
+      c.font = '22px Consolas, "Courier New", monospace'; c.textAlign = 'left';
+      INTRO.forEach((ln, i) => {
+        if (left <= 0) return;
+        c.fillStyle = rgba(col, 0.95);
+        c.fillText(ln.slice(0, Math.floor(left)), 70, H * 0.2 + i * 36);
+        left -= ln.length + 8;
+      });
       neonTitle(c, 'NEON', W / 2, H * 0.4, 96, col, col, 14);
       neonTitle(c, 'FIGHTERS', W / 2, H * 0.4 + 84, 52, mix(col, '#ffffff', 0.4), col, 14);
       glowText(c, 'ARRASTE PARA MOVER  ·  O TIRO É AUTOMÁTICO', W / 2, H * 0.4 + 150, 15, '#ffffff', col, 'center', 600, 3);

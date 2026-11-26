@@ -6,7 +6,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 
 ### Adicionado
 
-- Blocos com ?: agora as cápsulas só caem deles. Cada fase tem de 3 a 6 (um a cada 6,5 blocos), espalhados da fileira da frente até a do fundo, e em lugares diferentes cada vez que a fase começa. Um ? solta um power-up, ou um debuff 1 vez em cada 4 (menos com o perk SORTE). Nas lutas com chefão há sempre um ? na faixa de blocos (dois na fúria): quebrado, outro aparece em outro bloco depois de 5 s, e um ? que ninguém pega pula para outro bloco a cada 12 s. No INFINITO, cada fileira nova tem 35% de chance de trazer um ?.
+- Blocos com ?: agora as cápsulas só caem deles. Cada fase tem de 4 a 7 (um a cada 6 blocos), espalhados da fileira da frente até a do fundo, e em lugares diferentes cada vez que a fase começa. Um ? solta um power-up, ou um debuff 1 vez em cada 4 (menos com o perk SORTE). Nas lutas com chefão há sempre dois ? na faixa de blocos (três na fúria): quebrado, outro aparece em outro bloco depois de 5 s, e um ? que ninguém pega pula para outro bloco a cada 12 s. No INFINITO, cada fileira nova tem 35% de chance de trazer um ?.
 - 1x1 com blocos de ?: cada leva tem 4 (um na fileira de cada jogador e dois nas do meio), e só eles soltam cápsulas, que vão na direção de quem quebrou. Um ? quebrado volta em outro bloco 4 s depois.
 - NEON FIGHTERS: botão da ONDA DE CHOQUE no canto inferior direito. Ele carrega com os inimigos derrubados (drone 5%, dardo 8%, tanque 20% e um pouco a cada acerto na COLMEIA); cheio, a onda sai da nave, apaga os tiros inimigos e tira 3 de vida dos inimigos (18 da COLMEIA). No PC, a tecla espaço também solta a onda.
 - NEON FIGHTERS: cápsulas ? que atravessam a tela a cada 8 a 12 s (e caem dos tanques) e dão LASER +1, TIRO RÁPIDO, ESCUDO +1 ou ONDA CARREGADA. Elas substituem a cápsula P.
@@ -21,7 +21,9 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - As OPÇÕES ficam centralizadas na tela, entre o título e o VOLTAR.
 - Os blocos comuns não soltam mais cápsulas ao acaso (eram 13%), e acertar o chefão também não (eram 20%): toda cápsula vem de um ?. No painel dev, o controle Cápsulas aleatórias começa em só ? e ainda liga a queda aleatória para testes.
 - NEON FIGHTERS: a nave começa com 1 laser e chega a 4 (um dano tira um); o tiro sai a cada 0,18 s, 0,14 s ou 0,09 s com TIRO RÁPIDO; a nave tem velocidade máxima e uma aceleração curta, em vez de ir direto ao dedo.
-- NEON FIGHTERS: todos os drones atiram, os tiros inimigos ficaram vermelhos, o tanque pisca antes do leque, e os drones viraram quadricópteros com hélices girando.
+- NEON FIGHTERS: todos os drones atiram, o canhão do tanque pisca em vermelho antes do leque, e os drones viraram quadricópteros com hélices girando.
+- NEON FIGHTERS: o fundo deixou de ser o espaço. A nave sobrevoa um chão neon que rola: primeiro um campo de lavouras com casinhas, depois uma floresta e, a partir de 1 min 35, a cidade onde chega a COLMEIA.
+- NEON FIGHTERS: a abertura digita três linhas da história antes da primeira horda, e o registro 10 do diário conta que, sem O SISTEMA, as máquinas acordaram sozinhas e escolheram o outro lado.
 - No PC (sem toque), o jogo tem sempre o formato de um celular, 720 × 1560: mudar o tamanho do navegador só aumenta ou diminui o jogo, com faixas escuras em volta. No celular ele continua enchendo a tela.
 
 ### Corrigido

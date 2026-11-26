@@ -21,7 +21,8 @@ const DROP_CHANCE = 0;   // capsules only come from ? bricks (the dev panel can 
 // front row to the back one, in new places every time. A ? drops a power-up, or a debuff 1 time in 4
 // (less with the SORTE perk). In boss fights and in the INFINITO the ? keeps showing up on other bricks.
 const MARK_BAD = 0.25;
-const MARK_MIN = 3, MARK_MAX = 6, MARK_PER = 6.5;
+const MARK_MIN = 4, MARK_MAX = 7, MARK_PER = 6;
+const BOSS_MARKS = 2;      // boss fights: ? bricks at once (one more in fury)
 const BOSS_MARK_WAIT = 5;    // boss fights: seconds before a new ? after one is broken
 const BOSS_MARK_HOP = 12;    // and seconds before an untouched ? jumps to another brick
 const ENDLESS_MARK = 0.35;   // INFINITO: chance a new row brings a ?
@@ -1982,11 +1983,12 @@ export class Game {
       if (to.length) { b.mark = null; to[Math.floor(Math.random() * to.length)].mark = '?'; }
       return;
     }
-    if (this.markT > 0 || marked.length >= (this.boss.fury ? 2 : 1)) return;
+    const want = BOSS_MARKS + (this.boss.fury ? 1 : 0);
+    if (this.markT > 0 || marked.length >= want) return;
     const free = live.filter((b) => !b.mark);
     if (!free.length) return;
     free[Math.floor(Math.random() * free.length)].mark = '?';
-    this.markT = BOSS_MARK_WAIT; this.hopT = BOSS_MARK_HOP;
+    this.markT = marked.length + 1 < want ? 1 : BOSS_MARK_WAIT; this.hopT = BOSS_MARK_HOP;
   }
 
   // want: 'good' or 'bad' keeps only power-ups or only debuffs (the capsule bricks)

@@ -4,9 +4,10 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ## 1.13.0 (26/11/2026)
 
-- [x] Cada fase tem de 3 a 6 blocos com ?, espalhados da frente ao fundo, e só eles soltam cápsulas. *(testado pelo Claude)*
+- [x] Cada fase tem de 4 a 7 blocos com ?, espalhados da frente ao fundo, e só eles soltam cápsulas. *(testado pelo Claude)*
 - [ ] Jogando a mesma fase de novo, os ? aparecem em outros blocos.
-- [ ] Num chefão, aparece um ? na faixa de blocos; quebrado, outro aparece em outro lugar depois de alguns segundos.
+- [x] Num chefão, ficam dois ? na faixa de blocos (três na fúria). *(testado pelo Claude)*
+- [ ] Num chefão, um ? quebrado volta em outro lugar depois de alguns segundos, e dois ? deixam a luta com cápsulas suficientes.
 - [ ] No INFINITO, de vez em quando uma fileira nova traz um ?.
 - [x] No 1x1, cada leva tem 4 ? e só eles soltam cápsulas; um ? quebrado volta em outro bloco 4 s depois. *(testado pelo Claude)*
 - [ ] Numa partida de 1x1 inteira, as cápsulas dos ? vão para quem quebrou e a disputa pelos ? fica equilibrada.
@@ -21,9 +22,12 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [ ] Com o brilho neon desligado, os rastros PADRÃO, PRISMA e PALETA aparecem fortes durante o jogo.
 - [x] NEON FIGHTERS: a nave começa com 1 laser e as cápsulas ? dão LASER +1 até 4, TIRO RÁPIDO, ESCUDO +1 ou ONDA CARREGADA. *(testado pelo Claude)*
 - [x] NEON FIGHTERS: o botão da ONDA DE CHOQUE enche com os inimigos derrubados e, tocado, apaga os tiros e acerta os inimigos e a COLMEIA. *(testado pelo Claude)*
-- [ ] NEON FIGHTERS: a velocidade da nave e a cadência ficam boas na mão; dá para desviar dos tiros vermelhos dos drones.
+- [ ] NEON FIGHTERS: a velocidade da nave e a cadência ficam boas na mão; dá para desviar dos tiros dos drones.
 - [ ] NEON FIGHTERS: dá para tocar no botão da onda com outro dedo sem largar a nave.
 - [ ] NEON FIGHTERS: a demo inteira fica frenética mas dá para vencer a COLMEIA.
+- [x] NEON FIGHTERS: o chão passa de campo para floresta e depois para cidade, e os tiros inimigos voltaram para a cor do tema. *(testado pelo Claude)*
+- [ ] NEON FIGHTERS: no celular, os tiros inimigos dão para ver bem em cima do campo, da floresta e da cidade.
+- [x] Registro 10 com o texto novo e a abertura da demo com as três linhas digitadas. *(testado pelo Claude)*
 
 ## 1.12.4 (23/11/2026)
 

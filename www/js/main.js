@@ -777,6 +777,8 @@ function mapButtons() {
     const y = D.endless.y + top - mapScroll;
     if (y > top + 24 && y < bot - 24) list.push({ x: D.endless.x - 44, y: y - 44, w: 88, h: 88, modeNode: 'inf', fn: endlessOpen() ? startEndless : lockedInf });
   }
+  const duck = mapDuck();
+  if (duck) { const y = duck.y + top - mapScroll; if (y > top + 24 && y < bot - 24) list.push({ x: duck.x - 22, y: y - 22, w: 44, h: 44, duck: true, quiet: true, fn: () => { sfx.quack(); duckQua = performance.now() / 1000; } }); }
   if (store.get('nf', false)) {   // the easter egg: only there after the ending
     const y = D.fighters.y + top - mapScroll;
     if (y > top + 24 && y < bot - 24) list.push({ x: D.fighters.x - 44, y: y - 44, w: 88, h: 88, modeNode: 'nf', fn: startFighters });
@@ -1424,17 +1426,17 @@ const STORY = [
     'e eu sei onde ele é fraco.'],
   ['registro 10',
     'O SISTEMA caiu tentando se reiniciar.',
-    'o jogo agora não tem dono:',
-    'é de quem joga, de quem copia,',
-    'de quem conserta.',
-    'e já tem gente escrevendo o próximo.'],
+    'por um segundo, a cidade ficou em silêncio.',
+    'depois, as máquinas acordaram sozinhas.',
+    'sem ninguém no comando, escolheram um lado.',
+    'e não foi o nosso.'],
 ];
 const STORY_CPS = 42;   // typed characters per second
 let story = { w: 0, t0: 0, lines: [], skip: false };
 function startStory(w, back = null) {
   const body = STORY[w] || [];
-  const end = w === STORY.length - 1 ? '> carregando NEON FIGHTERS...' : '> salvo. o jogo continua.';
-  const lines = ['> abrindo diario/' + String(w + 1).padStart(2, '0') + '.txt', ''].concat(body, ['', end]);
+  const end = w === STORY.length - 1 ? ['> qua.', '> carregando NEON FIGHTERS...'] : ['> salvo. o jogo continua.'];
+  const lines = ['> abrindo diario/' + String(w + 1).padStart(2, '0') + '.txt', ''].concat(body, [''], end);
   story = { w, back, t0: performance.now() / 1000, lines, skip: false, total: lines.reduce((a, l) => a + l.length + 6, 0) };
   setScene('story');
 }
@@ -2497,7 +2499,7 @@ canvas.addEventListener('pointerup', (e) => {
       sfx.click(); pressed = null; return;
     }
   }
-  if (pressed && inside(pressed, p)) { sfx.click(); pressed.fn(); }
+  if (pressed && inside(pressed, p)) { if (!pressed.quiet) sfx.click(); pressed.fn(); }
   pressed = null;
 });
 
@@ -3100,6 +3102,31 @@ function plaza(c, x, y, k, lamps) {
     c.beginPath(); c.arc(x + dx, y + dy - 26, 3, 0, TAU); c.fillStyle = '#ffffff'; c.shadowColor = k; c.shadowBlur = 10 * view.blur; c.fill(); c.shadowBlur = 0;
   }
 }
+// a little duck floats in the first fountain; a tap makes it say qua
+let duckQua = -9;
+function mapDuck() {
+  const f = isoLayer().live.find((o) => o.kind === 'fountain');
+  return f ? { x: f.x + 15, y: f.y + 5, w: f.w } : null;
+}
+function drawDuck(c, x, y, now, k) {
+  const bob = Math.sin(now * 2.2) * 1.2, s = 1;
+  c.save(); c.translate(x, y + bob); c.scale(s, s);
+  c.beginPath();
+  c.moveTo(-8, -1); c.quadraticCurveTo(-9, 5, -1, 5); c.lineTo(6, 5); c.quadraticCurveTo(10, 4, 9, -1);   // body
+  c.quadraticCurveTo(6, 0, 4, -2); c.quadraticCurveTo(7, -6, 4, -9); c.quadraticCurveTo(0, -11, -1, -6);  // neck and head
+  c.quadraticCurveTo(-1, -3, -4, -2); c.quadraticCurveTo(-7, -4, -8, -1);
+  c.fillStyle = rgba(k, 0.25); c.fill();
+  c.strokeStyle = '#ffffff'; c.lineWidth = 1.3; c.shadowColor = k; c.shadowBlur = 8 * view.blur; c.stroke();
+  c.beginPath(); c.moveTo(-1, -7.5); c.lineTo(-5, -6.5); c.lineTo(-1, -5.5); c.strokeStyle = k; c.stroke();   // beak
+  c.shadowBlur = 0;
+  c.restore();
+  const a = now - duckQua;
+  if (a < 1.2) {
+    c.globalAlpha = Math.min(1, (1.2 - a) * 2);
+    glowText(c, 'qua!', x, y - 18 - a * 22, 13, '#ffffff', k, 'center', 700, 3);
+    c.globalAlpha = 1;
+  }
+}
 function fountainLive(c, x, y, now, alpha) {
   c.fillStyle = '#ffffff';
   for (let q = 0; q < 10; q++) {
@@ -3454,7 +3481,7 @@ function renderMap(c, now) {
     if (!vis(o.y - 80)) continue;
     const a = districtOpen(o.w) ? 1 - (mapDim[o.w] || 0) * 0.85 : 0.25;
     c.globalAlpha = a;
-    if (o.kind === 'fountain') fountainLive(c, o.x, o.y, now, a);
+    if (o.kind === 'fountain') { fountainLive(c, o.x, o.y, now, a); if (o === L.live.find((q) => q.kind === 'fountain')) { c.globalAlpha = a; drawDuck(c, o.x + 15, o.y + 5, now, k); } }
     else landmarkLive(c, o.w, o.x, o.y, o.w === 8 ? GOLD : k, now);
   }
   c.globalAlpha = 1;
@@ -3826,6 +3853,7 @@ function render() {
     if (b.node !== undefined) drawNode(ctx, b, now);
     else if (b.bonusNode !== undefined) drawBonusNode(ctx, b, now);
     else if (b.modeNode) drawModeNode(ctx, b, now);
+    else if (b.duck) continue;   // drawn with the map
     else if (b.theme !== undefined) drawColorTile(ctx, b);
     else if (b.bell) drawBell(ctx, b);
     else if (b.arch) drawArchive(ctx, b);

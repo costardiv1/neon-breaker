@@ -23,7 +23,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 
 ### 1.13.0 (26/11/2026)
 
-- [x] Cápsulas só dos blocos com ?: 3 a 6 por fase, um que muda de lugar nos chefões, alguns no INFINITO.
+- [x] Cápsulas só dos blocos com ?: 4 a 7 por fase, dois que mudam de lugar nos chefões, alguns no INFINITO.
 - [x] 1x1 com 4 ? por leva, que voltam em outro bloco.
 - [x] BREAKERS no estilo dos outros menus.
 - [x] CONFIG. DEV removido; desbloquear tudo e resetar progresso no painel flutuante.
@@ -33,7 +33,8 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] DESATIVAR do menu secreto tira a linha MODO DEV; peças não compradas voltam para as gratuitas.
 - [x] BREAKERS: SISTEMA primeiro nas CORES, bolinhas na ordem das setas, DESLIGADO por último no RASTRO.
 - [x] Rastros PADRÃO, PRISMA e PALETA fortes com o neon desligado.
-- [x] NEON FIGHTERS: 1 a 4 lasers, cadência nova, cápsulas ? voando, velocidade máxima, drones atirando (tiros vermelhos) com hélices, botão da ONDA DE CHOQUE. *(subiu sem atualizar)*
+- [x] NEON FIGHTERS: 1 a 4 lasers, cadência nova, cápsulas ? voando, velocidade máxima, drones atirando com hélices, botão da ONDA DE CHOQUE. *(subiu sem atualizar)*
+- [x] Mais um ? por fase e dois nos chefões; NEON FIGHTERS sobre campo, floresta e cidade, tiros inimigos na cor do tema; registro 10 e abertura da demo com a história nova. *(subiu sem atualizar)*
 
 ### 1.12.4 (23/11/2026)
 
