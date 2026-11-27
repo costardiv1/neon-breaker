@@ -37,6 +37,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] Emblemas GATINHO, PATINHO e PEIXINHO. *(subiu sem atualizar)*
 - [x] Som do pato trocado pelo quack do vídeo que o Vinícius mandou (efeito livre de direitos, Creative Commons Club); saiu o crédito CC BY-SA do pato-real. *(subiu sem atualizar)*
 - [x] Menu inicial e os outros menus (OPÇÕES, COR, 1x1, pausas, FIM DE JOGO, CONCLUÍDO, LIMPO) centralizados na altura da tela; o VOLTAR e os ícones dos cantos continuam no lugar. *(subiu sem atualizar)*
+- [x] Menu inicial: mais espaço entre o patinho e o JOGAR. *(subiu sem atualizar)*
 
 ### 1.13.0 (26/11/2026)
 

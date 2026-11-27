@@ -8,6 +8,7 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [ ] O som do pato novo (o quack do vídeo) toca no menu, na fonte do mapa e na nave do NEON FIGHTERS, e ficou bom.
 - [ ] A tela CRÉDITOS mostra o crédito novo do som do pato (Creative Commons Club), sem sobrepor os botões.
 - [x] Menu inicial, OPÇÕES, COR, 1x1, pausa e telas de fim centralizados na altura, num celular alto e num curto. *(testado pelo Claude)*
+- [ ] No menu inicial, o patinho tem um espaço antes do JOGAR, sem ficar menor.
 - [ ] No seu celular e no PC, os menus ficaram bem no meio e nada encosta no ícone de cor ou nos ícones da pausa.
 - [ ] O ícone da aba do navegador virou o patinho.
 - [x] Créditos: GitHub e Instagram dos lados do VOLTAR, sem cobrir o texto. *(testado pelo Claude)*

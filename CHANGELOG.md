@@ -19,6 +19,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - Mecânicas: o capítulo 1 ficou sem mecânica, só o básico. O DESLIZE passou para o capítulo 2 (LAN HOUSE), a GRAVIDADE para o capítulo 9 (TORRE AURUM), e os núcleos de gravidade saíram das fases dos capítulos 3 a 8 (TELA ACESA e TRENDING ganharam DESLIZE no lugar).
 - O som do pato agora é uma gravação de verdade: um quack curto, de um efeito livre de direitos, com crédito na tela CRÉDITOS.
 - O menu inicial e os outros menus (OPÇÕES, COR, 1x1, pausas, FIM DE JOGO, CONCLUÍDO e LIMPO) ficam centralizados na altura da tela; o VOLTAR e os ícones dos cantos continuam no lugar.
+- Menu inicial: mais espaço entre o patinho e o botão JOGAR.
 - As vidas viraram coraçõezinhos na cor do tema, na campanha e no 1x1 (cada lado na sua cor); a cápsula de vida também mostra um coração.
 - A mecânica SEGURANÇA saiu do jogo: as fases da TORRE AURUM trocaram os feixes por núcleos de gravidade, e o INFINITO e a ATUALIZAÇÃO não sorteiam mais ela (na BACKUP entrou a BLINDAGEM e na ROOT a GRAVIDADE).
 

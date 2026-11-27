@@ -2155,9 +2155,10 @@ devUI = createDevPanel({
 // the main menu's list: the centres of JOGAR, BREAKERS, 1x1 and OPÇÕES
 const menuFaded = () => mix(col(), '#7c818a', 0.5);   // OPÇÕES: the theme color, faded
 const MENU_ICON_TOP = true;    // the icon over the name (false: on its left)
+const DUCK_GAP = 34;   // the room between the duck and JOGAR
 function menuList() {
   const hb = MENU_ICON_TOP ? 132 : 96, h = MENU_ICON_TOP ? 108 : 76, g = MENU_ICON_TOP ? 18 : 22;
-  const y0 = H * (MENU_ICON_TOP ? 0.37 : 0.41) + hb / 2, y1 = y0 + hb / 2 + g + h / 2;
+  const y0 = H * (MENU_ICON_TOP ? 0.37 : 0.41) + hb / 2 + DUCK_GAP, y1 = y0 + hb / 2 + g + h / 2;
   const ys = [y0, y1, y1 + h + g, y1 + 2 * (h + g)];
   // centred between the top and the platform at the bottom: from the top of NEON to the bottom of OPÇÕES
   const top = H * 0.17 - 60, bot = ys[3] + h / 2, r0 = safeTop + 30, r1 = H - 190;
@@ -2612,7 +2613,7 @@ const DUCK_BODY = 'M50 44 C44 36 44 18 60 14 C74 11 82 22 78 30 L94 33 C92 38 86
 const DUCK_WING = 'M30 64 C40 58 54 60 62 68 C52 74 40 74 30 64 Z';
 let duckPaths = null, logoQua = -9;
 function menuLogo() {   // between the title and the buttons, as big as the gap allows
-  const M = menuList(), top = H * 0.17 + M.dy + 140, bot = M.y[0] - M.hb / 2 - (bestT > 0 ? 46 : 16);
+  const M = menuList(), top = H * 0.17 + M.dy + 140, bot = M.y[0] - M.hb / 2 - (bestT > 0 ? 46 : 16) - DUCK_GAP;
   const s = Math.max(56, Math.min(130, bot - top - 10));
   return { x: W / 2, y: (top + bot) / 2, s };
 }
