@@ -12,7 +12,8 @@ const PADDLE_OFF = 190;
 const LEFT = 14, RIGHT = W - 14;
 const CR = 34;
 const BOTTOM_OFF = 62;
-const COLS = 9, MARGIN = 32, GAP = 8, BH = 28;
+const COLS = 9, MARGIN = 18, GAP = 6, BH = 36;   // big bricks: the wall fills more of the tall field
+const BRICK_TOP = 130;                          // the first row, below the top of the field
 const BW = (W - MARGIN * 2 - GAP * (COLS - 1)) / COLS;
 const TRAIL_LEN = 560;
 const MAX_BALLS = 12;
@@ -21,7 +22,7 @@ const DROP_CHANCE = 0;   // capsules only come from ? bricks (the dev panel can 
 // front row to the back one, in new places every time. A ? drops a power-up, or a debuff 1 time in 4
 // (less with the SORTE perk). In boss fights and in the INFINITO the ? keeps showing up on other bricks.
 const MARK_BAD = 0.25;
-const MARK_MIN = 4, MARK_MAX = 7, MARK_PER = 6;
+const MARK_MIN = 5, MARK_MAX = 9, MARK_PER = 6;
 const BOSS_MARKS = 2;      // boss fights: ? bricks at once (one more in fury)
 const BOSS_MARK_WAIT = 5;    // boss fights: seconds before a new ? after one is broken
 const BOSS_MARK_HOP = 12;    // and seconds before an untouched ? jumps to another brick
@@ -702,7 +703,7 @@ export class Game {
     this.press = 0;
     this.furyMul = 1;
     music.setFury(false);
-    const y0 = this.top + 60;
+    const y0 = this.top + BRICK_TOP;
     this.bricks = [];
     st.rows.forEach((row, r) => {
       for (let c = 0; c < COLS; c++) { const br = makeBrick(row[c], c, y0 + r * (BH + GAP), r); if (br) this.bricks.push(br); }
@@ -797,7 +798,7 @@ export class Game {
 
   // the field is empty: a new wave of bricks comes in from the top
   rainRefill() {
-    const y0 = this.top + 60;
+    const y0 = this.top + BRICK_TOP;
     this.bonus.rows.forEach((row, r) => {
       for (let c = 0; c < COLS; c++) {
         if (this.bricks.some((q) => !q.dead && q.row === r && q.col === c)) continue;   // a wall still there
@@ -876,7 +877,7 @@ export class Game {
     if (m === 'censor') {
       if (on) {
         const live = this.bricks.filter((b) => !b.dead && b.row < 99);
-        const y0 = live.length ? Math.min(...live.map((b) => b.y)) : this.top + 60, y1 = live.length ? Math.max(...live.map((b) => b.y + b.h)) : this.top + 200;
+        const y0 = live.length ? Math.min(...live.map((b) => b.y)) : this.top + BRICK_TOP, y1 = live.length ? Math.max(...live.map((b) => b.y + b.h)) : this.top + 200;
         this.bars.push({ ph: 0, y: (y0 + y1) / 2 - BAR_H / 2, upd: true });
         for (const br of pick(1)) { br.kind = 'leak'; br.hp = 1; br.flash = 1; this.alive--; }
       } else {
@@ -1060,7 +1061,7 @@ export class Game {
     if (E.bossT <= 0) { this.endlessBoss(); return; }
     // a new row comes in at the top every time the top row has moved down a row
     let guard = 0;
-    while (E.rowY - (BH + GAP) >= this.top + 60 && guard++ < 12) { E.rowY -= BH + GAP; this.endlessSpawn(E.rowY); }
+    while (E.rowY - (BH + GAP) >= this.top + BRICK_TOP && guard++ < 12) { E.rowY -= BH + GAP; this.endlessSpawn(E.rowY); }
   }
 
   rowMotion(r, rb = null) {
@@ -1353,14 +1354,14 @@ export class Game {
       }
       if (E) E.rowY += v * dt;
       else { for (const q of this.beams) if (q.t === undefined) q.y += v * dt; for (const q of this.bars) if (q.t === undefined) q.y += v * dt; }
-      this.press = clamp((low - (this.top + 200)) / (this.dangerY - (this.top + 200)), 0, 1);
+      this.press = clamp((low - (this.top + BRICK_TOP + 340)) / (this.dangerY - (this.top + BRICK_TOP + 340)), 0, 1);
       if (low >= this.dangerY && E) {
         this.startPurge();
         this.float('PRESSÃO', W / 2, this.dangerY - 30, 30);
         this.balls = [];
         this.loseLife();
       } else if (low >= this.dangerY) {
-        const shift = Math.min(240, high - (this.top + 60));
+        const shift = Math.min(240, high - (this.top + BRICK_TOP));
         for (const br of this.bricks) br.y -= shift;
         if (E) E.rowY -= shift;
         else { for (const q of this.beams) if (q.t === undefined) q.y -= shift; for (const q of this.bars) if (q.t === undefined) q.y -= shift; }
@@ -2766,7 +2767,7 @@ export class Game {
       }
       if (br.mark && !this.tutorial) {   // ? brick: a capsule inside
         c.globalAlpha = 0.85 + 0.15 * Math.sin(this.t * 5 + br.col);
-        glowText(c, '?', br.x + br.w / 2, br.y + br.h / 2 + 1, 22, WHITE, col, 'center', 900, 0);
+        glowText(c, '?', br.x + br.w / 2, br.y + br.h / 2 + 1, 26, WHITE, col, 'center', 900, 0);
         c.globalAlpha = 1;
       }
       if (br.flash > 0) {

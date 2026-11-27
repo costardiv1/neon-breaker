@@ -2,6 +2,17 @@
 
 O que testar em cada versão, para conferir as novidades sem jogar tudo de novo. A versão mais nova fica no topo. Use o modo dev para pular de fase quando precisar.
 
+## 1.13.1 (27/11/2026)
+
+- [x] Os blocos têm 71 × 36 e cada fase ganhou até 3 fileiras espelhadas embaixo (8 no máximo). *(testado pelo Claude)*
+- [x] Cada fase tem de 5 a 9 blocos com ?. *(testado pelo Claude)*
+- [x] Ligar o MODO DEV nas OPÇÕES já liga o desbloquear tudo. *(testado pelo Claude)*
+- [ ] Ligar o modo dev pela senha do menu secreto também libera tudo e os perks.
+- [ ] No celular, as fases com mais blocos ficam boas de jogar e não demoram demais.
+- [ ] Nas fases de PRESSÃO, os blocos a mais não chegam na linha cedo demais.
+- [ ] No PC, o jogo não fica mais embaçado nem com o brilho estourado.
+- [ ] O INFINITO e o 1x1 continuam com a cara de antes.
+
 ## 1.13.0 (26/11/2026)
 
 - [x] Cada fase tem de 4 a 7 blocos com ?, espalhados da frente ao fundo, e só eles soltam cápsulas. *(testado pelo Claude)*

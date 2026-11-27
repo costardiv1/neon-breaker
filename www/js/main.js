@@ -22,7 +22,7 @@ const ctx = canvas.getContext('2d');
 const safeEl = document.getElementById('safe');
 const BODY_FONT = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-export const VERSION = '1.13.0';
+export const VERSION = '1.13.1';
 
 let H = 1280;
 let safeTop = 0;
@@ -107,7 +107,7 @@ const qualityIndex = () => QUALITY.findIndex((q) => ['res', 'fx', 'trail', 'grid
 const neonIndex = () => NEON.findIndex((q) => Math.abs(q.v - opts.gfx.glow) < 0.001);
 function applyGfx() {
   view.glow = opts.gfx.glow;
-  view.blur = view.res * view.glow;
+  view.blur = view.res * view.glow * (view.soft ?? 1);
   gfx.fx = opts.gfx.fx; gfx.trail = opts.gfx.trail; gfx.grid = opts.gfx.grid;
 }
 applyGfx();
@@ -310,7 +310,10 @@ function fixPlat() {
   if (changed) store.set('plat', plat);
 }
 let optsReady = false;   // the first applyOpts runs before the shop data exists
+let devWas = !!opts.dev;
 function applyOpts() {
+  if (opts.dev && !devWas) opts.unlock = true;   // turning dev mode on unlocks everything and maxes the perks (the dev panel can switch it off)
+  devWas = !!opts.dev;
   if (opts.dev) opts.devKnown = true;   // once unlocked, the MODO DEV row stays in the OPÇÕES (switched off or on)
   if (optsReady && !devAll()) fixPlat();
   store.set('opts', opts);
@@ -358,8 +361,12 @@ function resize() {
   canvas.style.width = cssW + 'px';
   canvas.style.height = cssH + 'px';
   const dpr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, 2.5) * opts.gfx.res);
-  view.res = (cssW * dpr) / W;
-  view.blur = view.res * view.glow;
+  // on a PC the phone shape is often small on screen: it is drawn at least at full size and scaled
+  // down (sharper lines), and the glow is softened so it does not smear over the thin lines
+  const phys = (cssW * dpr) / W;
+  view.res = isPhone() ? phys : Math.max(phys, 1);
+  view.soft = phys < 0.9 ? Math.max(0.6, phys / 0.9) : 1;
+  view.blur = view.res * view.glow * view.soft;
   canvas.width = Math.round(W * view.res);
   canvas.height = Math.round(Hl * view.res);
   H = Hl;

@@ -2,6 +2,22 @@
 
 Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.0 foi o primeiro lançamento oficial.
 
+## [1.13.1] · 27/11/2026 · Blocos maiores e fases mais cheias
+
+### Adicionado
+
+- Toda fase ganhou até 3 fileiras novas embaixo (8 no máximo), espelhadas do próprio desenho. As novas só têm blocos comuns de 1 ou 2 toques, sem vírus nem gota. A 1-1 foi de 19 para 31 blocos e as fases mais cheias chegam a 60.
+
+### Alterado
+
+- Os blocos ficaram maiores: 71 × 36 (eram 66 × 28), com menos borda nos lados, e a parede começa um pouco mais abaixo. O ? dentro do bloco também cresceu.
+- Cada fase tem de 5 a 9 blocos com ? (um a cada 6 blocos).
+- Ligar o modo dev já liga o desbloquear tudo, com os perks no máximo; o painel dev ainda pode desligar.
+
+### Corrigido
+
+- No PC, o jogo ficava embaçado e com o brilho estourado quando aparecia pequeno na tela: agora ele é desenhado com pelo menos 720 pixels de largura e reduzido, e o brilho fica mais suave numa janela pequena.
+
 ## [1.13.0] · 26/11/2026 · Blocos com ?: as cápsulas saem só deles
 
 ### Adicionado

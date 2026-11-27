@@ -460,6 +460,16 @@ export function districtMechs(w) {
   return [...m].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
 }
 
+// More bricks: every stage grows up to 3 rows (8 at most), mirrored from its own pattern
+// below the last row. The new rows are plain bricks of up to 2 hits (no virus, no leak).
+const EXTRA_ROWS = 3, MAX_ROWS = 8;
+function growRows(rows) {
+  const out = rows.slice(), n = rows.length;
+  for (let k = 0; k < EXTRA_ROWS && out.length < MAX_ROWS && n - 2 - k >= 0; k++) {
+    out.push(rows[n - 2 - k].replace(/[VL]/g, '1').replace(/[34]/g, '2'));
+  }
+  return out;
+}
 export function getStage(i) {
   const { w, s } = locate(i);
   const world = WORLDS[w];
@@ -467,5 +477,5 @@ export function getStage(i) {
   if (s === worldCount(w) - 1) return { w, s, world, mech: world.mech, mechs: all, boss: world.boss, rows: [] };
   const st = world.stages[s];
   const mech = st.mech === undefined ? world.mech : st.mech;
-  return { w, s, world, mech, mechs: stageMechs(world, st), rows: st.rows, wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, beams: st.beams, pool: st.pool, name: st.name };
+  return { w, s, world, mech, mechs: stageMechs(world, st), rows: growRows(st.rows), wells: st.wells, orbit: st.orbit, portals: st.portals, bars: st.bars, beams: st.beams, pool: st.pool, name: st.name };
 }
