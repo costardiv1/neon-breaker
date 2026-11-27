@@ -84,7 +84,7 @@ const LEAK_T = 6;           // VAZAMENTO: seconds the bars stay down after a lea
 // INFINITO: a new mechanic every ENDLESS_STEP seconds, at most ENDLESS_MAX at a
 // time (the oldest leaves), and a boss every ENDLESS_BOSS seconds, in the
 // campaign's order; after the last one they come back with more health
-const ENDLESS_MECHS = ['slide', 'blast', 'walls', 'gravity', 'portals', 'viral', 'armor', 'phase', 'censor', 'alarm'];
+const ENDLESS_MECHS = ['slide', 'blast', 'walls', 'gravity', 'portals', 'viral', 'armor', 'phase', 'censor'];
 const ENDLESS_STEP = 40;
 const ENDLESS_MAX = 4;
 const ENDLESS_BOSS = 120;

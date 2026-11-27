@@ -1,6 +1,7 @@
 // Worlds (city districts): each brings ONE new mechanic. Mechanics no longer
 // pile up: a stage uses its district's mechanic plus the older ones it picks
-// (`also`, or its own field pieces: wells, portals, bars, beams, V, B).
+// (`also`, or its own field pieces: wells, portals, bars, V, B). The first district
+// has none: it only teaches the basics.
 // Each district has its own music and border-light style, a list of stages and
 // a boss that guards the frontier to the next.
 // Rows: 9 columns. '.' empty, '1'..'4' hits needed, 'X' wall, 'E' explosive,
@@ -18,17 +19,16 @@ export const MECHS = {
   viral:    { name: 'CONTÁGIO',  text: 'O vírus cria blocos em volta. Quebre ele primeiro.' },
   censor:   { name: 'VAZAMENTO', text: 'Tarjas rebatem o disco. Acerte a gota para derrubá-las.' },
   armor:    { name: 'BLINDAGEM', text: 'A placa protege por baixo. Acerte por cima ou pelo lado.' },
-  alarm:    { name: 'SEGURANÇA', text: 'Feixes ligados rebatem o disco.' },
   update:   { name: 'ATUALIZAÇÃO', text: 'A cada 15 s O SISTEMA troca a mecânica da fase. A barra no topo mostra qual vem.' },
 };
 
 export const WORLDS = [
   {
-    name: 'SUBÚRBIO', mech: 'slide', music: 'w1', bossMusic: 'boss1', border: 'flow',
+    name: 'SUBÚRBIO', mech: null, music: 'w1', bossMusic: 'boss1', border: 'flow',
     boss: { type: 'sentinel', name: 'SENTINELA',
       text: 'Acerte o núcleo quando a íris abrir.' },
     stages: [
-      { name: 'QUINTAL', mech: null, rows: [
+      { name: 'QUINTAL', rows: [
         '..22222..',
         '.1111111.',
         '.1111111.',
@@ -58,30 +58,30 @@ export const WORLDS = [
     ],
   },
   {
-    name: 'LAN HOUSE', mech: 'gravity', music: 'w2', bossMusic: 'boss2', border: 'beat',
+    name: 'LAN HOUSE', mech: 'slide', music: 'w2', bossMusic: 'boss2', border: 'beat',
     boss: { type: 'singularity', name: 'SINGULARIDADE',
       text: 'Acerte o núcleo pela abertura do anel.' },
     stages: [
-      { name: 'HORA AVULSA', wells: [[0.5, 0.42]], rows: [
+      { name: 'HORA AVULSA', rows: [
         '..33333..',
         '.2222222.',
         '111111111',
         '..1111...',
       ] },
-      { name: 'PING ALTO', also: ['slide'], wells: [[0.28, 0.36], [0.72, 0.55]], rows: [
+      { name: 'PING ALTO', rows: [
         '222222222',
         '.11111...',
         '...11111.',
         '2.......2',
       ] },
-      { name: 'ÚLTIMA PARTIDA', wells: [[0.5, 0.45]], orbit: true, rows: [
+      { name: 'ÚLTIMA PARTIDA', rows: [
         '.3.3.3.3.',
         '222222222',
         '..2.2.2..',
         '111111111',
         '..11111..',
       ] },
-      { name: 'CORUJÃO', also: ['slide'], wells: [[0.3, 0.5], [0.7, 0.5]], rows: [
+      { name: 'CORUJÃO', rows: [
         '33.222.33',
         '.2222222.',
         '11.111.11',
@@ -100,7 +100,7 @@ export const WORLDS = [
         '111111111',
         '.1.1.1.1.',
       ] },
-      { name: 'META DO TRIMESTRE', wells: [[0.5, 0.5]], rows: [
+      { name: 'META DO TRIMESTRE', rows: [
         '........3',
         '.......33',
         '.....2222',
@@ -134,7 +134,7 @@ export const WORLDS = [
         '222222222',
         '.1111111.',
       ] },
-      { name: 'TELA ACESA', wells: [[0.5, 0.5]], rows: [
+      { name: 'TELA ACESA', also: ['slide'], rows: [
         '3.3.3.3.3',
         '111111111',
         '.2222222.',
@@ -148,7 +148,7 @@ export const WORLDS = [
         '.1111111.',
         '..22.22..',
       ] },
-      { name: 'CAFÉ FRIO', wells: [[0.5, 0.55]], rows: [
+      { name: 'CAFÉ FRIO', rows: [
         '.3333333.',
         '2.22222.2',
         '111111111',
@@ -210,7 +210,7 @@ export const WORLDS = [
         '.2222222.',
         '....V....',
       ] },
-      { name: 'TRENDING', wells: [[0.5, 0.5]], rows: [
+      { name: 'TRENDING', also: ['slide'], rows: [
         '3.3.V.3.3',
         '.2222222.',
         'V.......V',
@@ -252,7 +252,7 @@ export const WORLDS = [
         '.2222222.',
         'L.1E1E1..',
       ] },
-      { name: 'ESPELHO', bars: 2, wells: [[0.5, 0.5]], rows: [
+      { name: 'ESPELHO', bars: 2, rows: [
         '33.333.33',
         '2.22222.2',
         '.1111111.',
@@ -281,7 +281,7 @@ export const WORLDS = [
         'B.11111.B',
         '..1.1.1..',
       ] },
-      { name: 'GARAGEM', wells: [[0.5, 0.5]], rows: [
+      { name: 'GARAGEM', rows: [
         '333...333',
         '.BBB.BBB.',
         '.2222222.',
@@ -299,31 +299,31 @@ export const WORLDS = [
   },
   {
     // The golden tower at the end of the street, where O SISTEMA lives.
-    name: 'TORRE AURUM', mech: 'alarm', music: 'w9', bossMusic: 'boss9', border: 'scan',
+    name: 'TORRE AURUM', mech: 'gravity', music: 'w9', bossMusic: 'boss9', border: 'scan',
     boss: { type: 'council', name: 'O CONSELHO',
       text: 'Três cadeiras, um dono. Acerte a da coroa.' },
     stages: [
-      { name: 'SAGUÃO', beams: [[0.1, 0.9, 0.12, 0]], rows: [
+      { name: 'SAGUÃO', wells: [[0.5, 0.42]], rows: [
         '.3333333.',
         '222222222',
         '.1111111.',
         '..11111..',
       ] },
-      { name: 'ELEVADOR', also: ['slide'], beams: [[0.05, 0.52, 0.14, 0], [0.48, 0.95, 0.14, 2.2]], rows: [
+      { name: 'ELEVADOR', also: ['slide'], wells: [[0.28, 0.36], [0.72, 0.55]], rows: [
         '33.333.33',
         '.BBBBBBB.',
         '222222222',
         '.1.1.1.1.',
         '..2...2..',
       ] },
-      { name: 'ANDAR 99', beams: [[0.1, 0.9, 0.1, 0], [0.22, 0.78, 0.4, 1.5]], portals: [[0.12, 0.7, 0.88, 0.7]], rows: [
+      { name: 'ANDAR 99', wells: [[0.5, 0.4]], orbit: true, portals: [[0.12, 0.7, 0.88, 0.7]], rows: [
         'X3333333X',
         '.2222222.',
         '..11111..',
         '.2222222.',
         '...E.E...',
       ] },
-      { name: 'COBERTURA', beams: [[0.1, 0.9, 0.1, 0], [0.05, 0.47, 0.36, 1], [0.53, 0.95, 0.36, 3]], rows: [
+      { name: 'COBERTURA', wells: [[0.3, 0.5], [0.7, 0.5]], rows: [
         '4.33333.4',
         '.BBBBBBB.',
         '3.22222.3',
@@ -346,7 +346,7 @@ export const WORLDS = [
         '.1111111.',
         '..1.1.1..',
       ] },
-      { name: 'BACKUP', pool: ['phase', 'alarm', 'viral'], rows: [
+      { name: 'BACKUP', pool: ['phase', 'armor', 'viral'], rows: [
         '333333333',
         '2.2E2E2.2',
         '222222222',
@@ -360,7 +360,7 @@ export const WORLDS = [
         '.2222222.',
         '..11111..',
       ] },
-      { name: 'ROOT', pool: ['slide', 'alarm', 'phase', 'descent', 'portals'], rows: [
+      { name: 'ROOT', pool: ['slide', 'gravity', 'phase', 'descent', 'portals'], rows: [
         '4.44444.4',
         '.3333333.',
         '3.2E2E2.3',
@@ -443,7 +443,6 @@ function stageMechs(world, st) {
   if (st.wells) m.add('gravity');
   if (st.portals) m.add('portals');
   if (st.bars) m.add('censor');
-  if (st.beams) m.add('alarm');
   for (const k of st.pool || []) m.add(k);   // ATUALIZAÇÃO: the mechanics it swaps in
   const rows = (st.rows || []).join('');
   if (rows.includes('V')) m.add('viral');
@@ -455,7 +454,7 @@ function stageMechs(world, st) {
 const ORDER = WORLDS.map((x) => x.mech).filter(Boolean);
 export function districtMechs(w) {
   const wd = WORLDS[w];
-  const m = new Set([wd.mech]);
+  const m = new Set(wd.mech ? [wd.mech] : []);
   for (const st of wd.stages) for (const k of stageMechs(wd, st)) m.add(k);
   return [...m].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
 }

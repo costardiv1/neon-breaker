@@ -1650,7 +1650,7 @@ class Shareholder extends Boss {
 
   enterFury() {
     super.enterFury();
-    this.g.startUpd(['portals', 'gravity', 'alarm'], 11);
+    this.g.startUpd(['portals', 'gravity', 'phase'], 11);
   }
 
   die() {

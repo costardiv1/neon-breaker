@@ -13,6 +13,8 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - Os blocos ficaram maiores: 71 × 36 (eram 66 × 28), com menos borda nos lados, e a parede começa um pouco mais abaixo. O ? dentro do bloco também cresceu.
 - Cada fase tem de 5 a 9 blocos com ? (um a cada 6 blocos).
 - Ligar o modo dev já liga o desbloquear tudo, com os perks no máximo; o painel dev ainda pode desligar.
+- Mecânicas: o capítulo 1 ficou sem mecânica, só o básico. O DESLIZE passou para o capítulo 2 (LAN HOUSE), a GRAVIDADE para o capítulo 9 (TORRE AURUM), e os núcleos de gravidade saíram das fases dos capítulos 3 a 8 (TELA ACESA e TRENDING ganharam DESLIZE no lugar).
+- A mecânica SEGURANÇA saiu do jogo: as fases da TORRE AURUM trocaram os feixes por núcleos de gravidade, e o INFINITO e a ATUALIZAÇÃO não sorteiam mais ela (na BACKUP entrou a BLINDAGEM e na ROOT a GRAVIDADE).
 
 ### Corrigido
 

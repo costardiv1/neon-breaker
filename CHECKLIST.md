@@ -4,6 +4,9 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ## 1.13.1 (27/11/2026)
 
+- [x] Capítulo 1 sem mecânica, LAN HOUSE com DESLIZE, TORRE AURUM com GRAVIDADE e nenhuma fase com SEGURANÇA. *(testado pelo Claude)*
+- [ ] As fases do capítulo 1 sem deslizar não ficaram fáceis demais.
+- [ ] A LAN HOUSE só com DESLIZE e a TORRE AURUM com os núcleos de gravidade ficam boas de jogar.
 - [x] Os blocos têm 71 × 36 e cada fase ganhou até 3 fileiras espelhadas embaixo (8 no máximo). *(testado pelo Claude)*
 - [x] Cada fase tem de 5 a 9 blocos com ?. *(testado pelo Claude)*
 - [x] Ligar o MODO DEV nas OPÇÕES já liga o desbloquear tudo. *(testado pelo Claude)*

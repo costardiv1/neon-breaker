@@ -64,15 +64,15 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 
 | # | Capítulo | Mecânica nova | Chefão | |
 |:-:|---|---|---|---|
-| 1 | SUBÚRBIO | DESLIZE: as fileiras deslizam | SENTINELA | ✅ |
-| 2 | LAN HOUSE | GRAVIDADE: núcleos curvam o disco | SINGULARIDADE | ✅ |
+| 1 | SUBÚRBIO | nenhuma: só o básico | SENTINELA | ✅ |
+| 2 | LAN HOUSE | DESLIZE: as fileiras deslizam | SINGULARIDADE | ✅ |
 | 3 | HORA EXTRA | PRESSÃO: os blocos descem até a linha de alerta | O SUPERVISOR | ✅ |
 | 4 | MADRUGADA | FASE: blocos tracejados que o disco atravessa | O RELÓGIO DE PONTO | ✅ |
 | 5 | CÓDIGO-FONTE | PORTAIS: entra num, sai pelo outro | A PATENTE | ✅ |
 | 6 | VIRAL | CONTÁGIO: blocos infectados criam blocos novos | O ALGORITMO | ✅ |
 | 7 | CENSURA | VAZAMENTO: tarjas rebatem o disco até você acertar o vazamento | O CENSOR | ✅ |
 | 8 | RESISTÊNCIA | BLINDAGEM: blocos blindados por baixo | O BLINDADO | ✅ |
-| 9 | TORRE AURUM | SEGURANÇA: feixes que ligam, desligam e rebatem o disco | O CONSELHO | ✅ |
+| 9 | TORRE AURUM | GRAVIDADE: núcleos curvam o disco | O CONSELHO | ✅ |
 | 10 | O SISTEMA | ATUALIZAÇÃO: a mecânica da fase troca a cada 15 s | O ACIONISTA | ✅ |
 
 <div align="center">
@@ -86,7 +86,6 @@ Os nomes dos 10 capítulos contam a história de um jovem da periferia que passa
 </tr>
 <tr>
 <td align="center"><img src="docs/img/24_blindagem.png" width="180"><br><sub>BLINDAGEM</sub></td>
-<td align="center"><img src="docs/img/25_seguranca.png" width="180"><br><sub>SEGURANÇA</sub></td>
 </tr>
 </table>
 </div>

@@ -28,6 +28,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] Modo dev liga o desbloquear tudo.
 - [x] PC: jogo mais nítido e brilho mais suave numa janela pequena.
 - [x] DESATIVAR do menu secreto volta ao menu; letreiros do mapa fora das fases; linha do caminho desde o prédio do topo. *(subiu sem atualizar)*
+- [x] Capítulo 1 sem mecânica; DESLIZE na LAN HOUSE, GRAVIDADE na TORRE AURUM e a SEGURANÇA saiu do jogo. *(subiu sem atualizar)*
 
 ### 1.13.0 (26/11/2026)
 
