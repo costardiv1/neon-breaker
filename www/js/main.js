@@ -2158,7 +2158,11 @@ const MENU_ICON_TOP = true;    // the icon over the name (false: on its left)
 function menuList() {
   const hb = MENU_ICON_TOP ? 132 : 96, h = MENU_ICON_TOP ? 108 : 76, g = MENU_ICON_TOP ? 18 : 22;
   const y0 = H * (MENU_ICON_TOP ? 0.37 : 0.41) + hb / 2, y1 = y0 + hb / 2 + g + h / 2;
-  return { hb, h, wb: 300, w: 260, y: [y0, y1, y1 + h + g, y1 + 2 * (h + g)] };
+  const ys = [y0, y1, y1 + h + g, y1 + 2 * (h + g)];
+  // centred between the top and the platform at the bottom: from the top of NEON to the bottom of OPÇÕES
+  const top = H * 0.17 - 60, bot = ys[3] + h / 2, r0 = safeTop + 30, r1 = H - 190;
+  const dy = Math.max(r0 - top, (r0 + r1) / 2 - (top + bot) / 2);
+  return { hb, h, wb: 300, w: 260, y: ys.map((v) => v + dy), dy };
 }
 // a big icon with a row of smaller ones under it (the end screens, like the pause)
 // the scores on the end screens count up as the screen opens
@@ -2175,9 +2179,36 @@ function iconMenu(top, main, row) {
   return out;
 }
 // the button at the bottom of a screen (VOLTAR and the like), in the same style
-const backBtn = (label, fn, icon = 'back', y = H - 86) => btn(W / 2, y, 260, 96, label, fn, { licon: icon });
+const backBtn = (label, fn, icon = 'back', y = H - 86) => btn(W / 2, y, 260, 96, label, fn, { licon: icon, back: true });
 
+// screens whose title and list sit in the middle of the free space: [top of what's drawn above the
+// buttons, room drawn under the last button, the highest the block may go]
+const CENTERED = {
+  vsmenu: () => [H * 0.24 - 55, 34, safeTop + 30],
+  colors: () => [safeTop + 80, 0, safeTop + 30],
+  options: () => [safeTop + 75, 0, safeTop + 30],
+  pause: () => [H * 0.32 - 42, 0, safeTop + 110],
+  vpause: () => [H * 0.32 - 42, 0, safeTop + 110],
+  fpause: () => [H * 0.32 - 42, 0, safeTop + 110],
+  over: () => [H * 0.3 - 38, 0, safeTop + 30],
+  world: () => [H * 0.28 - 16, 0, safeTop + 30],
+  reward: () => [H * 0.32 - 40, 0, safeTop + 30],
+};
+let cdy = 0;   // how far this screen's title and list moved down to sit in the middle
 function layout() {
+  const list = layoutRaw(), f = CENTERED[scene];
+  cdy = 0;
+  if (!f || !list.length) return list;
+  const move = list.filter((b) => !b.back && !b.bare && !b.round && !b.bell);
+  if (!move.length) return list;
+  const [top, below, min] = f(), back = list.find((b) => b.back);
+  const bot = Math.max(...move.map((b) => b.y + b.h)) + below, r1 = back ? back.y - 20 : H - 30;
+  cdy = Math.max(min - top, (min + r1) / 2 - (top + bot) / 2);
+  for (const b of move) b.y += cdy;
+  return list;
+}
+
+function layoutRaw() {
   const cx = W / 2, bw = 400, bh = 76;
   switch (scene) {
     case 'menu': {
@@ -2581,7 +2612,7 @@ const DUCK_BODY = 'M50 44 C44 36 44 18 60 14 C74 11 82 22 78 30 L94 33 C92 38 86
 const DUCK_WING = 'M30 64 C40 58 54 60 62 68 C52 74 40 74 30 64 Z';
 let duckPaths = null, logoQua = -9;
 function menuLogo() {   // between the title and the buttons, as big as the gap allows
-  const M = menuList(), top = H * 0.17 + 140, bot = M.y[0] - M.hb / 2 - (bestT > 0 ? 46 : 16);
+  const M = menuList(), top = H * 0.17 + M.dy + 140, bot = M.y[0] - M.hb / 2 - (bestT > 0 ? 46 : 16);
   const s = Math.max(56, Math.min(130, bot - top - 10));
   return { x: W / 2, y: (top + bot) / 2, s };
 }
@@ -3810,8 +3841,9 @@ function render() {
 
   if (scene === 'menu') {
     renderDemo(ctx);
-    neonTitle(ctx, 'NEON', W / 2, H * 0.17, 130, k, k, 18);
-    neonTitle(ctx, 'BREAKER', W / 2, H * 0.17 + 110, 58, mix(k, '#ffffff', 0.4), k, 18);
+    const ty = H * 0.17 + menuList().dy;
+    neonTitle(ctx, 'NEON', W / 2, ty, 130, k, k, 18);
+    neonTitle(ctx, 'BREAKER', W / 2, ty + 110, 58, mix(k, '#ffffff', 0.4), k, 18);
     drawLogoDuck(ctx, now, k);
     if (bestT > 0) { const M = menuList(); glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, M.y[0] - M.hb / 2 - 26, 18, rgba(k, 0.85), k, 'center', 500, 5); }
     if (menuMsg && now - menuMsg.t < 2) {
@@ -3832,16 +3864,16 @@ function render() {
   } else if (scene === 'crash') {
     renderCrash(ctx, now);
   } else if (scene === 'vsmenu') {
-    neonTitle(ctx, '1 × 1', W / 2, H * 0.24, 96, k, k, 14);
-    glowText(ctx, 'ESCOLHA O MODO', W / 2, H * 0.24 + 70, 18, rgba(k, 0.85), k, 'center', 600, 6);
+    neonTitle(ctx, '1 × 1', W / 2, H * 0.24 + cdy, 96, k, k, 14);
+    glowText(ctx, 'ESCOLHA O MODO', W / 2, H * 0.24 + cdy + 70, 18, rgba(k, 0.85), k, 'center', 600, 6);
     const b2 = buttons.find((b) => b.label === '2 JOGADORES');
     if (b2) glowText(ctx, 'NO MESMO CELULAR', W / 2, b2.y + b2.h + 20, 12, rgba('#ffffff', 0.6), k, 'center', 600, 2);
   } else if (scene === 'versus' || scene === 'vpause') {
     if (versus) versus.render(ctx, now);
-    if (scene === 'vpause') { dim(ctx, 0.7); neonTitle(ctx, 'PAUSA', W / 2, H * 0.32, 72, k, k, 12); }
+    if (scene === 'vpause') { dim(ctx, 0.7); neonTitle(ctx, 'PAUSA', W / 2, H * 0.32 + cdy, 72, k, k, 12); }
   } else if (scene === 'fighters' || scene === 'fpause') {
     if (fighters) fighters.render(ctx, now);
-    if (scene === 'fpause') { dim(ctx, 0.7); neonTitle(ctx, 'PAUSA', W / 2, H * 0.32, 72, k, k, 12); }
+    if (scene === 'fpause') { dim(ctx, 0.7); neonTitle(ctx, 'PAUSA', W / 2, H * 0.32 + cdy, 72, k, k, 12); }
   } else if (scene === 'story') {
     renderStory(ctx, now);
   } else if (scene === 'ad') {
@@ -3854,7 +3886,7 @@ function render() {
   } else if (scene === 'perktut') {
     renderPerkTut(ctx, now);
   } else if (scene === 'colors') {
-    neonTitle(ctx, 'COR', W / 2, safeTop + 120, 64, k, k, 18);
+    neonTitle(ctx, 'COR', W / 2, safeTop + 120 + cdy, 64, k, k, 18);
   } else if (scene === 'credits') {
     renderCredits(ctx);
   } else if (scene === 'tutview') {
@@ -3864,7 +3896,7 @@ function render() {
   } else if (scene === 'devgate') {
     renderDevGate(ctx, now);
   } else if (scene === 'options') {
-    neonTitle(ctx, 'OPÇÕES', W / 2, safeTop + 105, 46, k, k, 12);
+    neonTitle(ctx, 'OPÇÕES', W / 2, safeTop + 105 + cdy, 46, k, k, 12);
     if (optMsg && now - optMsg.t < 2.2) {
       ctx.globalAlpha = Math.min(1, (2.2 - (now - optMsg.t)) * 2);
       glowText(ctx, optMsg.text, W / 2, H - 165, 17, '#ffffff', k, 'center', 700, 4);
@@ -3875,32 +3907,32 @@ function render() {
     if (scene === 'play' && opts.dev) renderDev(ctx);
     if (scene === 'pause') {
       dim(ctx, 0.7);
-      neonTitle(ctx, 'PAUSA', W / 2, H * 0.32, 72, k, k, 12);
+      neonTitle(ctx, 'PAUSA', W / 2, H * 0.32 + cdy, 72, k, k, 12);
     } else if (scene === 'over') {
       dim(ctx, 0.7);
-      neonTitle(ctx, 'FIM DE JOGO', W / 2, H * 0.3, 60, k, k, 12);
+      neonTitle(ctx, 'FIM DE JOGO', W / 2, (H * 0.3 + cdy), 60, k, k, 12);
       if (game.endless) {
-        glowText(ctx, fmtTime(lastScore), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
-        glowText(ctx, countUp(game.score, now) + ' PONTOS', W / 2, H * 0.42 + 50, 20, '#ffffff', k, 'center', 600, 3);
-        glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + fmtTime(bestT), W / 2, H * 0.42 + 92, 18, rgba(k, 0.9), k, 'center', 500, 5);
+        glowText(ctx, fmtTime(lastScore), W / 2, (H * 0.42 + cdy), 52, '#ffffff', k, 'center', 700, 3);
+        glowText(ctx, countUp(game.score, now) + ' PONTOS', W / 2, (H * 0.42 + cdy) + 50, 20, '#ffffff', k, 'center', 600, 3);
+        glowText(ctx, newBest ? 'NOVO RECORDE!' : 'RECORDE  ' + fmtTime(bestT), W / 2, (H * 0.42 + cdy) + 92, 18, rgba(k, 0.9), k, 'center', 500, 5);
       } else {
-        glowText(ctx, String(countUp(lastScore, now)), W / 2, H * 0.42, 52, '#ffffff', k, 'center', 700, 3);
-        if (sbest[game.index]) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, H * 0.42 + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
+        glowText(ctx, String(countUp(lastScore, now)), W / 2, (H * 0.42 + cdy), 52, '#ffffff', k, 'center', 700, 3);
+        if (sbest[game.index]) glowText(ctx, 'RECORDE DA FASE  ' + sbest[game.index], W / 2, (H * 0.42 + cdy) + 56, 18, rgba(k, 0.9), k, 'center', 500, 5);
       }
     } else if (scene === 'world') {
       dim(ctx, 0.7);
-      glowText(ctx, `CAPÍTULO ${game.stage.w + 1}  ·  ${game.world.name}`, W / 2, H * 0.28, 22, rgba(k, 0.9), k, 'center', 700, 8);
-      neonTitle(ctx, 'CONCLUÍDO', W / 2, H * 0.34, 62, k, k, 10);
-      glowText(ctx, String(countUp(lastScore, now)), W / 2, H * 0.45, 52, '#ffffff', k, 'center', 700, 3);
-      if (newShape) glowText(ctx, 'NOVO FORMATO DE PLATAFORMA: ' + newShape, W / 2, H * 0.575, 15, '#ffffff', k, 'center', 700, 3);
-      if (reward) renderCoinsWon(ctx, H * 0.49, k);
-      renderChipsWon(ctx, reward ? H * 0.49 + 38 : H * 0.49, k);
+      glowText(ctx, `CAPÍTULO ${game.stage.w + 1}  ·  ${game.world.name}`, W / 2, (H * 0.28 + cdy), 22, rgba(k, 0.9), k, 'center', 700, 8);
+      neonTitle(ctx, 'CONCLUÍDO', W / 2, (H * 0.34 + cdy), 62, k, k, 10);
+      glowText(ctx, String(countUp(lastScore, now)), W / 2, (H * 0.45 + cdy), 52, '#ffffff', k, 'center', 700, 3);
+      if (newShape) glowText(ctx, 'NOVO FORMATO DE PLATAFORMA: ' + newShape, W / 2, (H * 0.575 + cdy), 15, '#ffffff', k, 'center', 700, 3);
+      if (reward) renderCoinsWon(ctx, (H * 0.49 + cdy), k);
+      renderChipsWon(ctx, reward ? (H * 0.49 + cdy) + 38 : (H * 0.49 + cdy), k);
     } else if (scene === 'reward') {
       dim(ctx, 0.72);
-      neonTitle(ctx, game.bonus ? 'FIM DO BÔNUS' : game.boss ? 'DERROTADO' : 'LIMPO', W / 2, H * 0.32, game.bonus || game.boss ? 54 : 66, k, k, 10);
-      if (reward) renderCoinsWon(ctx, H * 0.43, k);
-      renderChipsWon(ctx, H * 0.43 + 38, k);
-      if (reward && !reward.done) glowText(ctx, 'ASSISTA A UM ANÚNCIO PARA DOBRAR AS MOEDAS', W / 2, H * 0.49 + 18, 15, rgba(k, 0.9), k, 'center', 500, 4);
+      neonTitle(ctx, game.bonus ? 'FIM DO BÔNUS' : game.boss ? 'DERROTADO' : 'LIMPO', W / 2, (H * 0.32 + cdy), game.bonus || game.boss ? 54 : 66, k, k, 10);
+      if (reward) renderCoinsWon(ctx, (H * 0.43 + cdy), k);
+      renderChipsWon(ctx, (H * 0.43 + cdy) + 38, k);
+      if (reward && !reward.done) glowText(ctx, 'ASSISTA A UM ANÚNCIO PARA DOBRAR AS MOEDAS', W / 2, (H * 0.49 + cdy) + 18, 15, rgba(k, 0.9), k, 'center', 500, 4);
     } else if (scene === 'guide') {
       renderGuide(ctx, now);
     } else if (scene === 'card' && card) {

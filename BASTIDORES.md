@@ -36,6 +36,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] Som de pato de verdade (CC BY-SA 3.0), ícone do navegador trocado, créditos sem sobreposição. *(subiu sem atualizar)*
 - [x] Emblemas GATINHO, PATINHO e PEIXINHO. *(subiu sem atualizar)*
 - [x] Som do pato trocado pelo quack do vídeo que o Vinícius mandou (efeito livre de direitos, Creative Commons Club); saiu o crédito CC BY-SA do pato-real. *(subiu sem atualizar)*
+- [x] Menu inicial e os outros menus (OPÇÕES, COR, 1x1, pausas, FIM DE JOGO, CONCLUÍDO, LIMPO) centralizados na altura da tela; o VOLTAR e os ícones dos cantos continuam no lugar. *(subiu sem atualizar)*
 
 ### 1.13.0 (26/11/2026)
 
