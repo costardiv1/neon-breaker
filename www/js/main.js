@@ -538,6 +538,7 @@ const NODE_F = [0.1, 0.3, 0.5, 0.7, 0.9];   // where the stages sit along a chap
 const BONUS_F = 0.4;                          // where the side street to the bonus stage leaves it
 const EDGE = 8;                               // the street stays within |i - j| <= EDGE
 const LEAD = { i: 1, j: 3, bi: 2, bj: 4, h: 58 }; // where the street comes in, and the building in front of it
+const LEAD_LIT = 1.95;   // where the lit route line begins on the lead-in street (at that building)
 const bandTop = (w) => MAP_Y0 + w * DIST_H;
 const bonusOpen = (b) => unlocked(bonusIndex(b) + 1);
 
@@ -2106,7 +2107,7 @@ function renderDevGate(c, now) {
   neonTitle(c, 'MODO DEV', W / 2, safeTop + 230, 54, k, k, 12);
   if (devUnlocked() && !(gateMsg && gateMsg.ok && now - gateMsg.t < 1.3)) {
     glowText(c, opts.dev ? 'O modo dev está ativo.' : 'O modo dev está desligado nas OPÇÕES.', W / 2, safeTop + 380, 20, '#ffffff', k, 'center', 500, 2);
-  } else if (!devUnlocked()) {
+  } else if (!devUnlocked() && !(gateMsg && gateMsg.off && now - gateMsg.t < 1.3)) {
     glowText(c, 'Digite a senha', W / 2, safeTop + 420, 20, 'rgba(255,255,255,0.85)', k, 'center', 500, 3);
     if (gateInput && gateInput.style.display !== 'none') placeGateInput();
   }
@@ -2243,7 +2244,9 @@ function layout() {
     case 'scores': return scoreButtons();
     case 'devgate': {
       const y = safeTop + 640;
-      if (devUnlocked()) return [btn(cx, y, 400, 72, 'DESATIVAR', () => { opts.dev = false; opts.devKnown = false; applyOpts(); gateMsg = { text: 'MODO DEV DESATIVADO', ok: true, t: performance.now() / 1000 }; }), backBtn('VOLTAR', () => setScene('menu'))];
+      if (gateMsg && gateMsg.off && performance.now() / 1000 - gateMsg.t < 1.3) return [];   // just switched off: back to the menu
+      if (devUnlocked()) return [btn(cx, y, 400, 72, 'DESATIVAR', () => { opts.dev = false; opts.devKnown = false; applyOpts(); gateMsg = { text: 'MODO DEV DESATIVADO', ok: true, off: true, t: performance.now() / 1000 };
+        setTimeout(() => { if (scene === 'devgate') setScene('menu'); }, 1300); }), backBtn('VOLTAR', () => setScene('menu'))];
       return [btn(cx, y, 400, 72, 'CONFIRMAR', tryDevPassword, { big: true }), backBtn('VOLTAR', () => setScene('menu'))];
     }
     case 'colors': {
@@ -2851,7 +2854,7 @@ const GOLD = '#ffd84a';
 
 // Parks, squares and one landmark per district, in the city blocks (4x4 tiles
 // between the side streets) that the route keeps clear of.
-function citySpots(RI) {
+function citySpots(RI, marks = []) {
   const spots = new Map();
   const clear = (i, j, min) => { const { x, y } = isoXY(i, j); return roadNear(RI, x, y).d > min; };
   for (let w = 0; w < WORLDS.length - 1; w++) {
@@ -2871,11 +2874,14 @@ function citySpots(RI) {
       const c = isoXY(i0 + 0.5, j0 + 0.5);
       return { tiles, c, d: roadNear(RI, c.x, c.y).d };
     };
+    // a landmark is tall: its top must not cover a stage, a bonus or a mode (or the name above it)
+    const covers = (c) => marks.some((m) => Math.abs(m.x - c.x) < 110 && m.y > c.y - 190 && m.y < c.y + 50);
     const place = (kind) => {
       let best = null;
       for (const b of blocks) {
         if (b.used) continue;
         const f = front(b);
+        if (f && kind === 'lm' && covers(f.c)) continue;
         if (f && (!best || f.d < best.f.d)) best = { b, f };
       }
       if (!best) return;
@@ -3166,7 +3172,8 @@ function isoLayer() {
   pts.push({ x: D.fighters.x, y: D.fighters.y, r: 50 });
   for (const n of D.nodes) pts.push({ x: n.x, y: n.y, r: n.boss ? 30 : 22 });
   for (const d of D.dist) if (d.gate) for (let o = -d.gate.La; o <= d.gate.Lb; o += 10) pts.push({ x: d.gate.x + d.gate.nx * o, y: d.gate.y + d.gate.ny * o });
-  const spots = citySpots(roadIndex(pts));   // (placed before the lead-in street existed: keep them there)
+  const marks = D.nodes.concat(D.bonus, D.endless ? [D.endless] : []).map((n) => ({ x: n.x, y: n.y }));
+  const spots = citySpots(roadIndex(pts), marks);   // (placed before the lead-in street existed: keep them there)
   const RI = roadIndex(pts.concat(D.lead));
   const end = D.path[D.total - 1];
   const beacons = [], streets = [], live = [];
@@ -3495,7 +3502,10 @@ function renderMap(c, now) {
   // route along the main street
   const N = D.nodes;
   c.lineCap = 'round'; c.lineJoin = 'round';
-  pathPoly(c, D, 0, N[0].t);
+  // the lit line starts at the building where the street comes in, not at the first tile of the route
+  const leadA = isoXY(LEAD_LIT, LEAD.j);
+  c.beginPath(); c.moveTo(leadA.x, leadA.y);
+  for (let t = 0; t <= N[0].t; t++) c.lineTo(D.path[t].x, D.path[t].y);
   neonStroke(c, k, k, 3, 0, 0, W, 0, 0.8);
   for (let i = 0; i < N.length - 1; i++) {
     const dimR = mapDim[N[i + 1].w] || 0, focusR = N[i + 1].w === mapFocus;

@@ -12,6 +12,9 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 - [ ] Nas fases de PRESSÃO, os blocos a mais não chegam na linha cedo demais.
 - [ ] No PC, o jogo não fica mais embaçado nem com o brilho estourado.
 - [ ] O INFINITO e o 1x1 continuam com a cara de antes.
+- [x] O DESATIVAR do menu secreto mostra MODO DEV DESATIVADO e volta ao menu; abrindo de novo, a caixa da senha aparece. *(testado pelo Claude)*
+- [x] No mapa, nenhum letreiro de capítulo cobre uma fase, um bônus ou o nome de um chefão. *(testado pelo Claude)*
+- [x] A linha acesa do caminho sai do prédio do topo do mapa até a 1-1. *(testado pelo Claude)*
 
 ## 1.13.0 (26/11/2026)
 

@@ -17,6 +17,9 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 ### Corrigido
 
 - No PC, o jogo ficava embaçado e com o brilho estourado quando aparecia pequeno na tela: agora ele é desenhado com pelo menos 720 pixels de largura e reduzido, e o brilho fica mais suave numa janela pequena.
+- Menu secreto do modo dev: depois do DESATIVAR, a tela ficava pedindo a senha sem a caixa para digitar. Agora aparece MODO DEV DESATIVADO e o jogo volta ao menu.
+- Mapa: o letreiro de um capítulo não fica mais em cima de uma fase, de um bônus, do INFINITO ou do nome de um chefão (o CENSURADO cobria a 7-1).
+- Mapa: a linha acesa do caminho começa no prédio do topo, de onde a rua entra no mapa, e não mais no meio da rua antes da 1-1.
 
 ## [1.13.0] · 26/11/2026 · Blocos com ?: as cápsulas saem só deles
 
