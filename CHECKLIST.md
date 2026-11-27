@@ -4,6 +4,11 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 
 ## 1.13.1 (27/11/2026)
 
+- [x] Patinho neon embaixo do nome na tela inicial e como ícone do app. *(testado pelo Claude)*
+- [ ] No celular, o ícone instalado virou o patinho (pode precisar reinstalar).
+- [x] 1x1 com blocos 71 × 36 e disco maior; PERFURAR atravessa até a IA rebater. *(testado pelo Claude)*
+- [ ] No 1x1, o PERFURAR fica bom de jogar e não limpa a faixa rápido demais.
+- [x] Vidas como corações na campanha e no 1x1. *(testado pelo Claude)*
 - [x] Capítulo 1 sem mecânica, LAN HOUSE com DESLIZE, TORRE AURUM com GRAVIDADE e nenhuma fase com SEGURANÇA. *(testado pelo Claude)*
 - [ ] As fases do capítulo 1 sem deslizar não ficaram fáceis demais.
 - [ ] A LAN HOUSE só com DESLIZE e a TORRE AURUM com os núcleos de gravidade ficam boas de jogar.

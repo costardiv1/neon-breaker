@@ -105,6 +105,22 @@ export function neonTitle(c, text, x, y, size, a, b, spacing = 0) {
 }
 
 // Filled glowing text for HUD / labels.
+// a life: a little neon heart, filled while it is still there
+export function drawHeart(c, x, y, r, k, on = true) {
+  c.save();
+  c.beginPath();
+  c.moveTo(x, y + r * 0.95);
+  c.bezierCurveTo(x - r * 1.35, y + r * 0.05, x - r * 1.05, y - r * 1.1, x, y - r * 0.4);
+  c.bezierCurveTo(x + r * 1.05, y - r * 1.1, x + r * 1.35, y + r * 0.05, x, y + r * 0.95);
+  c.closePath();
+  if (on) { c.fillStyle = rgba(k, 0.55); c.fill(); }
+  c.lineJoin = 'round';
+  c.strokeStyle = on ? k : rgba(k, 0.3); c.lineWidth = 2;
+  if (on) { c.shadowColor = k; c.shadowBlur = 6 * view.blur; }
+  c.stroke();
+  c.restore();
+}
+
 export function glowText(c, text, x, y, size, fill, glow, align = 'center', weight = 600, spacing = 2) {
   c.save();
   setFont(c, size, weight, spacing);

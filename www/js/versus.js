@@ -7,7 +7,7 @@
 // drops a capsule toward them, and the band comes back when it is cleared.
 // With `two`, a second person plays the top side on the same phone: each one
 // drags on their own half of the screen.
-import { TAU, rgba, neonStroke, glowText, neonTitle, view, roundRectPath, drawSprite } from './render.js';
+import { TAU, rgba, mix, neonStroke, glowText, neonTitle, view, roundRectPath, drawSprite, drawHeart } from './render.js';
 import { drawPlatform, outAngle, SHAPES, paletteColors, samplePal, hitTransform } from './platform.js';
 import { brickSprite, discSprite, drawTrail, trimTrail, tierTone, BALL_R, gfx } from './game.js';
 import { sfx, music, vibrate } from './audio.js';
@@ -16,7 +16,7 @@ const W = 720, LEFT = 14, RIGHT = W - 14;
 const LIVES = 7;
 const HW = 86;               // half the width of both platforms
 const PAD_GAP = 120;         // from each end of the field to its platform
-const R = 12;                // the disc
+const R = 14;                // the disc (a little smaller than the campaign's 16: two discs share the field)
 const V0 = 500, V_STEP = 10, V_MAX = 740;   // disc speed: start, gain per hit, cap
 // the AI plays like a person: it reacts late, speeds up and brakes (and
 // sometimes overshoots), reads the disc better as it comes closer, sometimes
@@ -24,7 +24,7 @@ const V0 = 500, V_STEP = 10, V_MAX = 740;   // disc speed: start, gain per hit, 
 const AI_VMAX = 700;         // top speed of the AI platform (px/s)
 const AI_ACC = 2600;         // how hard it can speed up or brake (px/s²)
 const AI_REACT = [0.12, 0.24];   // reaction time when a disc turns toward it (s)
-const COLS = 9, ROWS = 4, BW = (W - 64 - 8 * (COLS - 1)) / COLS, BH = 28, GAP = 8;
+const COLS = 9, ROWS = 4, BX = 18, GAP = 6, BW = (W - 2 * BX - GAP * (COLS - 1)) / COLS, BH = 36;   // the campaign's bricks (71 × 36)
 const CR = 34;               // the rounded corners of the field, like the campaign's
 const COUNT = 3;             // the countdown before a new band (s)
 
@@ -44,6 +44,8 @@ export const VS_CAPS = {
   shield: { name: 'ESCUDO', text: ['ESCUDO', 'IA COM ESCUDO'], two: 'ESCUDO', t: 0 },
   multi: { name: '+1 DISCO', text: ['MAIS UM DISCO', 'IA LANÇOU MAIS UM DISCO'], two: 'MAIS UM DISCO', t: 0 },
   invert: { name: 'INVERTE', text: ['IA COM CONTROLE INVERTIDO', 'SEU CONTROLE INVERTEU'], two: 'O OUTRO FICOU INVERTIDO', t: 4 },
+  // the disc goes through the bricks until the other side sends it back
+  pierce: { name: 'PERFURAR', text: ['DISCO PERFURANTE', 'DISCO DA IA PERFURANTE'], two: 'DISCO PERFURANTE', t: 0 },
 };
 const CAP_KEYS = Object.keys(VS_CAPS);
 // the capsule's icon, in white, like the campaign's capsules
@@ -65,6 +67,9 @@ function capIcon(c, kind, cx, m) {
     case 'invert':   // two arrows pointing opposite ways
       line([cx - 13, m - 4, cx + 9, m - 4]); line([cx + 4, m - 8, cx + 9, m - 4]);
       line([cx + 13, m + 4, cx - 9, m + 4]); line([cx - 4, m + 8, cx - 9, m + 4]); break;
+    case 'pierce':   // the campaign's: a disc with an arrow through it
+      c.beginPath(); c.arc(cx - 6, m, 4, 0, TAU); c.stroke();
+      line([cx - 15, m, cx + 14, m]); line([cx + 9, m - 5, cx + 14, m, cx + 9, m + 5]); break;
   }
   c.restore();
 }
@@ -73,7 +78,7 @@ function capIcon(c, kind, cx, m) {
 const warm = (c) => ['#ff7a1a', '#ff2d4a', '#ff45c0', '#ffd21f'].includes(c);
 const side = () => ({ fx: { grow: 0, shrink: 0, fast: 0, invert: 0 }, shield: false, hw: HW, queue: 0, serveT: 0, pulses: [] });
 const HOLD = 6;      // seconds a player can hold a disc before it goes by itself (both sides)
-const TRAIL = 420;   // the campaign's trail, scaled to this smaller disc
+const TRAIL = 520;   // the campaign's trail, scaled to this smaller disc
 
 export class Versus {
   constructor(H, top, plat, col, two = false) {
@@ -110,7 +115,7 @@ export class Versus {
       for (let c = 0; c < COLS; c++) {
         if (Math.random() < 0.12) continue;   // a few holes, so each band is different
         const inner = r === 1 || r === 2;
-        this.bricks.push({ x: 32 + c * (BW + GAP), y: y0 + r * (BH + GAP), w: BW, h: BH, hp: inner ? 2 : 1, max: inner ? 2 : 1, flash: 0, wait: 0, pop: 1, r, c, mark: false });
+        this.bricks.push({ x: BX + c * (BW + GAP), y: y0 + r * (BH + GAP), w: BW, h: BH, hp: inner ? 2 : 1, max: inner ? 2 : 1, flash: 0, wait: 0, pop: 1, r, c, mark: false });
       }
     }
     // the ?: one in each outer row (one per side) and two in the middle, in different columns
@@ -150,6 +155,8 @@ export class Versus {
     const who = b.held, th = k * 0.55, d = who === 'me' ? -1 : 1;
     b.vx = Math.sin(th) * b.s; b.vy = d * Math.cos(th) * b.s;
     b.held = null;
+    const p = this.side(who);
+    b.pierce = !!p.pierceNext; p.pierceNext = false; b.thru = null;   // a PERFURAR charge goes with the serve too
     if (who === 'me') this.aiRead(b);
     this.side(who).serveT = 0.7;   // the next disc in line comes a moment later
     sfx.launch();
@@ -321,7 +328,7 @@ export class Versus {
     else if (b.vy < 0 && b.y - R <= ai.y && b.y - R >= ai.y - 22 && Math.abs(b.x - ai.x) < ai.hw + R) this.bounce(b, ai, 'ai');
     // the bricks
     for (const q of this.bricks) {
-      if (!this.live(q)) continue;
+      if (b.pierce || !this.live(q)) continue;
       const cx = Math.max(q.x, Math.min(b.x, q.x + q.w)), cy = Math.max(q.y, Math.min(b.y, q.y + q.h));
       const dx = b.x - cx, dy = b.y - cy;
       if (dx * dx + dy * dy > R * R) continue;
@@ -334,6 +341,16 @@ export class Versus {
       if (!up && b.vy < 0) this.aiRead(b, b.own === 'ai');   // bounced back toward the AI
       this.hitBrick(q, b.own);
       break;
+    }
+    // PERFURAR: the disc goes through, breaking every brick it touches once
+    if (b.pierce) {
+      b.thru = b.thru || new Set();
+      for (const q of this.bricks) {
+        if (!this.live(q) || b.thru.has(q)) continue;
+        const cx = Math.max(q.x, Math.min(b.x, q.x + q.w)), cy = Math.max(q.y, Math.min(b.y, q.y + q.h));
+        if ((b.x - cx) ** 2 + (b.y - cy) ** 2 > R * R) continue;
+        b.thru.add(q); q.hp = 1; this.hitBrick(q, b.own);
+      }
     }
     // the shields, then past an end: a life lost
     if (b.vy > 0 && b.y > this.bottom - 4 && me.shield) this.block(b, 'me');
@@ -351,6 +368,7 @@ export class Versus {
   // a shield sends the disc back once
   block(b, who) {
     this.side(who).shield = false;
+    b.pierce = false;   // sent back: PERFURAR ends
     b.vy = -b.vy;
     this.slow(b);
     b.y = who === 'me' ? this.bottom - 4 : this.top + 4;
@@ -369,6 +387,8 @@ export class Versus {
     b.vx = Math.sin(th) * s; b.vy = d * Math.cos(th) * s;
     b.y = who === 'me' ? p.y - R : p.y + R;
     b.own = who;
+    // PERFURAR lasts until the other side hits the disc back; a charge waits for the next hit
+    b.pierce = !!p.pierceNext; p.pierceNext = false; b.thru = null;
     this.mark(b);
     p.hit = 1;
     // the campaign's hit: the platform's line lights up around the contact, and sparks
@@ -431,6 +451,11 @@ export class Versus {
     else if (kind === 'fast') p.fx.fast = def.t;
     else if (kind === 'shield') p.shield = true;
     else if (kind === 'invert') o.fx.invert = def.t;
+    else if (kind === 'pierce') {   // the discs on their way to the other side; with none, the next one this side hits
+      const mine = this.balls.filter((b) => !b.dead && !b.held && b.own === who && (who === 'me' ? b.vy < 0 : b.vy > 0));
+      for (const b of mine) { b.pierce = true; b.thru = null; }
+      if (!mine.length) p.pierceNext = true;
+    }
     else if (kind === 'multi') {   // a new disc leaves the platform right away
       const b = { x: p.x, y: who === 'me' ? p.y - R - 6 : p.y + R + 6, vx: 0, vy: 0, s: V0, own: who, held: who, wait: 0, path: [], spin: 0, react: 0, err: 0, aim: 0, wrong: false };
       this.balls.push(b);
@@ -584,7 +609,7 @@ export class Versus {
     for (const b of this.balls) {
       if (b.dead) continue;
       c.save(); c.translate(b.x, b.y); c.rotate(b.spin);
-      drawSprite(c, discSprite(this.tint(b.own), BALL_R, this.plat.disc || 0), -R, -R, R / BALL_R);
+      drawSprite(c, discSprite(b.pierce ? mix(this.tint(b.own), '#ffffff', 0.7) : this.tint(b.own), BALL_R, this.plat.disc || 0), -R, -R, R / BALL_R);
       c.restore();
     }
     const blink = rgba('#ffffff', 0.6 + 0.3 * Math.sin(this.t * 4));
@@ -709,12 +734,7 @@ export class Versus {
   renderHud(c) {
     const col = this.col, ai = this.aiCol, H = this.H, hy = this.top - 62;
     const lives = (x, n, k, dir) => {
-      for (let i = 0; i < LIVES; i++) {
-        const cx = x + dir * i * 24, on = i < n;
-        c.beginPath(); c.moveTo(cx, hy - 10); c.lineTo(cx + 9, hy); c.lineTo(cx, hy + 10); c.lineTo(cx - 9, hy); c.closePath();
-        if (on) { c.fillStyle = rgba(k, 0.55); c.fill(); }
-        c.strokeStyle = on ? k : rgba(k, 0.3); c.lineWidth = 2; c.stroke();
-      }
+      for (let i = 0; i < LIVES; i++) drawHeart(c, x + dir * i * 24, hy, 9, k, i < n);
     };
     glowText(c, this.two ? 'J1' : 'VOCÊ', 24, hy - 26, 12, rgba(col, 0.9), col, 'left', 700, 3);
     lives(34, this.me.lives, col, 1);

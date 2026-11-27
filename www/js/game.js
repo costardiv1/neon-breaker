@@ -1,4 +1,4 @@
-import { view, TAU, rgba, mix, roundRectPath, neonStroke, makeSprite, drawSprite, glowText, neonTitle, drawVirus } from './render.js';
+import { view, TAU, rgba, mix, roundRectPath, neonStroke, makeSprite, drawSprite, glowText, neonTitle, drawVirus, drawHeart } from './render.js';
 import { getStage, stageLabel, MECHS, TOTAL_STAGES, worldStart, worldCount, WORLDS, getBonus, bonusIndex } from './levels.js';
 import { SHAPES, drawPlatform, hitTransform, paletteColors, samplePal, shapePoints } from './platform.js';
 import { createBoss, collideRect } from './boss.js';
@@ -337,7 +337,8 @@ export function dropSprite(type, col) {
         break;
       case 'mega': c.beginPath(); c.arc(cx, m, 8, 0, TAU); c.stroke(); c.beginPath(); c.arc(cx, m, 2.5, 0, TAU); c.fill(); break;
       case 'mini': c.beginPath(); c.arc(cx, m, 4.5, 0, TAU); c.lineWidth = 2; c.stroke(); c.beginPath(); c.arc(cx, m, 1.3, 0, TAU); c.fill(); break;   // the MEGA's disc, small
-      case 'life': line([cx, m - 7, cx, m + 7]); line([cx - 7, m, cx + 7, m]); break;
+      case 'life':   // a heart, like the lives
+        c.beginPath(); c.moveTo(cx, m + 8); c.bezierCurveTo(cx - 11, m + 1, cx - 9, m - 9, cx, m - 3); c.bezierCurveTo(cx + 9, m - 9, cx + 11, m + 1, cx, m + 8); c.closePath(); c.stroke(); break;
       case 'dark':   // a crossed-out sun
         c.beginPath(); c.arc(cx, m, 5, 0, TAU); c.stroke();
         line([cx - 11, m + 8, cx + 11, m - 8]);
@@ -2979,8 +2980,7 @@ export class Game {
     const sub = E ? this.score + ' PONTOS  ·  ' + (this.boss || E.intro ? 'CHEFÃO' : 'CHEFÃO EM ' + fmtTime(Math.max(0, E.bossT)))
       : this.bonus ? this.bonus.name + (this.rainMul > 1 ? '  ·  COMBO x' + this.rainMul : '') : stageLabel(this.index) + '  ·  ' + (this.boss ? 'CHEFÃO' : this.world.name);
     glowText(c, sub, W / 2, hy + 36, 13, rgba(col, 0.85), col, 'center', 500, 4);
-    const ds = discSprite(col, BALL_R, this.plat.disc || 0);
-    for (let i = 0; i < Math.min(this.bonus ? 1 : this.lives, 6); i++) drawSprite(c, ds, 30 + i * 30, hy - 9, 0.55);
+    for (let i = 0; i < Math.min(this.bonus ? 1 : this.lives, 6); i++) drawHeart(c, 38 + i * 28, hy - 1, 10, col);   // the lives, as hearts
     if (this.wallet) {
       drawSprite(c, coinSprite(), 30, hy + 18, 0.62);
       const cs = String(this.wallet());

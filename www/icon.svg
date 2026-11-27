@@ -1,6 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#05070a"/>
-  <path d="M8 52 Q22 50 30 38" fill="none" stroke="#00e5ff" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round"/>
-  <circle cx="38" cy="28" r="13" fill="none" stroke="#00e5ff" stroke-width="5"/>
-  <circle cx="38" cy="28" r="6" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <filter id="g" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="100" height="100" rx="22" fill="#05070a"/>
+  <g transform="translate(50 52) scale(0.74) translate(-50 -52)" stroke-linejoin="round" stroke-linecap="round" filter="url(#g)">
+    <path d="M50 44 C44 36 44 18 60 14 C74 11 82 22 78 30 L94 33 C92 38 86 41 78 40 C76 46 72 50 72 54 C86 58 88 74 74 82 C60 90 30 90 18 80 C10 72 8 60 6 50 C16 56 28 54 38 50 C44 48 48 46 50 44 Z" fill="#00e5ff" fill-opacity="0.14" stroke="#00e5ff" stroke-width="5"/>
+    <path d="M30 64 C40 58 54 60 62 68 C52 74 40 74 30 64 Z" fill="none" stroke="#8cf2ff" stroke-width="3.5"/>
+    <circle cx="65" cy="25" r="4.5" fill="#ffffff"/>
+  </g>
 </svg>

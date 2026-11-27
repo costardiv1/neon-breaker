@@ -2194,6 +2194,7 @@ function layout() {
         btn(cx, M.y[2], M.w, M.h, '1x1', () => setScene('vsmenu'), { licon: 'vs' }),
         btn(cx, M.y[3], M.w, M.h, 'OPÇÕES', () => setScene('options'), { tint: menuFaded(), licon: 'gear' }),
         Object.assign(B, { label: '', fn: () => setScene('colors'), icon: 'pal', round: true }),
+        (() => { const L = menuLogo(); return { x: L.x - L.s / 2, y: L.y - L.s / 2, w: L.s, h: L.s, label: '', duck: true, quiet: true, fn: () => { sfx.quack(); logoQua = performance.now() / 1000; } }; })(),
       ];
     }
     case 'map': {
@@ -2574,6 +2575,46 @@ function updateDemo(dt) {
   if (demo.y > H - BALL_R) { demo.y = H - BALL_R; demo.vy = -Math.abs(demo.vy); hit = true; }
   if (hit) demo.path.push({ x: demo.x, y: demo.y });
   trimTrail(demo.path, demo.x, demo.y, 700);
+}
+// the logo: a neon duck (the same drawing as the app icon, www/icon.svg), under the name
+const DUCK_BODY = 'M50 44 C44 36 44 18 60 14 C74 11 82 22 78 30 L94 33 C92 38 86 41 78 40 C76 46 72 50 72 54 C86 58 88 74 74 82 C60 90 30 90 18 80 C10 72 8 60 6 50 C16 56 28 54 38 50 C44 48 48 46 50 44 Z';
+const DUCK_WING = 'M30 64 C40 58 54 60 62 68 C52 74 40 74 30 64 Z';
+let duckPaths = null, logoQua = -9;
+function menuLogo() {   // between the title and the buttons, as big as the gap allows
+  const M = menuList(), top = H * 0.17 + 140, bot = M.y[0] - M.hb / 2 - (bestT > 0 ? 46 : 16);
+  const s = Math.max(56, Math.min(130, bot - top - 10));
+  return { x: W / 2, y: (top + bot) / 2, s };
+}
+function drawLogoDuck(c, now, k) {
+  const L = menuLogo();
+  if (!duckPaths) duckPaths = { body: new Path2D(DUCK_BODY), wing: new Path2D(DUCK_WING) };
+  const q = now - logoQua, hop = q < 0.45 ? Math.sin((q / 0.45) * Math.PI) * 10 : 0;
+  c.save();
+  c.translate(L.x, L.y + Math.sin(now * 1.8) * 2.5 - hop);
+  c.scale(L.s / 100, L.s / 100);
+  c.translate(-50, -52);
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  c.fillStyle = rgba(k, 0.12); c.fill(duckPaths.body);
+  c.shadowColor = k; c.shadowBlur = 18 * view.blur;
+  c.strokeStyle = k; c.lineWidth = 4; c.stroke(duckPaths.body);
+  c.strokeStyle = mix(k, '#ffffff', 0.45); c.lineWidth = 3; c.stroke(duckPaths.wing);
+  c.shadowBlur = 0;
+  c.fillStyle = '#ffffff'; c.beginPath(); c.arc(65, 25, 4, 0, TAU); c.fill();
+  c.restore();
+  // ripples on the water under it
+  c.save();
+  c.strokeStyle = rgba(k, 0.45); c.lineWidth = 2; c.lineCap = 'round';
+  const wy = L.y + L.s * 0.36, sp = (now * 0.6) % 1;
+  for (const [dx, w] of [[-L.s * 0.55, L.s * 0.22], [L.s * 0.5, L.s * 0.18], [-L.s * 0.05, L.s * 0.5]]) {
+    c.globalAlpha = 0.5 + 0.3 * Math.sin(now * 2 + dx);
+    c.beginPath(); c.moveTo(L.x + dx - w / 2 - sp * 4, wy + (dx === -L.s * 0.05 ? 8 : 0)); c.lineTo(L.x + dx + w / 2 + sp * 4, wy + (dx === -L.s * 0.05 ? 8 : 0)); c.stroke();
+  }
+  c.restore();
+  if (q < 1.2) {
+    c.globalAlpha = Math.min(1, (1.2 - q) * 2);
+    glowText(c, 'qua!', L.x + L.s * 0.45, L.y - L.s * 0.45 - q * 26, 20, '#ffffff', k, 'center', 700, 4);
+    c.globalAlpha = 1;
+  }
 }
 function renderDemo(c) {
   c.globalAlpha = 0.5;
@@ -3771,7 +3812,8 @@ function render() {
     renderDemo(ctx);
     neonTitle(ctx, 'NEON', W / 2, H * 0.17, 130, k, k, 18);
     neonTitle(ctx, 'BREAKER', W / 2, H * 0.17 + 110, 58, mix(k, '#ffffff', 0.4), k, 18);
-    if (bestT > 0) glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, H * 0.17 + 180, 18, rgba(k, 0.85), k, 'center', 500, 5);
+    drawLogoDuck(ctx, now, k);
+    if (bestT > 0) { const M = menuList(); glowText(ctx, 'RECORDE NO INFINITO  ' + fmtTime(bestT), W / 2, M.y[0] - M.hb / 2 - 26, 18, rgba(k, 0.85), k, 'center', 500, 5); }
     if (menuMsg && now - menuMsg.t < 2) {
       ctx.globalAlpha = Math.min(1, (2 - (now - menuMsg.t)) * 2);
       glowText(ctx, menuMsg.text, W / 2, menuList().y[3] + menuList().h / 2 + 38, 14, '#ffffff', k, 'center', 700, 3);
@@ -3870,7 +3912,7 @@ function render() {
     if (b.node !== undefined) drawNode(ctx, b, now);
     else if (b.bonusNode !== undefined) drawBonusNode(ctx, b, now);
     else if (b.modeNode) drawModeNode(ctx, b, now);
-    else if (b.duck) continue;   // drawn with the map
+    else if (b.duck) continue;   // drawn with the map (or the menu logo)
     else if (b.theme !== undefined) drawColorTile(ctx, b);
     else if (b.bell) drawBell(ctx, b);
     else if (b.arch) drawArchive(ctx, b);
