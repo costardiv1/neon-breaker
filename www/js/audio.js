@@ -290,7 +290,7 @@ class Sfx {
     this.voice({ f: last ? 1320 : 880, dur: last ? 0.22 : 0.14, type: 'triangle', detune: [-4, 4], vol: 0.2, ff: 5000, fto: 1800, q: 2, send: 0.35 });
   }
   // two short nasal honks
-  // recorded sounds (www/sfx): a real mallard's quack. Credits in the CRÉDITOS screen.
+  // recorded sounds (www/sfx): a royalty-free duck quack. Credits in the CRÉDITOS screen.
   loadSamples() {
     this.samples = {};
     const load = (k, file) => fetch(new URL('../sfx/' + file, import.meta.url))

@@ -35,6 +35,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] 1x1 com blocos e disco maiores e cápsula PERFURAR; vidas como corações no 1x1 e na campanha. *(subiu sem atualizar)*
 - [x] Som de pato de verdade (CC BY-SA 3.0), ícone do navegador trocado, créditos sem sobreposição. *(subiu sem atualizar)*
 - [x] Emblemas GATINHO, PATINHO e PEIXINHO. *(subiu sem atualizar)*
+- [x] Som do pato trocado pelo quack do vídeo que o Vinícius mandou (efeito livre de direitos, Creative Commons Club); saiu o crédito CC BY-SA do pato-real. *(subiu sem atualizar)*
 
 ### 1.13.0 (26/11/2026)
 

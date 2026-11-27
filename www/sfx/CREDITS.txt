@@ -1,6 +1,5 @@
 quack.wav
-  A 0.5 s clip (first call, trimmed, normalized, resampled to 22 kHz mono) of
-  "Anas platyrhynchos - Mallard - XC62258" by Jonathon Jongsma (xeno-canto),
-  https://commons.wikimedia.org/wiki/File:Anas_platyrhynchos_-_Mallard_-_XC62258.ogg
-  License: CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0/
-  This clip is shared under the same license.
+  A 0.24 s clip (trimmed, normalized, resampled to 22 kHz mono) of the sound effect
+  "Duck Quack sound effect | No Copyright" from the Creative Commons Club channel (YouTube),
+  https://www.youtube.com/watch?v=6fhe2BRc6F4
+  Published there as royalty-free ("No Copyright").

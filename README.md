@@ -205,7 +205,7 @@ Feito por **Vinícius Costardi** e **Claude Code**, desenvolvido em vibe code.
 |---|---|
 | [Orbitron](https://fonts.google.com/specimen/Orbitron) (Matt McInerney), embutida em `www/fonts` | SIL Open Font License 1.1 |
 | Textos: fonte do sistema (Segoe UI, Roboto ou Helvetica) | do próprio dispositivo |
-| Som do pato (`www/sfx/quack.wav`): trecho de [Anas platyrhynchos - Mallard - XC62258](https://commons.wikimedia.org/wiki/File:Anas_platyrhynchos_-_Mallard_-_XC62258.ogg), de Jonathon Jongsma (xeno-canto) | CC BY-SA 3.0 |
+| Som do pato (`www/sfx/quack.wav`): trecho de [Duck Quack sound effect](https://www.youtube.com/watch?v=6fhe2BRc6F4), do canal Creative Commons Club (YouTube) | divulgado como livre de direitos |
 | Gráficos, efeitos, o resto dos sons e as músicas | gerados por código no próprio jogo |
 
 Inspirado nos quebra-blocos clássicos e na estética neon de Tron.

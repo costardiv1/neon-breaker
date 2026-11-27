@@ -5,7 +5,8 @@ O que testar em cada versão, para conferir as novidades sem jogar tudo de novo.
 ## 1.13.1 (27/11/2026)
 
 - [x] Emblemas GATINHO, PATINHO e PEIXINHO no BREAKERS, animados. *(testado pelo Claude)*
-- [ ] O som do pato de verdade toca no menu, na fonte do mapa e na nave do NEON FIGHTERS, e ficou bom.
+- [ ] O som do pato novo (o quack do vídeo) toca no menu, na fonte do mapa e na nave do NEON FIGHTERS, e ficou bom.
+- [ ] A tela CRÉDITOS mostra o crédito novo do som do pato (Creative Commons Club), sem sobrepor os botões.
 - [ ] O ícone da aba do navegador virou o patinho.
 - [x] Créditos: GitHub e Instagram dos lados do VOLTAR, sem cobrir o texto. *(testado pelo Claude)*
 - [x] Patinho neon embaixo do nome na tela inicial e como ícone do app. *(testado pelo Claude)*

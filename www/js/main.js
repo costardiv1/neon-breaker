@@ -1549,7 +1549,7 @@ function renderCrash(c, now) {
 // ---------- credits ----------
 const CREDITS = [
   ['Fonte Orbitron', ' (Matt McInerney), do Google Fonts: SIL Open Font License 1.1.'],
-  ['Som do pato', ': Jonathon Jongsma (xeno-canto, Wikimedia Commons), CC BY-SA 3.0.'],
+  ['Som do pato', ': efeito livre de direitos, do canal Creative Commons Club (YouTube).'],
   ['O resto', ': gráficos, sons e músicas feitos por código; textos na fonte do sistema.'],
   ['Inspiração', ': os quebra-blocos clássicos e o neon de Tron.'],
 ];
