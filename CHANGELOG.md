@@ -6,6 +6,7 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 
 ### Adicionado
 
+- Três emblemas novos no BREAKERS, animados: GATINHO (220 moedas), PATINHO (250) e PEIXINHO (220).
 - Nova logo: um patinho neon, no ícone do app e na tela inicial, embaixo do nome do jogo.
 - 1x1: nova cápsula PERFURAR. O disco de quem pega atravessa os blocos até o adversário rebater (ou o escudo dele devolver); sem disco indo para o outro lado, ela vale para a próxima rebatida ou o próximo lançamento.
 - Toda fase ganhou até 3 fileiras novas embaixo (8 no máximo), espelhadas do próprio desenho. As novas só têm blocos comuns de 1 ou 2 toques, sem vírus nem gota. A 1-1 foi de 19 para 31 blocos e as fases mais cheias chegam a 60.
@@ -16,11 +17,14 @@ Todas as mudanças do **Neon Breaker**. As versões 0.1 a 0.9 foram alphas; a 1.
 - Cada fase tem de 5 a 9 blocos com ? (um a cada 6 blocos).
 - Ligar o modo dev já liga o desbloquear tudo, com os perks no máximo; o painel dev ainda pode desligar.
 - Mecânicas: o capítulo 1 ficou sem mecânica, só o básico. O DESLIZE passou para o capítulo 2 (LAN HOUSE), a GRAVIDADE para o capítulo 9 (TORRE AURUM), e os núcleos de gravidade saíram das fases dos capítulos 3 a 8 (TELA ACESA e TRENDING ganharam DESLIZE no lugar).
+- O som do pato agora é uma gravação de verdade (um pato-real), com crédito na tela CRÉDITOS.
 - As vidas viraram coraçõezinhos na cor do tema, na campanha e no 1x1 (cada lado na sua cor); a cápsula de vida também mostra um coração.
 - A mecânica SEGURANÇA saiu do jogo: as fases da TORRE AURUM trocaram os feixes por núcleos de gravidade, e o INFINITO e a ATUALIZAÇÃO não sorteiam mais ela (na BACKUP entrou a BLINDAGEM e na ROOT a GRAVIDADE).
 
 ### Corrigido
 
+- O ícone do navegador às vezes continuava o antigo por causa do cache; agora troca para o patinho.
+- Créditos: em telas baixas, os botões do GitHub e do Instagram cobriam o texto; agora ficam dos lados do VOLTAR.
 - 1x1: os blocos tinham ficado menores que os da campanha; agora têm 71 × 36 como lá, e o disco cresceu um pouco (raio 14, era 12).
 - No PC, o jogo ficava embaçado e com o brilho estourado quando aparecia pequeno na tela: agora ele é desenhado com pelo menos 720 pixels de largura e reduzido, e o brilho fica mais suave numa janela pequena.
 - Menu secreto do modo dev: depois do DESATIVAR, a tela ficava pedindo a senha sem a caixa para digitar. Agora aparece MODO DEV DESATIVADO e o jogo volta ao menu.

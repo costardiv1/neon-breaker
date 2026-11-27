@@ -16,6 +16,7 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 <!-- Formato: - [ ] descrição curta da alteração (data do pedido) -->
 
 
+
 ### Ideias para o NEON FIGHTERS (jogo completo)
 
 - Cada breaker vira uma nave diferente, inspirada no formato, mantendo emblema e cores, com um tiro próprio: ARCO duplo e reto; LÂMINA um laser forte e rápido; PONTA leque de 3; FERRADURA das duas pontas curvando para dentro; ASA das pontas das asas, abrindo; ONDA em zigue-zague; FUNIL convergindo à frente.
@@ -32,6 +33,8 @@ Alterações pedidas e ainda não aplicadas. Quando a lista chegar a cerca de 10
 - [x] Capítulo 1 sem mecânica; DESLIZE na LAN HOUSE, GRAVIDADE na TORRE AURUM e a SEGURANÇA saiu do jogo. *(subiu sem atualizar)*
 - [x] Logo virou um patinho neon (ícone e tela inicial). *(subiu sem atualizar)*
 - [x] 1x1 com blocos e disco maiores e cápsula PERFURAR; vidas como corações no 1x1 e na campanha. *(subiu sem atualizar)*
+- [x] Som de pato de verdade (CC BY-SA 3.0), ícone do navegador trocado, créditos sem sobreposição. *(subiu sem atualizar)*
+- [x] Emblemas GATINHO, PATINHO e PEIXINHO. *(subiu sem atualizar)*
 
 ### 1.13.0 (26/11/2026)
 

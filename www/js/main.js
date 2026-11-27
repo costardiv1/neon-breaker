@@ -1055,7 +1055,7 @@ const PLAT_TABS = ['FORMATO', 'CORES', 'EMBLEMA', 'DISCO', 'RASTRO', 'PERKS'];
 const PERK_TAB = 5;
 const PLAT_ICONS = ['breakers', 'pal', 'emblem', 'disc', 'trail', 'card'];
 const PAL_COST = [10, 15, 20, 25, 30, 55, 35, 0];
-const EMB_COST = [0, 0, 90, 110, 130, 160, 270, 190];
+const EMB_COST = [0, 0, 90, 110, 130, 160, 270, 190, 220, 250, 220];
 let platTab = 0;
 const browse = { shape: 0, pal: 0, emb: 0, disc: 0, trail: 0 };
 const CATS = {
@@ -1548,10 +1548,10 @@ function renderCrash(c, now) {
 
 // ---------- credits ----------
 const CREDITS = [
-  ['Google Fonts', ', licença SIL Open Font License 1.1: Orbitron (Matt McInerney).'],
-  ['Textos do jogo', ': fonte do seu sistema (Segoe UI, Roboto ou Helvetica).'],
-  ['Gráficos, efeitos, sons e músicas', ': gerados por código no próprio jogo, sem arquivos de imagem ou áudio.'],
-  ['Inspiração', ': os quebra-blocos clássicos e a estética neon de Tron.'],
+  ['Fonte Orbitron', ' (Matt McInerney), do Google Fonts: SIL Open Font License 1.1.'],
+  ['Som do pato', ': Jonathon Jongsma (xeno-canto, Wikimedia Commons), CC BY-SA 3.0.'],
+  ['O resto', ': gráficos, sons e músicas feitos por código; textos na fonte do sistema.'],
+  ['Inspiração', ': os quebra-blocos clássicos e o neon de Tron.'],
 ];
 // wraps a bold lead + regular text; returns the y after the last line
 function richWrap(c, lead, rest, x, y, maxW, size, lh) {
@@ -1631,9 +1631,9 @@ function creditButtons() {
     list.push({ x: x0 + (w % ARCH_COLS) * (ARCH_S + ARCH_GAP), y: safeTop + 232 + Math.floor(w / ARCH_COLS) * (ARCH_S + ARCH_GAP), w: ARCH_S, h: ARCH_S,
       label: '', arch: bossOf(w), fn: ok ? () => startStory(w, 'credits') : null, off: !ok });
   }
-  const ly = H - 222;
-  list.push({ x: cx - 44 - 70, y: ly - 44, w: 88, h: 88, label: 'GITHUB', icon: 'github', fn: () => openUrl(REPO_URL) });
-  list.push({ x: cx - 44 + 70, y: ly - 44, w: 88, h: 88, label: 'INSTAGRAM', icon: 'insta', fn: () => openUrl(INSTA_URL) });
+  const ly = H - 100;   // on each side of VOLTAR, so they never cover the credits on short screens
+  list.push({ x: cx - 44 - 205, y: ly - 44, w: 88, h: 88, label: 'GITHUB', icon: 'github', fn: () => openUrl(REPO_URL) });
+  list.push({ x: cx - 44 + 205, y: ly - 44, w: 88, h: 88, label: 'INSTAGRAM', icon: 'insta', fn: () => openUrl(INSTA_URL) });
   list.push(backBtn('VOLTAR', () => setScene('options')));
   return list;
 }

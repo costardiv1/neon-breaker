@@ -12,7 +12,10 @@ Jogar a versão publicada pelo autor em https://costardiv1.github.io/neon-breake
 é livre.
 
 Exceção: a fonte Orbitron (Matt McInerney), carregada pelo Google Fonts, segue a
-sua própria licença, a SIL Open Font License 1.1.
+sua própria licença, a SIL Open Font License 1.1. O som do pato (www/sfx/quack.wav),
+um trecho de "Anas platyrhynchos - Mallard - XC62258", de Jonathon Jongsma
+(xeno-canto, via Wikimedia Commons), segue a licença CC BY-SA 3.0
+(https://creativecommons.org/licenses/by-sa/3.0/).
 
 Contato para pedidos de autorização: https://www.instagram.com/v.costardi
 
@@ -24,4 +27,6 @@ The source code is shown in this repository for reference only. No license is
 granted: copying, modifying, distributing, publishing (including on app stores
 such as Google Play), selling or using this game, in whole or in part, without
 the author's written permission is prohibited. The Orbitron font keeps its own
-license (SIL Open Font License 1.1).
+license (SIL Open Font License 1.1), and the duck sound (www/sfx/quack.wav, a clip
+of "Anas platyrhynchos - Mallard - XC62258" by Jonathon Jongsma) keeps its own
+license (CC BY-SA 3.0).

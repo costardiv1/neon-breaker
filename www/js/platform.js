@@ -40,7 +40,7 @@ export const PALETTES = [
   { name: 'SISTEMA', c: null }, // follows the game color
 ];
 
-export const EMBLEMS = ['NENHUM', 'MIRA', 'NÚCLEO', 'TRIÂNGULO', 'HEXÁGONO', 'RAIO', 'COROA', 'SETAS'];
+export const EMBLEMS = ['NENHUM', 'MIRA', 'NÚCLEO', 'TRIÂNGULO', 'HEXÁGONO', 'RAIO', 'COROA', 'SETAS', 'GATINHO', 'PATINHO', 'PEIXINHO'];
 
 export function paletteColors(pi, theme) {
   return PALETTES[pi].c || [theme, '#ffffff', theme];
@@ -399,6 +399,23 @@ function shapeDetail(c, si, x, y, hw, t, g2, g3, ga, gb) {
   }
 }
 
+// an SVG-like path (M, L, C, Z) traced into the current path, scaled by k around (ox, oy)
+function tracePath(c, d, k, ox, oy) {
+  const tk = d.match(/[MLCZ]|-?[\d.]+/g);
+  const P = (i) => [(+tk[i] - ox) * k, (+tk[i + 1] - oy) * k];
+  c.beginPath();
+  for (let i = 0; i < tk.length;) {
+    const op = tk[i++];
+    if (op === 'M') { c.moveTo(...P(i)); i += 2; }
+    else if (op === 'L') { c.lineTo(...P(i)); i += 2; }
+    else if (op === 'C') { c.bezierCurveTo(...P(i), ...P(i + 2), ...P(i + 4)); i += 6; }
+    else c.closePath();
+  }
+}
+// the game's logo duck (same drawing as main.js and www/icon.svg)
+const DUCK = 'M50 44 C44 36 44 18 60 14 C74 11 82 22 78 30 L94 33 C92 38 86 41 78 40 C76 46 72 50 72 54 C86 58 88 74 74 82 C60 90 30 90 18 80 C10 72 8 60 6 50 C16 56 28 54 38 50 C44 48 48 46 50 44 Z';
+const DUCK_WING = 'M30 64 C40 58 54 60 62 68 C52 74 40 74 30 64 Z';
+
 function drawEmblem(c, ei, x, y, t, grad, ga, gb) {
   const name = EMBLEMS[ei];
   if (name === 'NENHUM') return;
@@ -468,6 +485,46 @@ function drawEmblem(c, ei, x, y, t, grad, ga, gb) {
       c.moveTo(8 + o, -7); c.lineTo(15 + o, 0); c.lineTo(8 + o, 7);
       neon(c, grad, ga, gb, 2.4, 0.8);
       c.beginPath(); c.arc(0, 0, 3, 0, TAU); c.fillStyle = '#fff'; c.fill();
+      break;
+    }
+    case 'GATINHO': {   // a cat's head: ears that twitch now and then, eyes that blink, whiskers
+      const tw = Math.max(0, Math.sin(t * 1.3)) > 0.97 ? 2 : 0;
+      c.beginPath();
+      c.moveTo(-11, -2); c.lineTo(-11 - tw * 0.5, -14 - tw); c.lineTo(-4, -8);
+      c.quadraticCurveTo(0, -9.5, 4, -8); c.lineTo(11, -14); c.lineTo(11, -2);
+      c.quadraticCurveTo(12, 11, 0, 11); c.quadraticCurveTo(-12, 11, -11, -2); c.closePath();
+      neon(c, grad, ga, gb, 2, 0.8);
+      const blink = (t % 3.4) < 0.12;
+      c.fillStyle = '#fff';
+      for (const ex of [-4.5, 4.5]) { c.beginPath(); if (blink) c.rect(ex - 2, 0.5, 4, 1); else c.ellipse(ex, 1, 1.7, 2.4, 0, 0, TAU); c.fill(); }
+      c.beginPath(); c.moveTo(-1.5, 5); c.lineTo(1.5, 5); c.lineTo(0, 6.5); c.closePath(); c.fill();   // nose
+      c.beginPath();
+      c.moveTo(-6, 6); c.lineTo(-15, 4.5); c.moveTo(-6, 7.5); c.lineTo(-15, 8.5);
+      c.moveTo(6, 6); c.lineTo(15, 4.5); c.moveTo(6, 7.5); c.lineTo(15, 8.5);
+      neon(c, grad, gb, ga, 1.2, 0.5);
+      break;
+    }
+    case 'PATINHO': {   // the logo duck, bobbing on the water
+      c.translate(0, Math.sin(t * 2.2) * 1.2);
+      tracePath(c, DUCK, 0.3, 50, 52);
+      neon(c, grad, ga, gb, 2, 0.8);
+      tracePath(c, DUCK_WING, 0.3, 50, 52);
+      neon(c, grad, gb, ga, 1.3, 0.5);
+      c.beginPath(); c.arc((65 - 50) * 0.3, (25 - 52) * 0.3, 1.5, 0, TAU); c.fillStyle = '#fff'; c.fill();
+      break;
+    }
+    case 'PEIXINHO': {   // a fish swimming in place: the tail wags, a bubble rises
+      const w = Math.sin(t * 5) * 3;
+      c.beginPath();
+      c.moveTo(9, 0); c.quadraticCurveTo(2, -9, -6, -2); c.lineTo(-13, -7 + w * 0.4); c.lineTo(-12, 0); c.lineTo(-13, 7 + w * 0.4);
+      c.lineTo(-6, 2); c.quadraticCurveTo(2, 9, 9, 0); c.closePath();
+      neon(c, grad, ga, gb, 2, 0.8);
+      c.beginPath(); c.moveTo(-1, -5.5); c.quadraticCurveTo(1, -1, -1, 5.5); neon(c, grad, gb, ga, 1.2, 0.5);   // gill
+      c.beginPath(); c.arc(4, -1.5, 1.4, 0, TAU); c.fillStyle = '#fff'; c.fill();
+      const b = (t * 0.7) % 1;
+      c.globalAlpha = 1 - b;
+      c.beginPath(); c.arc(12 + b * 2, -4 - b * 10, 1.2 + b, 0, TAU); c.strokeStyle = '#fff'; c.lineWidth = 1; c.stroke();
+      c.globalAlpha = 1;
       break;
     }
   }

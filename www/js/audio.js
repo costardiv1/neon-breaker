@@ -20,6 +20,7 @@ class Sfx {
         if (!AC) return;
         this.ctx = new AC();
         this.build();
+        this.loadSamples();
       }
       if (this.ctx.state === 'suspended' && this.focused !== false && !document.hidden) this.ctx.resume();
     } catch (e) { /* audio unavailable */ }
@@ -289,7 +290,28 @@ class Sfx {
     this.voice({ f: last ? 1320 : 880, dur: last ? 0.22 : 0.14, type: 'triangle', detune: [-4, 4], vol: 0.2, ff: 5000, fto: 1800, q: 2, send: 0.35 });
   }
   // two short nasal honks
+  // recorded sounds (www/sfx): a real mallard's quack. Credits in the CRÉDITOS screen.
+  loadSamples() {
+    this.samples = {};
+    const load = (k, file) => fetch(new URL('../sfx/' + file, import.meta.url))
+      .then((r) => r.arrayBuffer())
+      .then((ab) => new Promise((ok, no) => this.ctx.decodeAudioData(ab, ok, no)))
+      .then((buf) => { this.samples[k] = buf; })
+      .catch(() => {});
+    load('quack', 'quack.wav');
+  }
+  sample(k, vol = 0.5, rate = 1) {
+    const buf = this.samples && this.samples[k];
+    if (!buf || !this.ctx || !this.enabled) return !!buf;
+    const c = this.ctx, src = c.createBufferSource(), g = c.createGain();
+    src.buffer = buf; src.playbackRate.value = rate;
+    g.gain.value = vol;
+    src.connect(g); g.connect(this.master);
+    src.start();
+    return true;
+  }
   quack() {
+    if (this.sample('quack', 0.6, 0.94 + Math.random() * 0.14)) return;   // a little higher or lower each time
     for (let i = 0; i < 2; i++) this.voice({ f: 560, to: 330, dur: 0.12, type: 'sawtooth', detune: [-18, 18], vol: 0.16,
       filter: 'bandpass', ff: 1400, fto: 750, q: 3, send: 0.2, delay: i * 0.17 });
   }
